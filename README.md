@@ -28,19 +28,19 @@
 
 PC 端二维码登录入口
 
-<img src="docs/screenshots/login.png" width="600" alt="扫码登录页" />
-
-### 会议首页
-
-大屏展示，实时弹幕欢迎新用户
-
-<img src="docs/screenshots/home.png" width="800" alt="会议首页" />
+<img src="docs/screenshots/login.png" width="300" alt="扫码登录页" />
 
 ### H5 注册页面
 
 手机端信息填写界面
 
 <img src="docs/screenshots/mobile.jpg" width="300" alt="H5注册页面" />
+
+### 会议首页
+
+大屏展示，实时弹幕欢迎新用户
+
+<img src="docs/screenshots/home.png" width="800" alt="会议首页" />
 
 ### 后台管理
 
