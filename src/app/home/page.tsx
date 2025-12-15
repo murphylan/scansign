@@ -106,20 +106,6 @@ export default function HomePage() {
     };
   }, []);
 
-  // 演示用：定期添加模拟弹幕（可删除）
-  useEffect(() => {
-    const demoNames = ["张三", "李四", "王五", "赵六", "陈七", "周八"];
-    let index = 0;
-    
-    // 页面加载时添加几条示例弹幕
-    const initialTimer = setTimeout(() => {
-      addDanmaku(demoNames[0]);
-      setTimeout(() => addDanmaku(demoNames[1]), 1500);
-      setTimeout(() => addDanmaku(demoNames[2]), 3000);
-    }, 1000);
-
-    return () => clearTimeout(initialTimer);
-  }, []);
 
   return (
     <main 

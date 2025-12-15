@@ -1,16 +1,43 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Sparkles, ArrowRight, Loader2 } from "lucide-react";
+
+interface Particle {
+  id: number;
+  left: string;
+  top: string;
+  delay: string;
+  duration: string;
+}
 
 function SuccessContent() {
   const searchParams = useSearchParams();
   const username = searchParams.get("username") || "用户";
   const department = searchParams.get("department") || "";
   const isNewUser = searchParams.get("isNew") === "true";
+  
+  const [particles, setParticles] = useState<Particle[]>([]);
+  const [mounted, setMounted] = useState(false);
+
+  // 客户端生成粒子，避免 hydration 不匹配
+  useEffect(() => {
+    setMounted(true);
+    const generatedParticles: Particle[] = [];
+    for (let i = 0; i < 20; i++) {
+      generatedParticles.push({
+        id: i,
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+        delay: `${Math.random() * 3}s`,
+        duration: `${3 + Math.random() * 2}s`,
+      });
+    }
+    setParticles(generatedParticles);
+  }, []);
 
   return (
     <main className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
@@ -18,20 +45,22 @@ function SuccessContent() {
       <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-background to-accent/20" />
       
       {/* 装饰性粒子 */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(20)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-2 h-2 rounded-full bg-primary/30 animate-float"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 3}s`,
-              animationDuration: `${3 + Math.random() * 2}s`,
-            }}
-          />
-        ))}
-      </div>
+      {mounted && (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {particles.map((particle) => (
+            <div
+              key={particle.id}
+              className="absolute w-2 h-2 rounded-full bg-primary/30 animate-float"
+              style={{
+                left: particle.left,
+                top: particle.top,
+                animationDelay: particle.delay,
+                animationDuration: particle.duration,
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       <Card className="w-full max-w-md relative animate-fade-in-up overflow-hidden">
         {/* 顶部装饰条 */}
@@ -50,7 +79,7 @@ function SuccessContent() {
           {/* 欢迎信息 */}
           <div className="space-y-3">
             <h1 className="text-3xl font-bold text-foreground">
-              {isNewUser ? "注册成功" : "登录成功"}
+              {isNewUser ? "签到成功" : "登录成功"}
             </h1>
             <p className="text-lg text-muted-foreground">
               {isNewUser ? "欢迎，" : "欢迎回来，"}
@@ -110,4 +139,3 @@ export default function SuccessPage() {
     </Suspense>
   );
 }
-

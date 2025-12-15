@@ -45,6 +45,13 @@ export function getUserById(id: string): RegisteredUser | null {
   return users.get(id) || null;
 }
 
+// 验证用户的验证码
+export function verifyUserCode(userId: string, code: string): boolean {
+  const user = users.get(userId);
+  if (!user) return false;
+  return user.verifyCode === code;
+}
+
 // 检查用户名+部门是否重复
 export function checkDuplicateUsername(
   username: string,
@@ -63,6 +70,11 @@ export function checkDuplicateUsername(
   return false;
 }
 
+// 生成随机3位数验证码
+function generateVerifyCode(): string {
+  return Math.floor(100 + Math.random() * 900).toString();
+}
+
 // 注册新用户
 export function registerUser(data: {
   phone: string;
@@ -78,6 +90,7 @@ export function registerUser(data: {
     username: data.username,
     departmentId: data.departmentId,
     departmentName: department?.name || "未知部门",
+    verifyCode: generateVerifyCode(),
     registeredAt: Date.now(),
     updatedAt: Date.now(),
   };

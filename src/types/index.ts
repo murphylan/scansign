@@ -40,6 +40,7 @@ export interface RegisteredUser {
   username: string;
   departmentId: string;
   departmentName: string;
+  verifyCode: string; // 3位数验证码，用于修改信息时验证身份
   registeredAt: number;
   updatedAt: number;
 }

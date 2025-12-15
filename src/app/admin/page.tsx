@@ -14,7 +14,8 @@ import {
   UserCog,
   Wifi,
   WifiOff,
-  Bell
+  Bell,
+  KeyRound
 } from "lucide-react";
 
 export default function AdminPage() {
@@ -263,6 +264,7 @@ export default function AdminPage() {
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">用户名</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">手机号</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">部门</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">验证码</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">注册时间</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">状态</th>
                     </tr>
@@ -293,6 +295,12 @@ export default function AdminPage() {
                           <span className="flex items-center gap-1.5">
                             <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
                             {user.departmentName}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-amber-500/10 text-amber-500 font-mono font-bold">
+                            <KeyRound className="w-3 h-3" />
+                            {user.verifyCode}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-muted-foreground text-sm">

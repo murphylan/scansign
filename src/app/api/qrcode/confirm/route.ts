@@ -5,6 +5,7 @@ import {
   checkDuplicateUsername,
   registerUser,
   updateUser,
+  verifyUserCode,
   DEPARTMENTS,
 } from "@/lib/user-store";
 import { userInfoSchema } from "@/types";
@@ -15,7 +16,7 @@ export async function POST(
 ): Promise<NextResponse<ApiResponse>> {
   try {
     const body = await request.json();
-    const { token, username, phone, departmentId, existingUserId } = body;
+    const { token, username, phone, departmentId, existingUserId, verifyCode } = body;
 
     if (!token) {
       return NextResponse.json(
@@ -34,27 +35,42 @@ export async function POST(
       );
     }
 
-    // 检查会话
+    // 检查会话（老用户更新信息时，session 可能已过期，这是允许的）
     const session = getSession(token);
-    if (!session) {
-      return NextResponse.json(
-        { success: false, error: "会话不存在或已过期" },
-        { status: 404 }
-      );
+    const isExistingUser = !!existingUserId;
+
+    // 新用户注册必须有有效的 session
+    if (!isExistingUser) {
+      if (!session) {
+        return NextResponse.json(
+          { success: false, error: "会话不存在或已过期，请重新扫码" },
+          { status: 404 }
+        );
+      }
+
+      if (session.status === "expired") {
+        return NextResponse.json(
+          { success: false, error: "二维码已过期，请刷新重试" },
+          { status: 410 }
+        );
+      }
     }
 
-    if (session.status === "expired") {
-      return NextResponse.json(
-        { success: false, error: "二维码已过期，请刷新重试" },
-        { status: 410 }
-      );
-    }
+    // 老用户修改信息需要验证验证码
+    if (isExistingUser) {
+      if (!verifyCode) {
+        return NextResponse.json(
+          { success: false, error: "请输入验证码" },
+          { status: 400 }
+        );
+      }
 
-    if (session.status === "confirmed") {
-      return NextResponse.json(
-        { success: false, error: "该二维码已被使用" },
-        { status: 409 }
-      );
+      if (!verifyUserCode(existingUserId, verifyCode)) {
+        return NextResponse.json(
+          { success: false, error: "验证码错误，如忘记请联系管理员" },
+          { status: 403 }
+        );
+      }
     }
 
     // 检查用户名+部门是否重复
@@ -73,6 +89,7 @@ export async function POST(
     const department = DEPARTMENTS.find((d) => d.id === validation.data.departmentId);
     let registeredUserId: string;
     let isNewUser = true;
+    let userVerifyCode: string | undefined;
 
     if (existingUserId) {
       // 更新现有用户
@@ -108,23 +125,27 @@ export async function POST(
         departmentId: validation.data.departmentId,
       });
       registeredUserId = newUser.id;
+      userVerifyCode = newUser.verifyCode; // 返回验证码给新用户
     }
 
-    // 更新会话状态
-    updateSessionStatus(token, "confirmed", {
-      username: validation.data.username,
-      phone: validation.data.phone,
-      departmentId: validation.data.departmentId,
-      departmentName: department?.name || "未知部门",
-      submittedAt: Date.now(),
-      isNewUser,
-    });
+    // 更新会话状态（如果 session 存在的话）
+    if (session) {
+      updateSessionStatus(token, "confirmed", {
+        username: validation.data.username,
+        phone: validation.data.phone,
+        departmentId: validation.data.departmentId,
+        departmentName: department?.name || "未知部门",
+        submittedAt: Date.now(),
+        isNewUser,
+      });
+    }
 
     return NextResponse.json({
       success: true,
       data: {
-        message: isNewUser ? "注册成功" : "信息更新成功",
+        message: isNewUser ? "签到成功" : "信息更新成功",
         userId: registeredUserId,
+        verifyCode: userVerifyCode, // 只有新用户才返回验证码
       },
     });
   } catch (error) {

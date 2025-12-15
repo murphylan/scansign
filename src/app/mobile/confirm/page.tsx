@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { userInfoSchema } from "@/types";
 import type { ApiResponse, Department, RegisteredUser, UserCheckResponse } from "@/types";
-import { User, Phone, CheckCircle2, XCircle, Loader2, ShieldCheck, Building2, UserPlus, LogIn } from "lucide-react";
+import { User, Phone, CheckCircle2, XCircle, Loader2, ShieldCheck, Building2, UserPlus, LogIn, KeyRound } from "lucide-react";
 
 function ConfirmContent() {
   const searchParams = useSearchParams();
@@ -19,7 +19,8 @@ function ConfirmContent() {
   const [username, setUsername] = useState("");
   const [phone, setPhone] = useState("");
   const [departmentId, setDepartmentId] = useState("");
-  const [errors, setErrors] = useState<{ username?: string; phone?: string; departmentId?: string }>({});
+  const [verifyCode, setVerifyCode] = useState("");
+  const [errors, setErrors] = useState<{ username?: string; phone?: string; departmentId?: string; verifyCode?: string }>({});
   
   // 页面状态
   const [isLoading, setIsLoading] = useState(true);
@@ -29,6 +30,9 @@ function ConfirmContent() {
   
   // 用户状态
   const [existingUser, setExistingUser] = useState<RegisteredUser | null>(null);
+  
+  // 新用户签到成功后返回的验证码
+  const [returnedVerifyCode, setReturnedVerifyCode] = useState<string | null>(null);
   
   // 部门列表
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -96,6 +100,7 @@ function ConfirmContent() {
   // 手机号变化时检查
   const handlePhoneChange = (value: string) => {
     setPhone(value);
+    setVerifyCode(""); // 清空验证码
     if (/^1[3-9]\d{9}$/.test(value)) {
       checkPhone(value);
     } else {
@@ -144,8 +149,20 @@ function ConfirmContent() {
       return;
     }
 
+    // 老用户必须输入验证码
+    if (existingUser && !verifyCode) {
+      setErrors((prev) => ({ ...prev, verifyCode: "请输入验证码" }));
+      return;
+    }
+
+    if (existingUser && !/^\d{3}$/.test(verifyCode)) {
+      setErrors((prev) => ({ ...prev, verifyCode: "验证码为3位数字" }));
+      return;
+    }
+
     setIsSubmitting(true);
     setErrors({});
+    setErrorMessage("");
 
     // 检查用户名重复
     const isDuplicate = await checkUsernameConflict();
@@ -165,12 +182,17 @@ function ConfirmContent() {
           phone: validation.data.phone,
           departmentId: validation.data.departmentId,
           existingUserId: existingUser?.id,
+          verifyCode: existingUser ? verifyCode : undefined,
         }),
       });
 
-      const data: ApiResponse = await response.json();
+      const data: ApiResponse<{ verifyCode?: string }> = await response.json();
 
       if (data.success) {
+        // 新用户签到成功，保存返回的验证码
+        if (data.data?.verifyCode) {
+          setReturnedVerifyCode(data.data.verifyCode);
+        }
         setSubmitStatus("success");
       } else {
         setSubmitStatus("error");
@@ -195,6 +217,8 @@ function ConfirmContent() {
 
   // 成功状态
   if (submitStatus === "success") {
+    const isNewUser = !!returnedVerifyCode;
+    
     return (
       <main className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/5 via-background to-accent/5">
         <Card className="w-full max-w-sm text-center animate-fade-in-up">
@@ -203,10 +227,27 @@ function ConfirmContent() {
               <CheckCircle2 className="w-10 h-10 text-primary" />
             </div>
             <h2 className="text-2xl font-bold text-foreground">
-              {existingUser ? "登录成功" : "注册成功"}
+              <span className="text-primary">{username}</span> {isNewUser ? "签到成功" : "修改成功"}
             </h2>
+            
+            {/* 新用户显示验证码 */}
+            {returnedVerifyCode && (
+              <div className="mt-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <KeyRound className="w-5 h-5 text-amber-500" />
+                  <span className="text-sm font-medium text-amber-600">您的专属验证码</span>
+                </div>
+                <p className="text-4xl font-bold text-amber-500 tracking-widest">
+                  {returnedVerifyCode}
+                </p>
+                <p className="text-xs text-amber-600/80 mt-2">
+                  请牢记此验证码，修改信息时需要验证
+                </p>
+              </div>
+            )}
+            
             <p className="text-muted-foreground">
-              您可以关闭此页面，电脑端将自动跳转到首页
+              您可以关闭此页面
             </p>
           </CardContent>
         </Card>
@@ -254,12 +295,12 @@ function ConfirmContent() {
             )}
           </div>
           <CardTitle className="text-2xl font-bold">
-            {isReturningUser ? "欢迎回来" : "用户注册"}
+            {isReturningUser ? "欢迎回来" : "用户签到"}
           </CardTitle>
           <CardDescription>
             {isReturningUser 
-              ? "您已注册，可确认或修改信息后登录" 
-              : "请输入您的信息完成注册"
+              ? "您已签到，可确认或修改信息后登录" 
+              : "请输入您的信息完成签到"
             }
           </CardDescription>
         </CardHeader>
@@ -337,6 +378,38 @@ function ConfirmContent() {
               )}
             </div>
 
+            {/* 老用户验证码输入 */}
+            {isReturningUser && (
+              <div className="space-y-2">
+                <Label htmlFor="verifyCode" className="flex items-center gap-2">
+                  <KeyRound className="w-4 h-4 text-amber-500" />
+                  验证码
+                  <span className="text-xs text-amber-500 font-normal">(首次签到时获得)</span>
+                </Label>
+                <Input
+                  id="verifyCode"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={3}
+                  placeholder="请输入3位验证码"
+                  value={verifyCode}
+                  onChange={(e) => {
+                    setVerifyCode(e.target.value.replace(/\D/g, "").slice(0, 3));
+                    setErrors((prev) => ({ ...prev, verifyCode: undefined }));
+                  }}
+                  className={`text-center text-xl tracking-widest ${errors.verifyCode ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                  disabled={isSubmitting}
+                />
+                {errors.verifyCode && (
+                  <p className="text-sm text-destructive">{errors.verifyCode}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  如忘记验证码，请联系管理员获取
+                </p>
+              </div>
+            )}
+
             {/* 错误提示 */}
             {submitStatus === "error" && errorMessage && (
               <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
@@ -363,12 +436,12 @@ function ConfirmContent() {
               ) : isReturningUser ? (
                 <>
                   <LogIn className="w-5 h-5" />
-                  确认登录
+                  确认修改
                 </>
               ) : (
                 <>
                   <ShieldCheck className="w-5 h-5" />
-                  确认注册
+                  确认签到
                 </>
               )}
             </Button>
@@ -376,8 +449,8 @@ function ConfirmContent() {
 
           <p className="text-xs text-center text-muted-foreground">
             {isReturningUser 
-              ? "如需修改信息，直接编辑后提交即可"
-              : "提交即表示您同意我们的服务条款和隐私政策"
+              ? "输入验证码后方可修改信息"
+              : "签到成功后将获得专属验证码，请妥善保管"
             }
           </p>
         </CardContent>
