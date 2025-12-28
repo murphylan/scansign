@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ScanSign - 扫码签到",
-  description: "使用微信扫描二维码完成签到登录",
+  title: "Murphy - 互动工具集",
+  description: "签到、投票、抽奖、表单，一站式满足各类活动互动需求",
 };
 
 export default function RootLayout({

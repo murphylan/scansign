@@ -1,6 +1,6 @@
-# ScanSign - 扫码签到系统
+# Murphy 互动工具集
 
-一个基于 H5 页面的扫码签到登录解决方案，支持会议签到、弹幕欢迎、实时用户管理。
+一个面向全社会的多场景互动工具平台，支持签到、投票、抽奖、表单等功能。
 
 ## 技术栈
 
@@ -11,243 +11,245 @@
 - ✅ **Schema Validations** - Zod
 - 🗂️ **State Management** - Zustand
 
-## 功能特点
+## 功能模块
 
-- 🔐 生成唯一 Token 的二维码
-- 📱 H5 页面收集用户信息（用户名、手机号、部门）
-- 🔄 PC 端实时轮询检测登录状态
-- ⏱️ 二维码自动过期机制（5分钟）
-- 🎉 会议首页弹幕欢迎效果
-- 👥 后台实时用户管理
-- 🔁 老用户识别与信息回显
-- 🔑 **3位验证码安全机制**，防止恶意修改他人信息
-- ✨ 精美的暗色主题 UI 设计
+### 📝 签到 (已完成)
+- 独立创建签到活动，获得唯一短码
+- 大屏展示，二维码位置可配置（9宫格任意位置）
+- 手机扫码签到，支持收集姓名、部门等信息
+- 签到后可配置：显示成功消息、跳转指定URL、无操作
+- 实时弹幕欢迎、统计展示
+- 3位验证码防止恶意修改
 
-## 页面截图
+### 📊 投票 (已完成)
+- 定制化投票主题
+- 单选/多选支持
+- 实时结果展示（SSE推送）
+- 多种图表可视化（饼图、柱状图、进度条、对决模式）
+- 允许修改投票、匿名投票等规则配置
+- 大屏二维码位置可配置
 
-### 扫码登录页
+### 🎁 抽奖 (已完成)
+- 多种抽奖模式（转盘、老虎机）
+- 精彩动画效果
+- 自定义奖品和概率
+- 每人抽奖次数限制
+- 实时中奖推送和名单展示
+- 大屏中奖弹幕效果
 
-PC 端二维码登录入口
+### 🎁 抽奖特性 (原开发中)
+- 多种抽奖模式（转盘、滚动、红包雨等）
+- 奖品设置与概率配置
+- 精彩的抽奖动画
 
-<img src="docs/screenshots/login.png" width="300" alt="扫码登录页" />
+### 📋 表单 (已完成)
+- 定制化表单字段（文本、数字、手机号、邮箱、单选、多选、下拉、日期、时间、评分等）
+- 提交前预览确认
+- 提交后成功反馈、跳转支持
+- 每人限提交一次、需要手机号等规则
+- SSE 实时推送新提交
+- CSV 数据导出
 
-### H5 注册页面
+## 页面结构
 
-手机端信息填写界面
+### 公开页面（参与者）
+| 功能 | 手机端入口 | 大屏展示 | 状态 |
+|------|-----------|----------|------|
+| 签到 | `/c/{code}` | `/c/{code}/display` | ✅ 已完成 |
+| 投票 | `/v/{code}` | `/v/{code}/display` | ✅ 已完成 |
+| 表单 | `/f/{code}` | `/f/{code}/display` | ✅ 已完成 |
+| 抽奖 | `/l/{code}` | `/l/{code}/display` | ✅ 已完成 |
 
-<img src="docs/screenshots/mobile.jpg" width="300" alt="H5注册页面" />
-
-### 会议首页
-
-大屏展示，实时弹幕欢迎新用户
-
-<img src="docs/screenshots/home.png" width="800" alt="会议首页" />
-
-### 后台管理
-
-实时用户列表、验证码查看和统计
-
-<img src="docs/screenshots/admin.png" width="800" alt="后台管理" />
-
-## 使用指南
-
-### 页面一览
-
+### 管理后台
 | 页面 | 地址 | 说明 |
 |------|------|------|
-| 扫码登录 | `/` | PC 端扫码入口页面 |
-| 会议首页 | `/home` | 显示会议主题和欢迎弹幕 |
-| 用户注册 | `/mobile/confirm?token=xxx` | 手机端信息填写页面 |
-| 后台管理 | `/admin` | 实时查看注册用户列表和验证码 |
-
-### 完整使用流程
-
-#### 1️⃣ 管理员准备
-
-1. 启动服务后，在大屏幕上打开 **会议首页** (`/home`)
-2. 另开一个浏览器窗口打开 **后台管理** (`/admin`) 监控注册情况
-
-#### 2️⃣ 用户签到
-
-1. 用户在自己的电脑/平板上访问 **扫码登录页** (`/`)
-2. 使用微信扫描页面上的二维码
-3. 手机上打开 H5 页面，填写信息：
-   - 📱 手机号码
-   - 👤 用户名
-   - 🏢 所属部门
-4. 点击「确认注册」完成签到
-
-#### 3️⃣ 签到成功
-
-- **手机端**：显示 "xxx 签到成功" 和 **专属3位验证码**
-- **会议首页**：滚动显示 "🎉 欢迎 xxx 加入！" 弹幕
-- **后台管理**：实时显示新注册用户，并弹出提醒
-
-> ⚠️ **重要提示**：请用户牢记自己的3位验证码，修改信息时需要验证！
-
-#### 4️⃣ 老用户再次签到
-
-1. 输入手机号后自动识别为老用户
-2. 回显上次注册的用户名和部门
-3. **输入首次签到时获得的3位验证码**
-4. 验证通过后可修改用户名、部门等信息
-5. 提交后显示 "xxx 修改成功"
-
-### 安全与防重复机制
-
-- **手机号唯一**：同一手机号只能注册一次，再次扫码显示已有信息
-- **用户名+部门唯一**：同一部门内不允许重名
-- **验证码保护**：
-  - 首次签到时系统生成随机3位验证码
-  - 老用户修改信息必须输入正确的验证码
-  - 防止他人通过手机号恶意修改别人的信息
-  - 忘记验证码可联系管理员在后台查看
+| 首页 | `/` | 产品介绍页 |
+| 控制台 | `/dashboard` | 管理后台首页 |
+| 签到管理 | `/checkins` | 签到列表 |
+| 创建签到 | `/checkins/new` | 创建新签到 |
+| 签到详情 | `/checkins/{id}` | 查看签到数据 |
+| 投票管理 | `/votes` | 投票列表 |
+| 创建投票 | `/votes/new` | 创建新投票 |
+| 投票详情 | `/votes/{id}` | 查看投票数据 |
+| 表单管理 | `/forms` | 表单列表 |
+| 创建表单 | `/forms/new` | 创建新表单 |
+| 表单详情 | `/forms/{id}` | 查看表单数据 |
+| 抽奖管理 | `/lotteries` | 抽奖列表 |
+| 创建抽奖 | `/lotteries/new` | 创建新抽奖 |
+| 抽奖详情 | `/lotteries/{id}` | 查看抽奖数据 |
 
 ## 快速开始
 
 ### 安装依赖
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### 开发模式
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
-访问 http://localhost:3000 查看登录页面
+访问 http://localhost:3000
 
 ### 生产构建
 
 ```bash
-npm run build
-npm run start
+pnpm build
+pnpm start
 ```
+
+## 使用流程
+
+### 管理员操作
+
+1. 访问控制台 `/dashboard`
+2. 点击「创建签到」
+3. 配置签到标题、收集信息、签到后行为等
+4. 创建成功后获得签到短码
+5. 打开大屏展示 `/c/{code}/display`
+6. 分享手机端链接或二维码给参与者
+
+### 参与者操作
+
+1. 扫描二维码或访问 `/c/{code}`
+2. 填写手机号、姓名等信息
+3. 点击「确认签到」
+4. 签到成功，大屏实时显示欢迎弹幕
+
+## 大屏二维码位置
+
+二维码可配置在大屏的9个位置：
+
+```
+┌─────────────────────────────┐
+│  左上     中上     右上      │
+│                             │
+│  左中     中心     右中      │
+│                             │
+│  左下     中下     右下      │
+└─────────────────────────────┘
+```
+
+也可以选择「隐藏」，二维码不显示在大屏上。
 
 ## 项目结构
 
 ```
 src/
 ├── app/
+│   ├── (admin)/              # 管理后台
+│   │   ├── dashboard/        # 控制台
+│   │   ├── checkins/         # 签到管理
+│   │   │   ├── new/          # 创建签到
+│   │   │   └── [id]/         # 签到详情
+│   │   └── layout.tsx        # 后台布局
+│   ├── (public)/             # 公开页面
+│   │   └── c/[code]/         # 签到
+│   │       ├── page.tsx      # 手机端
+│   │       └── display/      # 大屏
 │   ├── api/
-│   │   ├── qrcode/
-│   │   │   ├── generate/        # 生成二维码
-│   │   │   ├── status/[token]/  # 查询登录状态
-│   │   │   └── confirm/         # 确认登录
-│   │   ├── user/
-│   │   │   ├── check/           # 检查手机号是否已注册
-│   │   │   ├── check-username/  # 检查用户名重复
-│   │   │   ├── list/            # 获取用户列表
-│   │   │   └── stream/          # SSE 实时推送
-│   │   └── departments/         # 获取部门列表
-│   ├── home/                    # 会议首页（弹幕）
-│   ├── admin/                   # 后台管理页面
-│   ├── mobile/confirm/          # H5 信息收集页面
-│   ├── success/                 # 登录成功页面
-│   ├── page.tsx                 # PC 端扫码登录页面
-│   ├── layout.tsx
-│   └── globals.css
-├── components/ui/               # Shadcn-ui 组件
+│   │   └── checkins/         # 签到 API
+│   ├── page.tsx              # 首页
+│   └── layout.tsx            # 根布局
+├── components/
+│   ├── ui/                   # 基础组件
+│   └── display/              # 大屏组件
+│       ├── qr-code-widget.tsx
+│       ├── danmaku.tsx
+│       ├── stats-widget.tsx
+│       ├── vote-charts.tsx   # 投票图表组件
+│       ├── lottery-wheel.tsx # 抽奖转盘组件
+│       └── lottery-slot.tsx  # 老虎机组件
 ├── lib/
-│   ├── utils.ts                 # 工具函数
-│   ├── session-store.ts         # 会话存储（内存）
-│   └── user-store.ts            # 用户存储（内存）
-├── store/
-│   └── login-store.ts           # Zustand 状态管理
+│   ├── stores/               # 数据存储
+│   │   ├── checkin-store.ts
+│   │   ├── vote-store.ts
+│   │   ├── form-store.ts
+│   │   └── lottery-store.ts
+│   └── utils/
+│       └── code-generator.ts
 └── types/
-    └── index.ts                 # TypeScript 类型定义
+    ├── common.ts             # 通用类型
+    ├── checkin.ts            # 签到类型
+    ├── vote.ts               # 投票类型
+    ├── form.ts               # 表单类型
+    └── lottery.ts            # 抽奖类型
 ```
 
 ## API 接口
 
-### 二维码相关
+### 签到相关
 
-#### POST /api/qrcode/generate
-生成新的二维码
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/checkins` | 获取签到列表 |
+| POST | `/api/checkins` | 创建签到 |
+| GET | `/api/checkins/{id}` | 获取签到详情 |
+| PATCH | `/api/checkins/{id}` | 更新签到 |
+| DELETE | `/api/checkins/{id}` | 删除签到 |
+| GET | `/api/checkins/{id}/qrcode` | 获取二维码 |
+| GET | `/api/checkins/{id}/records` | 获取签到记录 |
+| POST | `/api/checkins/{id}/confirm` | 执行签到 |
+| GET | `/api/checkins/{id}/stream` | SSE 实时推送 |
+| GET | `/api/checkins/code/{code}` | 根据短码获取签到 |
 
-**响应:**
-```json
-{
-  "success": true,
-  "data": {
-    "token": "uuid-string",
-    "qrCodeUrl": "data:image/png;base64,...",
-    "expiresAt": 1702547200000
-  }
-}
-```
+### 投票相关
 
-#### GET /api/qrcode/status/[token]
-查询登录状态
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/votes` | 获取投票列表 |
+| POST | `/api/votes` | 创建投票 |
+| GET | `/api/votes/{id}` | 获取投票详情 |
+| PATCH | `/api/votes/{id}` | 更新投票 |
+| DELETE | `/api/votes/{id}` | 删除投票 |
+| POST | `/api/votes/{id}?action=reset` | 重置投票结果 |
+| GET | `/api/votes/{id}/qrcode` | 获取二维码 |
+| POST | `/api/votes/{id}/submit` | 提交投票 |
+| GET | `/api/votes/{id}/submit?phone=xxx` | 检查是否已投票 |
+| GET | `/api/votes/{id}/stream` | SSE 实时推送 |
+| GET | `/api/votes/code/{code}` | 根据短码获取投票 |
 
-**响应:**
-```json
-{
-  "success": true,
-  "data": {
-    "status": "pending | confirmed | expired",
-    "userInfo": {
-      "username": "用户名",
-      "phone": "13800138000",
-      "departmentId": "tech",
-      "departmentName": "技术部",
-      "isNewUser": true,
-      "submittedAt": 1702547200000
-    }
-  }
-}
-```
+### 表单相关
 
-#### POST /api/qrcode/confirm
-确认登录并提交用户信息
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/forms` | 获取表单列表 |
+| POST | `/api/forms` | 创建表单 |
+| GET | `/api/forms/{id}` | 获取表单详情 |
+| PATCH | `/api/forms/{id}` | 更新表单 |
+| DELETE | `/api/forms/{id}` | 删除表单 |
+| GET | `/api/forms/{id}/qrcode` | 获取二维码 |
+| GET | `/api/forms/{id}/responses` | 获取提交列表 |
+| GET | `/api/forms/{id}/responses?format=csv` | 导出 CSV |
+| POST | `/api/forms/{id}/submit` | 提交表单 |
+| GET | `/api/forms/{id}/submit?phone=xxx` | 检查是否已提交 |
+| GET | `/api/forms/{id}/stream` | SSE 实时推送 |
+| GET | `/api/forms/code/{code}` | 根据短码获取表单 |
 
-**请求体:**
-```json
-{
-  "token": "uuid-string",
-  "username": "用户名",
-  "phone": "13800138000",
-  "departmentId": "tech",
-  "existingUserId": "可选，老用户更新时传入",
-  "verifyCode": "可选，老用户修改时必填，3位数字验证码"
-}
-```
+### 抽奖相关
 
-**响应:**
-```json
-{
-  "success": true,
-  "data": {
-    "message": "签到成功",
-    "userId": "user_xxx",
-    "verifyCode": "123"  // 仅新用户首次签到时返回
-  }
-}
-```
-
-### 用户相关
-
-#### POST /api/user/check
-检查手机号是否已注册
-
-#### POST /api/user/check-username
-检查用户名+部门是否重复
-
-#### GET /api/user/list
-获取用户列表
-
-#### GET /api/user/stream
-SSE 实时推送用户注册/更新事件
-
-#### GET /api/departments
-获取部门列表
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/lotteries` | 获取抽奖列表 |
+| POST | `/api/lotteries` | 创建抽奖 |
+| GET | `/api/lotteries/{id}` | 获取抽奖详情 |
+| PATCH | `/api/lotteries/{id}` | 更新抽奖 |
+| DELETE | `/api/lotteries/{id}` | 删除抽奖 |
+| POST | `/api/lotteries/{id}?action=reset` | 重置抽奖 |
+| GET | `/api/lotteries/{id}/qrcode` | 获取二维码 |
+| POST | `/api/lotteries/{id}/draw` | 执行抽奖 |
+| GET | `/api/lotteries/{id}/draw?phone=xxx` | 检查抽奖次数 |
+| GET | `/api/lotteries/{id}/records` | 获取中奖记录 |
+| GET | `/api/lotteries/{id}/stream` | SSE 实时推送 |
+| GET | `/api/lotteries/code/{code}` | 根据短码获取抽奖 |
 
 ## 环境变量
 
 ```env
-# 应用基础URL（用于生成二维码中的H5链接）
+# 应用基础URL（用于生成二维码链接）
 NEXT_PUBLIC_BASE_URL=http://localhost:3000
 ```
 
@@ -257,30 +259,6 @@ NEXT_PUBLIC_BASE_URL=http://localhost:3000
 2. **域名配置**: 需要配置正确的 `NEXT_PUBLIC_BASE_URL`
 3. **HTTPS**: 生产环境必须使用 HTTPS
 4. **跨域配置**: 在 `next.config.ts` 中配置 `allowedDevOrigins`
-5. **用户验证**: 可根据需求添加短信验证码等额外验证
-
-## 自定义配置
-
-### 修改会议主题
-
-编辑 `src/app/home/page.tsx` 中的标题内容：
-
-```tsx
-<h1>嘉年华</h1>
-<p>年度盛典 · 共创未来</p>
-```
-
-### 修改部门列表
-
-编辑 `src/lib/user-store.ts` 中的 `DEPARTMENTS` 数组：
-
-```typescript
-export const DEPARTMENTS: Department[] = [
-  { id: "tech", name: "技术部" },
-  { id: "product", name: "产品部" },
-  // 添加更多部门...
-];
-```
 
 ## License
 

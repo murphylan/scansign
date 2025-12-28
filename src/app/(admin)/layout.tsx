@@ -19,9 +19,9 @@ import { useState } from 'react';
 const navigation = [
   { name: '控制台', href: '/dashboard', icon: LayoutDashboard },
   { name: '签到', href: '/checkins', icon: UserCheck },
-  { name: '投票', href: '/votes', icon: Vote, disabled: true },
-  { name: '抽奖', href: '/lotteries', icon: Gift, disabled: true },
-  { name: '表单', href: '/forms', icon: FileText, disabled: true },
+  { name: '投票', href: '/votes', icon: Vote },
+  { name: '表单', href: '/forms', icon: FileText },
+  { name: '抽奖', href: '/lotteries', icon: Gift },
   { name: '项目', href: '/projects', icon: FolderKanban, disabled: true },
 ];
 
