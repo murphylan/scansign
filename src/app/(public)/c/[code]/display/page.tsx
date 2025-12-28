@@ -1,0 +1,262 @@
+'use client';
+
+import { useEffect, useState, use, useRef } from 'react';
+import { QRCodeWidget } from '@/components/display/qr-code-widget';
+import { Danmaku } from '@/components/display/danmaku';
+import { StatsWidget } from '@/components/display/stats-widget';
+import { Checkin, CheckinRecord } from '@/types/checkin';
+import { Users } from 'lucide-react';
+
+interface DanmakuItem {
+  id: string;
+  text: string;
+}
+
+export default function CheckinDisplayPage({
+  params,
+}: {
+  params: Promise<{ code: string }>;
+}) {
+  const resolvedParams = use(params);
+  
+  const [checkin, setCheckin] = useState<Checkin | null>(null);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [danmakuItems, setDanmakuItems] = useState<DanmakuItem[]>([]);
+  const [recentRecords, setRecentRecords] = useState<CheckinRecord[]>([]);
+  
+  const eventSourceRef = useRef<EventSource | null>(null);
+
+  useEffect(() => {
+    async function fetchCheckin() {
+      try {
+        const res = await fetch(`/api/checkins/code/${resolvedParams.code}`);
+        if (res.ok) {
+          const data = await res.json();
+          setCheckin(data.data);
+          setQrCodeUrl(data.data.qrCodeUrl);
+        } else {
+          setError('签到不存在');
+        }
+      } catch {
+        setError('加载失败');
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    async function fetchRecords() {
+      try {
+        const res = await fetch(`/api/checkins/code/${resolvedParams.code}`);
+        if (res.ok) {
+          const data = await res.json();
+          const checkinId = data.data?.id;
+          if (checkinId) {
+            const recordsRes = await fetch(`/api/checkins/${checkinId}/records?limit=10`);
+            if (recordsRes.ok) {
+              const recordsData = await recordsRes.json();
+              setRecentRecords(recordsData.data || []);
+            }
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+    
+    fetchCheckin();
+    fetchRecords();
+  }, [resolvedParams.code]);
+
+  // SSE 连接
+  useEffect(() => {
+    if (!checkin) return;
+
+    const eventSource = new EventSource(`/api/checkins/${checkin.id}/stream`);
+    eventSourceRef.current = eventSource;
+    
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'new') {
+          const record = data.data as CheckinRecord;
+          
+          // 添加弹幕
+          const template = checkin.display.welcomeTemplate || '🎉 欢迎 {{name}} 加入！';
+          const text = template.replace('{{name}}', record.participant.name || '新朋友');
+          
+          setDanmakuItems((prev) => [
+            ...prev,
+            { id: record.id, text },
+          ]);
+          
+          // 更新最近签到
+          setRecentRecords((prev) => [record, ...prev].slice(0, 10));
+          
+          // 更新统计
+          setCheckin((prev) => prev ? {
+            ...prev,
+            stats: {
+              ...prev.stats,
+              total: prev.stats.total + 1,
+              today: prev.stats.today + 1,
+            },
+          } : prev);
+        }
+        
+        if (data.type === 'update') {
+          // 更新记录
+          const record = data.data as CheckinRecord;
+          setRecentRecords((prev) =>
+            prev.map((r) => (r.id === record.id ? record : r))
+          );
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [checkin]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-white border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (error || !checkin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-2">加载失败</h1>
+          <p className="text-white/60">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const backgroundStyle = checkin.display.background.type === 'gradient'
+    ? { background: checkin.display.background.value }
+    : checkin.display.background.type === 'image'
+    ? { 
+        backgroundImage: `url(${checkin.display.background.value})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }
+    : { backgroundColor: checkin.display.background.value };
+
+  return (
+    <div 
+      className="min-h-screen relative overflow-hidden"
+      style={backgroundStyle}
+    >
+      {/* 背景遮罩 */}
+      <div className="absolute inset-0 bg-black/30" />
+      
+      {/* 主内容 */}
+      <div className="relative z-10 min-h-screen flex flex-col">
+        {/* 顶部标题区域 */}
+        <header className="p-8 text-center">
+          <h1 className="text-5xl md:text-7xl font-bold text-white drop-shadow-lg mb-4">
+            {checkin.title}
+          </h1>
+          {checkin.description && (
+            <p className="text-xl md:text-2xl text-white/80">
+              {checkin.description}
+            </p>
+          )}
+        </header>
+
+        {/* 中间弹幕区域 */}
+        <div className="flex-1 relative">
+          <Danmaku items={danmakuItems} />
+        </div>
+
+        {/* 底部统计和列表 */}
+        <footer className="p-8">
+          <div className="flex items-end justify-between gap-8">
+            {/* 最近签到 */}
+            {checkin.display.showRecentList && recentRecords.length > 0 && (
+              <div className="flex-1 max-w-md">
+                <div className="bg-black/40 backdrop-blur-md rounded-2xl p-4">
+                  <h3 className="text-white/80 text-sm font-medium mb-3 flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    最近签到
+                  </h3>
+                  <div className="space-y-2 max-h-48 overflow-hidden">
+                    {recentRecords.slice(0, 5).map((record, index) => (
+                      <div
+                        key={record.id}
+                        className="flex items-center gap-3 text-white animate-fade-in-up"
+                        style={{ animationDelay: `${index * 0.05}s` }}
+                      >
+                        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center text-sm font-medium">
+                          {record.participant.name?.charAt(0) || '?'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">
+                            {record.participant.name || '匿名用户'}
+                          </p>
+                          {checkin.display.showDepartment && record.departmentName && (
+                            <p className="text-xs text-white/60 truncate">
+                              {record.departmentName}
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-xs text-white/40">
+                          {formatTime(record.checkedInAt)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 统计 */}
+            {checkin.display.showStats && (
+              <StatsWidget
+                total={checkin.stats.total}
+                today={checkin.stats.today}
+                byDepartment={checkin.stats.byDepartment}
+              />
+            )}
+          </div>
+        </footer>
+      </div>
+
+      {/* 二维码 */}
+      {qrCodeUrl && checkin.display.qrCode.show && (
+        <QRCodeWidget
+          qrCodeUrl={qrCodeUrl}
+          position={checkin.display.qrCode.position}
+          size={checkin.display.qrCode.size}
+        />
+      )}
+    </div>
+  );
+}
+
+function formatTime(timestamp: number): string {
+  const now = Date.now();
+  const diff = now - timestamp;
+  
+  if (diff < 60000) {
+    return '刚刚';
+  } else if (diff < 3600000) {
+    return `${Math.floor(diff / 60000)}分钟前`;
+  } else {
+    return new Date(timestamp).toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+}
+
