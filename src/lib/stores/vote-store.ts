@@ -6,7 +6,6 @@
 import {
   Vote,
   VoteRecord,
-  VoteOption,
   CreateVoteRequest,
   UpdateVoteRequest,
   DEFAULT_VOTE_CONFIG,
@@ -22,14 +21,31 @@ const DEFAULT_THEME: ThemeConfig = {
   backgroundGradient: 'linear-gradient(135deg, #1e3a5f 0%, #0d1b2a 50%, #1b263b 100%)',
 };
 
-// 内存存储
-const votes = new Map<string, Vote>();
-const votesByCode = new Map<string, Vote>();
-const voteRecords = new Map<string, VoteRecord[]>();
+// 使用 global 对象存储，避免热重载时数据丢失
+type Subscriber = (event: string, data: unknown) => void;
+
+const globalForStore = globalThis as unknown as {
+  votes?: Map<string, Vote>;
+  votesByCode?: Map<string, Vote>;
+  voteRecords?: Map<string, VoteRecord[]>;
+  voteSubscribers?: Map<string, Set<Subscriber>>;
+};
+
+// 内存存储（使用 global 缓存）
+const votes = globalForStore.votes ?? new Map<string, Vote>();
+const votesByCode = globalForStore.votesByCode ?? new Map<string, Vote>();
+const voteRecords = globalForStore.voteRecords ?? new Map<string, VoteRecord[]>();
 
 // SSE 订阅者
-type Subscriber = (event: string, data: unknown) => void;
-const subscribers = new Map<string, Set<Subscriber>>();
+const subscribers = globalForStore.voteSubscribers ?? new Map<string, Set<Subscriber>>();
+
+// 保存到 global
+if (process.env.NODE_ENV !== 'production') {
+  globalForStore.votes = votes;
+  globalForStore.votesByCode = votesByCode;
+  globalForStore.voteRecords = voteRecords;
+  globalForStore.voteSubscribers = subscribers;
+}
 
 /**
  * 通知订阅者

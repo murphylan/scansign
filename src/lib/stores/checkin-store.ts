@@ -21,14 +21,30 @@ const DEFAULT_THEME: ThemeConfig = {
   backgroundGradient: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
 };
 
-// 内存存储
-const checkins = new Map<string, Checkin>();
-const checkinsByCode = new Map<string, Checkin>();
-const checkinRecords = new Map<string, CheckinRecord[]>();
+// 使用 global 对象存储，避免热重载时数据丢失
+const globalForStore = globalThis as unknown as {
+  checkins?: Map<string, Checkin>;
+  checkinsByCode?: Map<string, Checkin>;
+  checkinRecords?: Map<string, CheckinRecord[]>;
+  checkinSubscribers?: Map<string, Set<Subscriber>>;
+};
+
+// 内存存储（使用 global 缓存）
+const checkins = globalForStore.checkins ?? new Map<string, Checkin>();
+const checkinsByCode = globalForStore.checkinsByCode ?? new Map<string, Checkin>();
+const checkinRecords = globalForStore.checkinRecords ?? new Map<string, CheckinRecord[]>();
 
 // SSE 订阅者
 type Subscriber = (event: string, data: unknown) => void;
-const subscribers = new Map<string, Set<Subscriber>>();
+const subscribers = globalForStore.checkinSubscribers ?? new Map<string, Set<Subscriber>>();
+
+// 保存到 global
+if (process.env.NODE_ENV !== 'production') {
+  globalForStore.checkins = checkins;
+  globalForStore.checkinsByCode = checkinsByCode;
+  globalForStore.checkinRecords = checkinRecords;
+  globalForStore.checkinSubscribers = subscribers;
+}
 
 /**
  * 通知订阅者

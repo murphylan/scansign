@@ -6,10 +6,8 @@
 import {
   Lottery,
   WinRecord,
-  Prize,
   CreateLotteryRequest,
   UpdateLotteryRequest,
-  DrawResult,
   DEFAULT_LOTTERY_CONFIG,
   DEFAULT_LOTTERY_DISPLAY,
   drawPrize,
@@ -24,15 +22,34 @@ const DEFAULT_THEME: ThemeConfig = {
   backgroundGradient: 'linear-gradient(135deg, #ff6b6b 0%, #ffd93d 50%, #ff6b6b 100%)',
 };
 
-// 内存存储
-const lotteries = new Map<string, Lottery>();
-const lotteriesByCode = new Map<string, Lottery>();
-const winRecords = new Map<string, WinRecord[]>();
-const userDrawCounts = new Map<string, Map<string, number>>(); // lotteryId -> Map<phone, count>
+// 使用 global 对象存储，避免热重载时数据丢失
+type Subscriber = (event: string, data: unknown) => void;
+
+const globalForStore = globalThis as unknown as {
+  lotteries?: Map<string, Lottery>;
+  lotteriesByCode?: Map<string, Lottery>;
+  winRecords?: Map<string, WinRecord[]>;
+  userDrawCounts?: Map<string, Map<string, number>>;
+  lotterySubscribers?: Map<string, Set<Subscriber>>;
+};
+
+// 内存存储（使用 global 缓存）
+const lotteries = globalForStore.lotteries ?? new Map<string, Lottery>();
+const lotteriesByCode = globalForStore.lotteriesByCode ?? new Map<string, Lottery>();
+const winRecords = globalForStore.winRecords ?? new Map<string, WinRecord[]>();
+const userDrawCounts = globalForStore.userDrawCounts ?? new Map<string, Map<string, number>>(); // lotteryId -> Map<phone, count>
 
 // SSE 订阅者
-type Subscriber = (event: string, data: unknown) => void;
-const subscribers = new Map<string, Set<Subscriber>>();
+const subscribers = globalForStore.lotterySubscribers ?? new Map<string, Set<Subscriber>>();
+
+// 保存到 global
+if (process.env.NODE_ENV !== 'production') {
+  globalForStore.lotteries = lotteries;
+  globalForStore.lotteriesByCode = lotteriesByCode;
+  globalForStore.winRecords = winRecords;
+  globalForStore.userDrawCounts = userDrawCounts;
+  globalForStore.lotterySubscribers = subscribers;
+}
 
 /**
  * 通知订阅者

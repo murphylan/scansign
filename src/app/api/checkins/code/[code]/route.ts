@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import QRCode from 'qrcode';
 import { getCheckinByCode } from '@/lib/stores/checkin-store';
+import { getBaseUrlFromRequest } from '@/lib/utils/get-base-url';
 
 // GET /api/checkins/code/[code] - 根据短码获取签到
 export async function GET(
@@ -20,7 +21,7 @@ export async function GET(
     }
     
     // 生成二维码
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const baseUrl = getBaseUrlFromRequest(request);
     const checkinUrl = `${baseUrl}/c/${checkin.code}`;
     
     const qrCodeUrl = await QRCode.toDataURL(checkinUrl, {

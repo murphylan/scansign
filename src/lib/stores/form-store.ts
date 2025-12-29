@@ -6,7 +6,6 @@
 import {
   Form,
   FormResponse,
-  FormField,
   CreateFormRequest,
   UpdateFormRequest,
   DEFAULT_FORM_CONFIG,
@@ -23,14 +22,31 @@ const DEFAULT_THEME: ThemeConfig = {
   backgroundGradient: 'linear-gradient(135deg, #4a1d6a 0%, #22073a 50%, #0f0326 100%)',
 };
 
-// 内存存储
-const forms = new Map<string, Form>();
-const formsByCode = new Map<string, Form>();
-const formResponses = new Map<string, FormResponse[]>();
+// 使用 global 对象存储，避免热重载时数据丢失
+type Subscriber = (event: string, data: unknown) => void;
+
+const globalForStore = globalThis as unknown as {
+  forms?: Map<string, Form>;
+  formsByCode?: Map<string, Form>;
+  formResponses?: Map<string, FormResponse[]>;
+  formSubscribers?: Map<string, Set<Subscriber>>;
+};
+
+// 内存存储（使用 global 缓存）
+const forms = globalForStore.forms ?? new Map<string, Form>();
+const formsByCode = globalForStore.formsByCode ?? new Map<string, Form>();
+const formResponses = globalForStore.formResponses ?? new Map<string, FormResponse[]>();
 
 // SSE 订阅者
-type Subscriber = (event: string, data: unknown) => void;
-const subscribers = new Map<string, Set<Subscriber>>();
+const subscribers = globalForStore.formSubscribers ?? new Map<string, Set<Subscriber>>();
+
+// 保存到 global
+if (process.env.NODE_ENV !== 'production') {
+  globalForStore.forms = forms;
+  globalForStore.formsByCode = formsByCode;
+  globalForStore.formResponses = formResponses;
+  globalForStore.formSubscribers = subscribers;
+}
 
 /**
  * 通知订阅者

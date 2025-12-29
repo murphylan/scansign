@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import QRCode from 'qrcode';
 import { getVoteByCode } from '@/lib/stores/vote-store';
+import { getBaseUrlFromRequest } from '@/lib/utils/get-base-url';
 
 // GET /api/votes/code/[code] - 根据短码获取投票
 export async function GET(
@@ -20,7 +21,7 @@ export async function GET(
     }
     
     // 生成二维码
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const baseUrl = getBaseUrlFromRequest(request);
     const voteUrl = `${baseUrl}/v/${vote.code}`;
     
     const qrCodeUrl = await QRCode.toDataURL(voteUrl, {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import QRCode from 'qrcode';
 import { getFormById } from '@/lib/stores/form-store';
+import { getBaseUrlFromRequest } from '@/lib/utils/get-base-url';
 
 // GET /api/forms/[id]/qrcode - 获取表单二维码
 export async function GET(
@@ -19,7 +20,7 @@ export async function GET(
       );
     }
     
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const baseUrl = getBaseUrlFromRequest(request);
     const formUrl = `${baseUrl}/f/${form.code}`;
     
     const qrCodeUrl = await QRCode.toDataURL(formUrl, {

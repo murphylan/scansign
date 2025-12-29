@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import QRCode from 'qrcode';
 import { getLotteryById } from '@/lib/stores/lottery-store';
+import { getBaseUrlFromRequest } from '@/lib/utils/get-base-url';
 
 // GET /api/lotteries/[id]/qrcode - 获取抽奖二维码
 export async function GET(
@@ -19,7 +20,7 @@ export async function GET(
       );
     }
     
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const baseUrl = getBaseUrlFromRequest(request);
     const lotteryUrl = `${baseUrl}/l/${lottery.code}`;
     
     const qrCodeUrl = await QRCode.toDataURL(lotteryUrl, {
