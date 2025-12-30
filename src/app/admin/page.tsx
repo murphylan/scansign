@@ -124,7 +124,7 @@ export default function AdminPage() {
   return (
     <main className="min-h-screen p-4 md:p-8 relative overflow-hidden">
       {/* 背景 */}
-      <div className="fixed inset-0 bg-gradient-to-br from-background via-background to-primary/5 -z-10" />
+      <div className="fixed inset-0 bg-linear-to-br from-background via-background to-primary/5 -z-10" />
       <div className="fixed top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl -z-10" />
       <div className="fixed bottom-0 left-0 w-96 h-96 bg-accent/10 rounded-full blur-3xl -z-10" />
 
@@ -152,7 +152,7 @@ export default function AdminPage() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-primary to-accent flex items-center justify-center">
                 <Users className="w-5 h-5 text-primary-foreground" />
               </div>
               用户管理
@@ -280,7 +280,7 @@ export default function AdminPage() {
                       >
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-xs font-medium text-primary-foreground">
+                            <div className="w-8 h-8 rounded-full bg-linear-to-br from-primary to-accent flex items-center justify-center text-xs font-medium text-primary-foreground">
                               {user.username.slice(0, 1)}
                             </div>
                             <span className="font-medium">{user.username}</span>

@@ -113,7 +113,7 @@ export default function HomePage() {
       className="min-h-screen relative overflow-hidden"
     >
       {/* 背景 */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a1a] via-[#1a1a3a] to-[#0a1a2a]" />
+      <div className="absolute inset-0 bg-linear-to-br from-[#0a0a1a] via-[#1a1a3a] to-[#0a1a2a]" />
       
       {/* 星空效果 */}
       {mounted && (

@@ -236,7 +236,7 @@ export default function VoteDetailPage({
 
       {/* Stats & Actions */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="bg-gradient-to-br from-blue-500/10 to-indigo-600/10 border-blue-500/20">
+        <Card className="bg-linear-to-br from-blue-500/10 to-indigo-600/10 border-blue-500/20">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -250,7 +250,7 @@ export default function VoteDetailPage({
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-emerald-500/10 to-green-600/10 border-emerald-500/20">
+        <Card className="bg-linear-to-br from-emerald-500/10 to-green-600/10 border-emerald-500/20">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>

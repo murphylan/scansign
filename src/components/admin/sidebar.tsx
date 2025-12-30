@@ -93,7 +93,7 @@ export function Sidebar({ user }: SidebarProps) {
         {/* Logo */}
         <div className="flex h-16 items-center justify-between px-6 border-b border-border">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-emerald-400 flex items-center justify-center">
+            <div className="h-8 w-8 rounded-lg bg-linear-to-br from-primary to-emerald-400 flex items-center justify-center">
               <span className="text-lg font-bold text-primary-foreground">
                 M
               </span>
@@ -149,7 +149,7 @@ export function Sidebar({ user }: SidebarProps) {
         <div className="border-t border-border p-3 space-y-1">
           {/* User info */}
           <div className="flex items-center gap-3 px-3 py-2">
-            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/50 to-emerald-500/50 flex items-center justify-center shrink-0">
+            <div className="h-8 w-8 rounded-full bg-linear-to-br from-primary/50 to-emerald-500/50 flex items-center justify-center shrink-0">
               <span className="text-xs font-medium">
                 {user.nickname?.charAt(0) || user.email.charAt(0).toUpperCase()}
               </span>

@@ -112,7 +112,7 @@ export default function FormDisplayPage({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-pink-900 to-purple-900">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-purple-900 via-pink-900 to-purple-900">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-white border-t-transparent" />
       </div>
     );
@@ -120,7 +120,7 @@ export default function FormDisplayPage({
 
   if (error || !form) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-pink-900 to-purple-900 text-white">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-purple-900 via-pink-900 to-purple-900 text-white">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-2">加载失败</h1>
           <p className="text-white/60">{error}</p>
@@ -168,7 +168,7 @@ export default function FormDisplayPage({
             {/* 统计卡片 */}
             {form.display?.showStats !== false && (
               <div className="bg-black/40 backdrop-blur-md rounded-3xl p-8 text-white text-center">
-                <div className="h-20 w-20 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center mx-auto mb-6">
+                <div className="h-20 w-20 rounded-full bg-linear-to-br from-purple-500 to-pink-600 flex items-center justify-center mx-auto mb-6">
                   <Download className="h-10 w-10" />
                 </div>
                 <div className="text-7xl font-bold mb-2">{stats.responseCount}</div>
@@ -197,7 +197,7 @@ export default function FormDisplayPage({
                       className="flex items-center gap-4 p-3 rounded-xl bg-white/10 animate-fade-in-up"
                       style={{ animationDelay: `${index * 0.05}s` }}
                     >
-                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shrink-0">
+                      <div className="h-10 w-10 rounded-full bg-linear-to-br from-purple-500 to-pink-600 flex items-center justify-center shrink-0">
                         <FileText className="h-5 w-5" />
                       </div>
                       <div className="flex-1 min-w-0">

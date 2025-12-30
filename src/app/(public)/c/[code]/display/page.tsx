@@ -94,6 +94,10 @@ export default function CheckinDisplayPage({
     fetchRecords();
   }, [fetchCheckin, fetchRecords]);
 
+  // 用于在 SSE 回调中访问最新的 recentRecords
+  const recentRecordsRef = useRef<CheckinRecord[]>([]);
+  recentRecordsRef.current = recentRecords;
+
   // SSE 连接
   useEffect(() => {
     if (!checkin) return;
@@ -105,37 +109,45 @@ export default function CheckinDisplayPage({
       try {
         const data = JSON.parse(event.data);
         
-        if (data.type === 'new') {
-          const record = data.data as CheckinRecord;
-          
-          // 添加弹幕
-          const template = checkin.display?.welcomeTemplate || '🎉 欢迎 {{name}} 加入！';
-          const text = template.replace('{{name}}', record.participant?.name || '新朋友');
-          
-          setDanmakuItems((prev) => [
-            ...prev,
-            { id: record.id, text },
-          ]);
-          
-          // 更新最近签到
-          setRecentRecords((prev) => [record, ...prev].slice(0, 10));
-          
+        if (data.type === 'connected' || data.type === 'update') {
           // 更新统计
-          setCheckin((prev) => prev ? {
-            ...prev,
-            stats: {
-              ...prev.stats,
-              total: prev.stats.total + 1,
-              today: prev.stats.today + 1,
-            },
-          } : prev);
-        }
-        
-        if (data.type === 'update') {
-          const record = data.data as CheckinRecord;
-          setRecentRecords((prev) =>
-            prev.map((r) => (r.id === record.id ? record : r))
-          );
+          if (typeof data.checkinCount === 'number') {
+            setCheckin((prev) => prev ? {
+              ...prev,
+              stats: {
+                ...prev.stats,
+                total: data.checkinCount,
+              },
+            } : prev);
+          }
+          
+          // 更新最近签到列表
+          if (Array.isArray(data.latestRecords) && data.latestRecords.length > 0) {
+            const newRecords: CheckinRecord[] = data.latestRecords.map((r: { id: string; name?: string; phone?: string; checkinTime: number }) => ({
+              id: r.id,
+              participant: {
+                name: r.name,
+                phone: r.phone,
+              },
+              checkedInAt: r.checkinTime,
+            }));
+            
+            // 检查是否有新签到（用于弹幕）
+            const currentIds = new Set(recentRecordsRef.current.map(r => r.id));
+            const newItems = newRecords.filter(r => !currentIds.has(r.id));
+            
+            // 添加弹幕
+            newItems.forEach((record) => {
+              const template = checkin.display?.welcomeTemplate || '🎉 欢迎 {{name}} 加入！';
+              const text = template.replace('{{name}}', record.participant?.name || '新朋友');
+              setDanmakuItems((prev) => [
+                ...prev,
+                { id: record.id, text },
+              ]);
+            });
+            
+            setRecentRecords(newRecords);
+          }
         }
       } catch {
         // ignore
@@ -149,7 +161,7 @@ export default function CheckinDisplayPage({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-900 via-purple-900 to-slate-900">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-white border-t-transparent" />
       </div>
     );
@@ -157,7 +169,7 @@ export default function CheckinDisplayPage({
 
   if (error || !checkin) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-2">加载失败</h1>
           <p className="text-white/60">{error}</p>
@@ -222,7 +234,7 @@ export default function CheckinDisplayPage({
                         className="flex items-center gap-3 text-white animate-fade-in-up"
                         style={{ animationDelay: `${index * 0.05}s` }}
                       >
-                        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center text-sm font-medium">
+                        <div className="h-8 w-8 rounded-full bg-linear-to-br from-emerald-500 to-green-600 flex items-center justify-center text-sm font-medium">
                           {record.participant?.name?.charAt(0) || '?'}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -261,8 +273,8 @@ export default function CheckinDisplayPage({
       {qrCodeUrl && checkin.display?.qrCode?.show && (
         <QRCodeWidget
           qrCodeUrl={qrCodeUrl}
-          position={checkin.display.qrCode.position}
-          size={checkin.display.qrCode.size}
+          position={checkin.display.qrCode.position as 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'}
+          size={checkin.display.qrCode.size as 'sm' | 'md' | 'lg'}
         />
       )}
     </div>

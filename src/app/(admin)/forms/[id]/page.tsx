@@ -225,7 +225,7 @@ export default function FormDetailPage({
 
       {/* Stats & Actions */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="bg-gradient-to-br from-purple-500/10 to-pink-600/10 border-purple-500/20">
+        <Card className="bg-linear-to-br from-purple-500/10 to-pink-600/10 border-purple-500/20">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -239,7 +239,7 @@ export default function FormDetailPage({
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-blue-500/10 to-indigo-600/10 border-blue-500/20">
+        <Card className="bg-linear-to-br from-blue-500/10 to-indigo-600/10 border-blue-500/20">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>

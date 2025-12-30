@@ -137,7 +137,7 @@ export default function LotteriesPage() {
                   className="group flex items-center justify-between p-4 rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/30 transition-all duration-200"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shrink-0">
+                    <div className="h-12 w-12 rounded-xl bg-linear-to-br from-orange-500 to-red-600 flex items-center justify-center shrink-0">
                       <Gift className="h-6 w-6 text-white" />
                     </div>
                     <div>

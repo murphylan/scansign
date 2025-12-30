@@ -145,7 +145,7 @@ export default function LotteryDisplayPage({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-600 via-red-600 to-pink-600">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-orange-600 via-red-600 to-pink-600">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-white border-t-transparent" />
       </div>
     );
@@ -153,7 +153,7 @@ export default function LotteryDisplayPage({
 
   if (error || !lottery) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-600 via-red-600 to-pink-600 text-white">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-orange-600 via-red-600 to-pink-600 text-white">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-2">加载失败</h1>
           <p className="text-white/60">{error}</p>

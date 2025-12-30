@@ -42,7 +42,7 @@ function SuccessContent() {
   return (
     <main className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
       {/* 背景 */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-background to-accent/20" />
+      <div className="absolute inset-0 bg-linear-to-br from-primary/20 via-background to-accent/20" />
       
       {/* 装饰性粒子 */}
       {mounted && (
@@ -70,7 +70,7 @@ function SuccessContent() {
           {/* 成功图标 */}
           <div className="relative mx-auto w-24 h-24">
             <div className="absolute inset-0 rounded-full bg-primary/20 animate-pulse-glow" />
-            <div className="relative w-full h-full rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-xl">
+            <div className="relative w-full h-full rounded-full bg-linear-to-br from-primary to-accent flex items-center justify-center shadow-xl">
               <CheckCircle2 className="w-12 h-12 text-primary-foreground" />
             </div>
             <Sparkles className="absolute -top-2 -right-2 w-8 h-8 text-primary animate-float" />

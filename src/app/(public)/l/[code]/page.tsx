@@ -198,7 +198,7 @@ export default function LotteryMobilePage({
       <div className="max-w-md mx-auto space-y-6">
         {/* Header */}
         <div className="text-center animate-fade-in-up">
-          <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <div className="h-16 w-16 rounded-2xl bg-linear-to-br from-yellow-400 to-orange-500 flex items-center justify-center mx-auto mb-4 shadow-lg">
             <Gift className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white">{lottery?.title}</h1>

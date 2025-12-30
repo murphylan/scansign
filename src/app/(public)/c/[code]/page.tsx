@@ -187,7 +187,7 @@ export default function CheckinMobilePage({
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-secondary/30 p-4">
         <Card className="w-full max-w-md animate-fade-in-up">
           <CardContent className="pt-8 pb-8 text-center">
-            <div className="h-16 w-16 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center mx-auto mb-6">
+            <div className="h-16 w-16 rounded-full bg-linear-to-br from-emerald-500 to-green-600 flex items-center justify-center mx-auto mb-6">
               <CheckCircle2 className="h-8 w-8 text-white" />
             </div>
             <h2 className="text-2xl font-bold mb-2">
@@ -222,7 +222,7 @@ export default function CheckinMobilePage({
       <div className="max-w-md mx-auto space-y-6">
         {/* Header */}
         <div className="text-center animate-fade-in-up">
-          <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <div className="h-16 w-16 rounded-2xl bg-linear-to-br from-emerald-500 to-green-600 flex items-center justify-center mx-auto mb-4 shadow-lg">
             <UserCheck className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold">{checkin?.title}</h1>

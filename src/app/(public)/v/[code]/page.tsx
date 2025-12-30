@@ -207,7 +207,7 @@ export default function VoteMobilePage({
         <div className="max-w-md mx-auto space-y-6">
           <Card className="animate-fade-in-up">
             <CardContent className="pt-8 pb-8 text-center">
-              <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mx-auto mb-6">
+              <div className="h-16 w-16 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center mx-auto mb-6">
                 <CheckCircle2 className="h-8 w-8 text-white" />
               </div>
               <h2 className="text-2xl font-bold mb-2">
@@ -250,7 +250,7 @@ export default function VoteMobilePage({
       <div className="max-w-md mx-auto space-y-6">
         {/* Header */}
         <div className="text-center animate-fade-in-up">
-          <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <div className="h-16 w-16 rounded-2xl bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center mx-auto mb-4 shadow-lg">
             <VoteIcon className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold">{vote?.title}</h1>

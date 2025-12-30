@@ -52,7 +52,7 @@ export default function RegisterPage() {
     <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20">
       {/* Logo 和标题 */}
       <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 mb-4">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-linear-to-br from-violet-500 to-purple-600 mb-4">
           <span className="text-3xl font-bold text-white">M</span>
         </div>
         <h1 className="text-2xl font-bold text-white">创建账户</h1>

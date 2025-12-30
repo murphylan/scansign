@@ -222,7 +222,7 @@ export default function CheckinDetailPage({
 
       {/* Stats & Actions */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="bg-gradient-to-br from-emerald-500/10 to-green-600/10 border-emerald-500/20">
+        <Card className="bg-linear-to-br from-emerald-500/10 to-green-600/10 border-emerald-500/20">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -236,7 +236,7 @@ export default function CheckinDetailPage({
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-blue-500/10 to-indigo-600/10 border-blue-500/20">
+        <Card className="bg-linear-to-br from-blue-500/10 to-indigo-600/10 border-blue-500/20">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -347,7 +347,7 @@ export default function CheckinDetailPage({
                     className="flex items-center justify-between p-3 rounded-lg bg-secondary/50"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center text-white font-medium">
+                      <div className="h-10 w-10 rounded-full bg-linear-to-br from-emerald-500 to-green-600 flex items-center justify-center text-white font-medium">
                         {record.participant?.name?.charAt(0) || record.participant?.phone?.slice(-2) || '?'}
                       </div>
                       <div>

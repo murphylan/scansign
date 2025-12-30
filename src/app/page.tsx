@@ -49,7 +49,7 @@ const features = [
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
+    <div className="min-h-screen bg-linear-to-br from-background via-background to-secondary/20">
       {/* Hero Section */}
       <div className="container mx-auto px-4 py-16 md:py-24">
         <div className="text-center max-w-3xl mx-auto mb-16">
@@ -59,7 +59,7 @@ export default function HomePage() {
           </div>
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
             Murphy{' '}
-            <span className="bg-gradient-to-r from-primary to-emerald-400 bg-clip-text text-transparent">
+            <span className="bg-linear-to-r from-primary to-emerald-400 bg-clip-text text-transparent">
               互动工具集
             </span>
           </h1>
@@ -92,7 +92,7 @@ export default function HomePage() {
               >
                 <CardContent className="p-6">
                   <div
-                    className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}
+                    className={`h-14 w-14 rounded-2xl bg-linear-to-br ${feature.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}
                   >
                     <feature.icon className="h-7 w-7 text-white" />
                   </div>

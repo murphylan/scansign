@@ -195,7 +195,7 @@ function ConfirmContent() {
   // 加载中
   if (isLoading) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5">
+      <main className="min-h-screen flex items-center justify-center bg-linear-to-br from-primary/5 via-background to-accent/5">
         <Loader2 className="w-10 h-10 animate-spin text-primary" />
       </main>
     );
@@ -206,7 +206,7 @@ function ConfirmContent() {
     const isNewUser = !!returnedVerifyCode;
     
     return (
-      <main className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/5 via-background to-accent/5">
+      <main className="min-h-screen flex items-center justify-center p-4 bg-linear-to-br from-primary/5 via-background to-accent/5">
         <Card className="w-full max-w-sm text-center animate-fade-in-up">
           <CardContent className="pt-12 pb-8 space-y-4">
             <div className="mx-auto w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center animate-pulse-glow">
@@ -244,7 +244,7 @@ function ConfirmContent() {
   // 错误状态（无效链接等）
   if (submitStatus === "error" && !token) {
     return (
-      <main className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-destructive/5 via-background to-background">
+      <main className="min-h-screen flex items-center justify-center p-4 bg-linear-to-br from-destructive/5 via-background to-background">
         <Card className="w-full max-w-sm text-center animate-fade-in-up">
           <CardContent className="pt-12 pb-8 space-y-4">
             <div className="mx-auto w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center">
@@ -264,15 +264,15 @@ function ConfirmContent() {
   return (
     <main className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
       {/* 背景 */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-accent/10" />
+      <div className="absolute inset-0 bg-linear-to-br from-primary/10 via-background to-accent/10" />
       <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-primary/20 to-transparent" />
       
       <Card className="w-full max-w-sm relative animate-fade-in-up">
         <CardHeader className="text-center space-y-3 pb-2">
           <div className={`mx-auto w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg ${
             isReturningUser 
-              ? "bg-gradient-to-br from-cyan-500 to-blue-500" 
-              : "bg-gradient-to-br from-primary to-accent"
+              ? "bg-linear-to-br from-cyan-500 to-blue-500" 
+              : "bg-linear-to-br from-primary to-accent"
           }`}>
             {isReturningUser ? (
               <LogIn className="w-7 h-7 text-white" />

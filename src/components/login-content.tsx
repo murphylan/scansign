@@ -66,7 +66,7 @@ export default function LoginContent() {
   return (
     <main className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
       {/* 背景装饰 */}
-      <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/10" />
+      <div className="absolute inset-0 bg-linear-to-br from-background via-background to-primary/10" />
       <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/20 rounded-full blur-3xl" />
       <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-accent/20 rounded-full blur-3xl" />
       
@@ -82,10 +82,10 @@ export default function LoginContent() {
 
       <Card className="w-full max-w-md relative animate-fade-in-up">
         <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg animate-float">
+          <div className="mx-auto w-16 h-16 rounded-2xl bg-linear-to-br from-primary to-accent flex items-center justify-center shadow-lg animate-float">
             <Smartphone className="w-8 h-8 text-primary-foreground" />
           </div>
-          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+          <CardTitle className="text-3xl font-bold bg-linear-to-r from-foreground to-foreground/70 bg-clip-text">
             扫码签到
           </CardTitle>
           <CardDescription className="text-base">
