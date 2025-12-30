@@ -4,6 +4,9 @@ import { useEffect, useState, use, useRef, useCallback } from 'react';
 import { QRCodeWidget } from '@/components/display/qr-code-widget';
 import { Danmaku } from '@/components/display/danmaku';
 import { StatsWidget } from '@/components/display/stats-widget';
+import { CheckinGrid } from '@/components/display/checkin-grid';
+import { CheckinList } from '@/components/display/checkin-list';
+import { CheckinBubble } from '@/components/display/checkin-bubble';
 import { Users } from 'lucide-react';
 
 import {
@@ -23,6 +26,7 @@ interface CheckinData {
   description: string | null;
   display: {
     welcomeTemplate?: string;
+    wallStyle?: 'danmaku' | 'grid' | 'list' | 'bubble';
     showStats?: boolean;
     showRecentList?: boolean;
     showDepartment?: boolean;
@@ -213,6 +217,38 @@ export default function CheckinDisplayPage({
       }
     : { backgroundColor: background.value };
 
+  const wallStyle = checkin.display?.wallStyle || 'danmaku';
+
+  // 根据 wallStyle 渲染不同的展示组件
+  const renderWallContent = () => {
+    switch (wallStyle) {
+      case 'grid':
+        return (
+          <CheckinGrid 
+            records={recentRecords} 
+            showDepartment={checkin.display?.showDepartment}
+          />
+        );
+      case 'list':
+        return (
+          <CheckinList 
+            records={recentRecords} 
+            showDepartment={checkin.display?.showDepartment}
+            welcomeTemplate={checkin.display?.welcomeTemplate}
+          />
+        );
+      case 'bubble':
+        return (
+          <CheckinBubble records={recentRecords} />
+        );
+      case 'danmaku':
+      default:
+        return (
+          <Danmaku items={danmakuItems} />
+        );
+    }
+  };
+
   return (
     <div 
       className="min-h-screen relative overflow-hidden"
@@ -235,9 +271,9 @@ export default function CheckinDisplayPage({
           )}
         </header>
 
-        {/* 中间弹幕区域 */}
+        {/* 中间展示区域 - 根据 wallStyle 切换 */}
         <div className="flex-1 relative">
-          <Danmaku items={danmakuItems} />
+          {renderWallContent()}
         </div>
 
         {/* 底部统计和列表 */}

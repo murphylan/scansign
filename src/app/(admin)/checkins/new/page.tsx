@@ -24,6 +24,7 @@ import {
 } from '@/types/checkin';
 import { QRPosition } from '@/types/common';
 import { createCheckinAction } from '@/server/actions/checkinAction';
+import { BackgroundPicker, BackgroundConfig } from '@/components/shared/background-picker';
 
 export default function NewCheckinPage() {
   const router = useRouter();
@@ -51,6 +52,9 @@ export default function NewCheckinPage() {
   const [wallStyle, setWallStyle] = useState<WallStyle>('danmaku');
   const [qrPosition, setQrPosition] = useState<QRPosition>('bottom-right');
   const [showStats, setShowStats] = useState(true);
+  const [background, setBackground] = useState<BackgroundConfig>(
+    DEFAULT_CHECKIN_DISPLAY.background as BackgroundConfig
+  );
 
   // 允许重复签到
   const [allowRepeat, setAllowRepeat] = useState(false);
@@ -98,6 +102,7 @@ export default function NewCheckinPage() {
         ...DEFAULT_CHECKIN_DISPLAY,
         wallStyle,
         showStats,
+        background,
         qrCode: {
           ...DEFAULT_CHECKIN_DISPLAY.qrCode,
           position: qrPosition,
@@ -451,6 +456,12 @@ export default function NewCheckinPage() {
                   <span>允许重复签到（无需验证码即可修改）</span>
                 </label>
               </div>
+
+              {/* 背景设置 */}
+              <BackgroundPicker
+                value={background}
+                onChange={setBackground}
+              />
             </CardContent>
           )}
         </Card>

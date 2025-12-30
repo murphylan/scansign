@@ -25,6 +25,7 @@ import {
 } from '@/types/checkin';
 import { QRPosition } from '@/types/common';
 import { getCheckinAction, updateCheckinAction } from '@/server/actions/checkinAction';
+import { BackgroundPicker, BackgroundConfig } from '@/components/shared/background-picker';
 
 interface CheckinConfig {
   fields?: {
@@ -51,6 +52,7 @@ interface CheckinDisplay {
     size?: string;
   };
   welcomeTemplate?: string;
+  background?: BackgroundConfig;
 }
 
 export default function CheckinSettingsPage({
@@ -86,6 +88,9 @@ export default function CheckinSettingsPage({
   const [qrPosition, setQrPosition] = useState<QRPosition>('bottom-right');
   const [showStats, setShowStats] = useState(true);
   const [welcomeTemplate, setWelcomeTemplate] = useState('🎉 欢迎 {{name}} 加入！');
+  const [background, setBackground] = useState<BackgroundConfig>(
+    DEFAULT_CHECKIN_DISPLAY.background as BackgroundConfig
+  );
 
   // 允许重复签到
   const [allowRepeat, setAllowRepeat] = useState(false);
@@ -115,6 +120,9 @@ export default function CheckinSettingsPage({
       setQrPosition(display.qrCode?.position || 'bottom-right');
       setShowStats(display.showStats ?? true);
       setWelcomeTemplate(display.welcomeTemplate || '🎉 欢迎 {{name}} 加入！');
+      if (display.background) {
+        setBackground(display.background);
+      }
     } else {
       toast.error('签到不存在');
       router.push('/checkins');
@@ -170,6 +178,7 @@ export default function CheckinSettingsPage({
         wallStyle,
         showStats,
         welcomeTemplate,
+        background,
         qrCode: {
           ...DEFAULT_CHECKIN_DISPLAY.qrCode,
           position: qrPosition,
@@ -544,6 +553,12 @@ export default function CheckinSettingsPage({
                   <span>允许重复签到（无需验证码即可修改）</span>
                 </label>
               </div>
+
+              {/* 背景设置 */}
+              <BackgroundPicker
+                value={background}
+                onChange={setBackground}
+              />
             </CardContent>
           )}
         </Card>
