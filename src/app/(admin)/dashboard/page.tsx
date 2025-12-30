@@ -1,7 +1,7 @@
 'use client';
 
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,7 +17,20 @@ import {
   Monitor,
   Share2,
 } from 'lucide-react';
-import { Checkin } from '@/types/checkin';
+
+import { listCheckinsAction } from '@/server/actions/checkinAction';
+
+// 页面内部使用的类型
+interface CheckinListItem {
+  id: string;
+  code: string;
+  title: string;
+  status: string;
+  stats: {
+    total: number;
+    today: number;
+  };
+}
 
 const quickCreateItems = [
   {
@@ -55,27 +68,22 @@ const quickCreateItems = [
 ];
 
 export default function DashboardPage() {
-  const [recentCheckins, setRecentCheckins] = useState<Checkin[]>([]);
+  const [recentCheckins, setRecentCheckins] = useState<CheckinListItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchRecentCheckins() {
-      try {
-        const res = await fetch('/api/checkins');
-        if (res.ok) {
-          const data = await res.json();
-          setRecentCheckins(data.data?.slice(0, 5) || []);
-        }
-      } catch {
-        console.error('Failed to fetch checkins');
-      } finally {
-        setLoading(false);
-      }
+  const fetchRecentCheckins = useCallback(async () => {
+    const res = await listCheckinsAction();
+    if (res.success && res.data) {
+      setRecentCheckins((res.data as CheckinListItem[]).slice(0, 5));
     }
-    fetchRecentCheckins();
+    setLoading(false);
   }, []);
 
-  const totalParticipants = recentCheckins.reduce((sum, c) => sum + c.stats.total, 0);
+  useEffect(() => {
+    fetchRecentCheckins();
+  }, [fetchRecentCheckins]);
+
+  const totalParticipants = recentCheckins.reduce((sum, c) => sum + (c.stats?.total ?? 0), 0);
   const activeCount = recentCheckins.filter(c => c.status === 'active').length;
 
   return (
@@ -90,7 +98,7 @@ export default function DashboardPage() {
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="bg-gradient-to-br from-emerald-500/10 to-green-600/10 border-emerald-500/20">
+        <Card className="bg-linear-to-br from-emerald-500/10 to-green-600/10 border-emerald-500/20">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -104,7 +112,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-blue-500/10 to-indigo-600/10 border-blue-500/20">
+        <Card className="bg-linear-to-br from-blue-500/10 to-indigo-600/10 border-blue-500/20">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -118,7 +126,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-purple-500/10 to-pink-600/10 border-purple-500/20">
+        <Card className="bg-linear-to-br from-purple-500/10 to-pink-600/10 border-purple-500/20">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -155,11 +163,11 @@ export default function DashboardPage() {
                 onClick={(e) => !item.available && e.preventDefault()}
               >
                 <div
-                  className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-5 transition-opacity`}
+                  className={`absolute inset-0 bg-linear-to-br ${item.color} opacity-0 group-hover:opacity-5 transition-opacity`}
                 />
                 <div className="relative">
                   <div
-                    className={`h-10 w-10 rounded-lg bg-gradient-to-br ${item.color} flex items-center justify-center mb-3`}
+                    className={`h-10 w-10 rounded-lg bg-linear-to-br ${item.color} flex items-center justify-center mb-3`}
                   >
                     <item.icon className="h-5 w-5 text-white" />
                   </div>
@@ -205,7 +213,7 @@ export default function DashboardPage() {
                   className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-secondary/50 transition-colors"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center">
+                    <div className="h-10 w-10 rounded-lg bg-linear-to-br from-emerald-500 to-green-600 flex items-center justify-center">
                       <UserCheck className="h-5 w-5 text-white" />
                     </div>
                     <div>
@@ -213,7 +221,7 @@ export default function DashboardPage() {
                       <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Users className="h-3.5 w-3.5" />
-                          {checkin.stats.total} 人
+                          {checkin.stats?.total ?? 0} 人
                         </span>
                         <span
                           className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -259,4 +267,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

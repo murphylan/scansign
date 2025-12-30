@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState, use, useCallback } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,7 +19,33 @@ import {
   RefreshCw,
   LayoutList,
 } from 'lucide-react';
-import { Form, FormResponse, FormField } from '@/types/form';
+
+import {
+  getFormAction,
+  getFormResponsesAction,
+  updateFormAction,
+} from '@/server/actions/formAction';
+
+interface FormData {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  status: string;
+  config: {
+    fields: Array<{ id: string; label: string }>;
+  };
+  stats: {
+    responseCount: number;
+  };
+}
+
+interface FormResponse {
+  id: string;
+  phone: string | null;
+  submittedAt: number;
+  data: Record<string, unknown>;
+}
 
 export default function FormDetailPage({
   params,
@@ -26,59 +53,46 @@ export default function FormDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const resolvedParams = use(params);
-  const [form, setForm] = useState<Form | null>(null);
+  const [form, setForm] = useState<FormData | null>(null);
   const [responses, setResponses] = useState<FormResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
 
-  async function fetchForm() {
-    try {
-      const res = await fetch(`/api/forms/${resolvedParams.id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setForm(data.data);
-      }
-    } catch {
-      console.error('Failed to fetch form');
+  const fetchForm = useCallback(async () => {
+    const res = await getFormAction(resolvedParams.id);
+    if (res.success && res.data) {
+      setForm(res.data as FormData);
     }
-  }
+  }, [resolvedParams.id]);
 
-  async function fetchResponses() {
-    try {
-      const res = await fetch(`/api/forms/${resolvedParams.id}/responses?limit=20`);
-      if (res.ok) {
-        const data = await res.json();
-        setResponses(data.data?.responses || []);
-      }
-    } catch {
-      console.error('Failed to fetch responses');
+  const fetchResponses = useCallback(async () => {
+    const res = await getFormResponsesAction(resolvedParams.id, 20);
+    if (res.success && res.data) {
+      setResponses(res.data as FormResponse[]);
     }
-  }
+  }, [resolvedParams.id]);
 
-  async function fetchQRCode() {
-    if (!form) return;
+  const generateQRCode = useCallback(async (code: string) => {
     try {
-      const res = await fetch(`/api/forms/${resolvedParams.id}/qrcode`);
-      if (res.ok) {
-        const data = await res.json();
-        setQrCodeUrl(data.data?.qrCodeUrl);
-      }
+      const url = `${window.location.origin}/f/${code}`;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+      setQrCodeUrl(qrUrl);
     } catch {
-      console.error('Failed to fetch QR code');
+      console.error('Failed to generate QR code');
     }
-  }
+  }, []);
 
   useEffect(() => {
     Promise.all([fetchForm(), fetchResponses()]).finally(() => {
       setLoading(false);
     });
-  }, [resolvedParams.id]);
+  }, [fetchForm, fetchResponses]);
 
   useEffect(() => {
-    if (form) {
-      fetchQRCode();
+    if (form?.code) {
+      generateQRCode(form.code);
     }
-  }, [form]);
+  }, [form?.code, generateQRCode]);
 
   // SSE 实时更新
   useEffect(() => {
@@ -101,32 +115,28 @@ export default function FormDetailPage({
     return () => {
       eventSource.close();
     };
-  }, [form, resolvedParams.id]);
+  }, [form, resolvedParams.id, fetchResponses, fetchForm]);
 
-  async function handleStatusChange(status: 'active' | 'paused') {
-    try {
-      const res = await fetch(`/api/forms/${resolvedParams.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-      if (res.ok) {
-        fetchForm();
-      }
-    } catch {
-      console.error('Failed to update status');
+  const handleStatusChange = useCallback(async (status: 'active' | 'paused') => {
+    const res = await updateFormAction(resolvedParams.id, { status });
+    if (res.success) {
+      toast.success(status === 'active' ? '已恢复' : '已暂停');
+      fetchForm();
+    } else {
+      toast.error(res.error || '操作失败');
     }
-  }
+  }, [resolvedParams.id, fetchForm]);
 
-  function copyLink() {
+  const copyLink = useCallback(() => {
     if (!form) return;
     const url = `${window.location.origin}/f/${form.code}`;
     navigator.clipboard.writeText(url);
-  }
+    toast.success('链接已复制');
+  }, [form]);
 
-  function exportCSV() {
+  const exportCSV = useCallback(() => {
     window.open(`/api/forms/${resolvedParams.id}/responses?format=csv`, '_blank');
-  }
+  }, [resolvedParams.id]);
 
   if (loading) {
     return (
@@ -220,7 +230,7 @@ export default function FormDetailPage({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">总提交</p>
-                <p className="text-3xl font-bold mt-1">{form.stats.responseCount}</p>
+                <p className="text-3xl font-bold mt-1">{form.stats?.responseCount ?? 0}</p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
                 <Download className="h-6 w-6 text-purple-500" />
@@ -234,7 +244,7 @@ export default function FormDetailPage({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">字段数</p>
-                <p className="text-3xl font-bold mt-1">{form.config.fields.length}</p>
+                <p className="text-3xl font-bold mt-1">{form.config?.fields?.length ?? 0}</p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
                 <LayoutList className="h-6 w-6 text-blue-500" />
@@ -348,7 +358,7 @@ export default function FormDetailPage({
                       </span>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-sm">
-                      {form.config.fields.slice(0, 4).map((field) => (
+                      {(form.config?.fields ?? []).slice(0, 4).map((field) => (
                         <div key={field.id} className="text-muted-foreground">
                           <span className="font-medium text-foreground">
                             {field.label}:
@@ -373,4 +383,3 @@ function formatValue(value: unknown): string {
   if (Array.isArray(value)) return value.join(', ');
   return String(value);
 }
-

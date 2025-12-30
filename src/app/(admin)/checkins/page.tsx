@@ -1,7 +1,8 @@
 'use client';
 
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,73 +11,81 @@ import {
   Monitor,
   Share2,
   ArrowRight,
-  MoreHorizontal,
-  Trash2,
   Pause,
   Play,
   UserCheck,
   Copy,
   ExternalLink,
 } from 'lucide-react';
-import { Checkin } from '@/types/checkin';
+
+import {
+  listCheckinsAction,
+  updateCheckinAction,
+  deleteCheckinAction,
+} from '@/server/actions/checkinAction';
+import { DeleteConfirm } from '@/components/shared';
+
+// 页面内部使用的类型
+interface CheckinListItem {
+  id: string;
+  code: string;
+  title: string;
+  status: string;
+  stats: {
+    total: number;
+    today: number;
+  };
+  createdAt: number;
+}
 
 export default function CheckinsPage() {
-  const [checkins, setCheckins] = useState<Checkin[]>([]);
+  const [checkins, setCheckins] = useState<CheckinListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingId, setPendingId] = useState<string | null>(null);
 
-  async function fetchCheckins() {
-    try {
-      const res = await fetch('/api/checkins');
-      if (res.ok) {
-        const data = await res.json();
-        setCheckins(data.data || []);
-      }
-    } catch {
-      console.error('Failed to fetch checkins');
-    } finally {
-      setLoading(false);
+  const fetchCheckins = useCallback(async () => {
+    const res = await listCheckinsAction();
+    if (res.success && res.data) {
+      setCheckins(res.data as CheckinListItem[]);
+    } else {
+      toast.error(res.error || '获取签到列表失败');
     }
-  }
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     fetchCheckins();
-  }, []);
+  }, [fetchCheckins]);
 
-  async function handleStatusChange(id: string, status: 'active' | 'paused') {
-    try {
-      const res = await fetch(`/api/checkins/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-      if (res.ok) {
-        fetchCheckins();
-      }
-    } catch {
-      console.error('Failed to update status');
+  const handleStatusChange = useCallback(async (id: string, status: 'active' | 'paused') => {
+    setPendingId(id);
+    const res = await updateCheckinAction(id, { status });
+    if (res.success) {
+      toast.success(status === 'active' ? '已恢复' : '已暂停');
+      fetchCheckins();
+    } else {
+      toast.error(res.error || '操作失败');
     }
-  }
+    setPendingId(null);
+  }, [fetchCheckins]);
 
-  async function handleDelete(id: string) {
-    if (!confirm('确定要删除这个签到吗？此操作无法撤销。')) return;
-    
-    try {
-      const res = await fetch(`/api/checkins/${id}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        fetchCheckins();
-      }
-    } catch {
-      console.error('Failed to delete checkin');
+  const handleDelete = useCallback(async (id: string) => {
+    setPendingId(id);
+    const res = await deleteCheckinAction(id);
+    if (res.success) {
+      toast.success('已删除');
+      fetchCheckins();
+    } else {
+      toast.error(res.error || '删除失败');
     }
-  }
+    setPendingId(null);
+  }, [fetchCheckins]);
 
-  function copyLink(code: string) {
+  const copyLink = useCallback((code: string) => {
     const url = `${window.location.origin}/c/${code}`;
     navigator.clipboard.writeText(url);
-    // TODO: 显示 toast 提示
-  }
+    toast.success('链接已复制');
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -157,7 +166,7 @@ export default function CheckinsPage() {
                       <div className="flex items-center gap-4 mt-1.5 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Users className="h-3.5 w-3.5" />
-                          {checkin.stats.total} 人签到
+                          {checkin.stats?.total ?? 0} 人签到
                         </span>
                         <span className="font-mono text-xs bg-secondary px-2 py-0.5 rounded">
                           /{checkin.code}
@@ -197,6 +206,7 @@ export default function CheckinsPage() {
                         variant="ghost"
                         size="icon"
                         title="暂停"
+                        disabled={pendingId === checkin.id}
                         onClick={() => handleStatusChange(checkin.id, 'paused')}
                       >
                         <Pause className="h-4 w-4" />
@@ -206,21 +216,18 @@ export default function CheckinsPage() {
                         variant="ghost"
                         size="icon"
                         title="恢复"
+                        disabled={pendingId === checkin.id}
                         onClick={() => handleStatusChange(checkin.id, 'active')}
                       >
                         <Play className="h-4 w-4" />
                       </Button>
                     ) : null}
 
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      title="删除"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => handleDelete(checkin.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <DeleteConfirm
+                      entityName={checkin.title}
+                      isLoading={pendingId === checkin.id}
+                      onConfirm={() => handleDelete(checkin.id)}
+                    />
 
                     <Link href={`/checkins/${checkin.id}`}>
                       <Button variant="ghost" size="icon" title="详情">
@@ -237,4 +244,3 @@ export default function CheckinsPage() {
     </div>
   );
 }
-

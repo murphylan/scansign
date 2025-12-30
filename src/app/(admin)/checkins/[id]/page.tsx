@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState, use, useCallback } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -9,7 +10,6 @@ import {
   UserCheck,
   Users,
   Monitor,
-  Share2,
   Copy,
   ExternalLink,
   Settings,
@@ -19,7 +19,37 @@ import {
   Play,
   RefreshCw,
 } from 'lucide-react';
-import { Checkin, CheckinRecord } from '@/types/checkin';
+
+import {
+  getCheckinAction,
+  getCheckinRecordsAction,
+  updateCheckinAction,
+} from '@/server/actions/checkinAction';
+
+// 页面内部使用的类型（匹配 Server Action 返回的数据结构）
+interface CheckinData {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  status: string;
+  stats: {
+    total: number;
+    today: number;
+  };
+}
+
+interface RecordData {
+  id: string;
+  participant: {
+    name: string | null;
+    phone: string | null;
+    email: string | null;
+  };
+  departmentName: string | null;
+  isConfirmed: boolean;
+  checkedInAt: number;
+}
 
 export default function CheckinDetailPage({
   params,
@@ -27,59 +57,47 @@ export default function CheckinDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const resolvedParams = use(params);
-  const [checkin, setCheckin] = useState<Checkin | null>(null);
-  const [records, setRecords] = useState<CheckinRecord[]>([]);
+  const [checkin, setCheckin] = useState<CheckinData | null>(null);
+  const [records, setRecords] = useState<RecordData[]>([]);
   const [loading, setLoading] = useState(true);
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
 
-  async function fetchCheckin() {
-    try {
-      const res = await fetch(`/api/checkins/${resolvedParams.id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setCheckin(data.data);
-      }
-    } catch {
-      console.error('Failed to fetch checkin');
+  const fetchCheckin = useCallback(async () => {
+    const res = await getCheckinAction(resolvedParams.id);
+    if (res.success && res.data) {
+      setCheckin(res.data as CheckinData);
     }
-  }
+  }, [resolvedParams.id]);
 
-  async function fetchRecords() {
-    try {
-      const res = await fetch(`/api/checkins/${resolvedParams.id}/records`);
-      if (res.ok) {
-        const data = await res.json();
-        setRecords(data.data || []);
-      }
-    } catch {
-      console.error('Failed to fetch records');
+  const fetchRecords = useCallback(async () => {
+    const res = await getCheckinRecordsAction(resolvedParams.id);
+    if (res.success && res.data) {
+      setRecords(res.data as RecordData[]);
     }
-  }
+  }, [resolvedParams.id]);
 
-  async function fetchQRCode() {
-    if (!checkin) return;
+  const generateQRCode = useCallback(async (code: string) => {
     try {
-      const res = await fetch(`/api/checkins/${resolvedParams.id}/qrcode`);
-      if (res.ok) {
-        const data = await res.json();
-        setQrCodeUrl(data.data?.qrCodeUrl);
-      }
+      const url = `${window.location.origin}/c/${code}`;
+      // 使用 QR Code API 生成二维码
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+      setQrCodeUrl(qrUrl);
     } catch {
-      console.error('Failed to fetch QR code');
+      console.error('Failed to generate QR code');
     }
-  }
+  }, []);
 
   useEffect(() => {
     Promise.all([fetchCheckin(), fetchRecords()]).finally(() => {
       setLoading(false);
     });
-  }, [resolvedParams.id]);
+  }, [fetchCheckin, fetchRecords]);
 
   useEffect(() => {
-    if (checkin) {
-      fetchQRCode();
+    if (checkin?.code) {
+      generateQRCode(checkin.code);
     }
-  }, [checkin]);
+  }, [checkin?.code, generateQRCode]);
 
   // SSE 实时更新
   useEffect(() => {
@@ -102,28 +120,24 @@ export default function CheckinDetailPage({
     return () => {
       eventSource.close();
     };
-  }, [checkin, resolvedParams.id]);
+  }, [checkin, resolvedParams.id, fetchRecords, fetchCheckin]);
 
-  async function handleStatusChange(status: 'active' | 'paused') {
-    try {
-      const res = await fetch(`/api/checkins/${resolvedParams.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-      if (res.ok) {
-        fetchCheckin();
-      }
-    } catch {
-      console.error('Failed to update status');
+  const handleStatusChange = useCallback(async (status: 'active' | 'paused') => {
+    const res = await updateCheckinAction(resolvedParams.id, { status });
+    if (res.success) {
+      toast.success(status === 'active' ? '已恢复' : '已暂停');
+      fetchCheckin();
+    } else {
+      toast.error(res.error || '操作失败');
     }
-  }
+  }, [resolvedParams.id, fetchCheckin]);
 
-  function copyLink() {
+  const copyLink = useCallback(() => {
     if (!checkin) return;
     const url = `${window.location.origin}/c/${checkin.code}`;
     navigator.clipboard.writeText(url);
-  }
+    toast.success('链接已复制');
+  }, [checkin]);
 
   if (loading) {
     return (
@@ -213,7 +227,7 @@ export default function CheckinDetailPage({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">总签到</p>
-                <p className="text-3xl font-bold mt-1">{checkin.stats.total}</p>
+                <p className="text-3xl font-bold mt-1">{checkin.stats?.total ?? 0}</p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
                 <Users className="h-6 w-6 text-emerald-500" />
@@ -227,7 +241,7 @@ export default function CheckinDetailPage({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">今日签到</p>
-                <p className="text-3xl font-bold mt-1">{checkin.stats.today}</p>
+                <p className="text-3xl font-bold mt-1">{checkin.stats?.today ?? 0}</p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
                 <UserCheck className="h-6 w-6 text-blue-500" />
@@ -334,14 +348,14 @@ export default function CheckinDetailPage({
                   >
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center text-white font-medium">
-                        {record.participant.name?.charAt(0) || record.participant.phone?.slice(-2)}
+                        {record.participant?.name?.charAt(0) || record.participant?.phone?.slice(-2) || '?'}
                       </div>
                       <div>
                         <p className="font-medium">
-                          {record.participant.name || '未填写姓名'}
+                          {record.participant?.name || '未填写姓名'}
                         </p>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <span>{record.participant.phone}</span>
+                          <span>{record.participant?.phone}</span>
                           {record.departmentName && (
                             <>
                               <span>·</span>
@@ -354,12 +368,12 @@ export default function CheckinDetailPage({
                     <div className="text-right">
                       <span
                         className={`text-xs px-2 py-0.5 rounded-full ${
-                          record.isNewUser
+                          record.isConfirmed
                             ? 'bg-emerald-500/10 text-emerald-500'
                             : 'bg-blue-500/10 text-blue-500'
                         }`}
                       >
-                        {record.isNewUser ? '新签到' : '重复签到'}
+                        {record.isConfirmed ? '已确认' : '待确认'}
                       </span>
                       <p className="text-xs text-muted-foreground mt-1">
                         {new Date(record.checkedInAt).toLocaleString()}
@@ -375,4 +389,3 @@ export default function CheckinDetailPage({
     </div>
   );
 }
-

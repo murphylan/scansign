@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import type { RegisteredUser, ApiResponse, UserListResponse } from "@/types";
+import type { RegisteredUser } from "@/types";
 import { 
   Users, 
   RefreshCw, 
@@ -18,6 +18,8 @@ import {
   KeyRound
 } from "lucide-react";
 
+import { getUserListAction } from "@/server/actions/userAction";
+
 export default function AdminPage() {
   const [users, setUsers] = useState<RegisteredUser[]>([]);
   const [total, setTotal] = useState(0);
@@ -27,21 +29,20 @@ export default function AdminPage() {
   const eventSourceRef = useRef<EventSource | null>(null);
 
   // 加载用户列表
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/user/list");
-      const data: ApiResponse<UserListResponse> = await response.json();
-      if (data.success && data.data) {
-        setUsers(data.data.users);
-        setTotal(data.data.total);
+      const res = await getUserListAction();
+      if (res.success && res.data) {
+        setUsers(res.data.users);
+        setTotal(res.data.total);
       }
     } catch (error) {
       console.error("Load users error:", error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   // 建立 SSE 连接
   useEffect(() => {
@@ -96,7 +97,7 @@ export default function AdminPage() {
     return () => {
       eventSourceRef.current?.close();
     };
-  }, []);
+  }, [loadUsers]);
 
   // 格式化时间
   const formatTime = (timestamp: number) => {
@@ -331,4 +332,3 @@ export default function AdminPage() {
     </main>
   );
 }
-

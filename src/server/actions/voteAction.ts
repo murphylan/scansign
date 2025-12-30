@@ -202,6 +202,7 @@ export async function createVoteAction(data: VoteFormData) {
         code,
         title: data.title,
         description: data.description,
+        status: "ACTIVE", // 创建后默认为进行中
         voteType: data.voteType || "SINGLE",
         maxChoices: data.maxChoices || 1,
         config: data.config || DEFAULT_CONFIG,

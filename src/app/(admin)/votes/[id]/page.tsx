@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState, use, useCallback } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,8 +21,29 @@ import {
   RotateCcw,
   BarChart3,
 } from 'lucide-react';
-import { Vote, VoteOption } from '@/types/vote';
 import { BarChart } from '@/components/display/vote-charts';
+import { ConfirmDialog } from '@/components/shared';
+
+import {
+  getVoteAction,
+  updateVoteAction,
+} from '@/server/actions/voteAction';
+
+interface VoteData {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  status: string;
+  config: {
+    voteType: string;
+    options: Array<{ id: string; title: string; count: number }>;
+  };
+  stats: {
+    totalVotes: number;
+    participantCount: number;
+  };
+}
 
 export default function VoteDetailPage({
   params,
@@ -29,44 +51,36 @@ export default function VoteDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const resolvedParams = use(params);
-  const [vote, setVote] = useState<Vote | null>(null);
+  const [vote, setVote] = useState<VoteData | null>(null);
   const [loading, setLoading] = useState(true);
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
 
-  async function fetchVote() {
-    try {
-      const res = await fetch(`/api/votes/${resolvedParams.id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setVote(data.data);
-      }
-    } catch {
-      console.error('Failed to fetch vote');
+  const fetchVote = useCallback(async () => {
+    const res = await getVoteAction(resolvedParams.id);
+    if (res.success && res.data) {
+      setVote(res.data as VoteData);
     }
-  }
+  }, [resolvedParams.id]);
 
-  async function fetchQRCode() {
-    if (!vote) return;
+  const generateQRCode = useCallback(async (code: string) => {
     try {
-      const res = await fetch(`/api/votes/${resolvedParams.id}/qrcode`);
-      if (res.ok) {
-        const data = await res.json();
-        setQrCodeUrl(data.data?.qrCodeUrl);
-      }
+      const url = `${window.location.origin}/v/${code}`;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+      setQrCodeUrl(qrUrl);
     } catch {
-      console.error('Failed to fetch QR code');
+      console.error('Failed to generate QR code');
     }
-  }
+  }, []);
 
   useEffect(() => {
     fetchVote().finally(() => setLoading(false));
-  }, [resolvedParams.id]);
+  }, [fetchVote]);
 
   useEffect(() => {
-    if (vote) {
-      fetchQRCode();
+    if (vote?.code) {
+      generateQRCode(vote.code);
     }
-  }, [vote]);
+  }, [vote?.code, generateQRCode]);
 
   // SSE 实时更新
   useEffect(() => {
@@ -96,43 +110,32 @@ export default function VoteDetailPage({
     };
   }, [vote, resolvedParams.id]);
 
-  async function handleStatusChange(status: 'active' | 'paused') {
-    try {
-      const res = await fetch(`/api/votes/${resolvedParams.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-      if (res.ok) {
-        fetchVote();
-      }
-    } catch {
-      console.error('Failed to update status');
+  const handleStatusChange = useCallback(async (status: 'active' | 'paused') => {
+    const res = await updateVoteAction(resolvedParams.id, { status });
+    if (res.success) {
+      toast.success(status === 'active' ? '已恢复' : '已暂停');
+      fetchVote();
+    } else {
+      toast.error(res.error || '操作失败');
     }
-  }
+  }, [resolvedParams.id, fetchVote]);
 
-  async function handleReset() {
-    if (!confirm('确定要重置投票结果吗？所有投票数据将被清空，此操作无法撤销。')) {
-      return;
+  const handleReset = useCallback(async () => {
+    const res = await updateVoteAction(resolvedParams.id, { reset: true });
+    if (res.success) {
+      toast.success('已重置');
+      fetchVote();
+    } else {
+      toast.error(res.error || '重置失败');
     }
-    
-    try {
-      const res = await fetch(`/api/votes/${resolvedParams.id}?action=reset`, {
-        method: 'POST',
-      });
-      if (res.ok) {
-        fetchVote();
-      }
-    } catch {
-      console.error('Failed to reset vote');
-    }
-  }
+  }, [resolvedParams.id, fetchVote]);
 
-  function copyLink() {
+  const copyLink = useCallback(() => {
     if (!vote) return;
     const url = `${window.location.origin}/v/${vote.code}`;
     navigator.clipboard.writeText(url);
-  }
+    toast.success('链接已复制');
+  }, [vote]);
 
   if (loading) {
     return (
@@ -185,7 +188,7 @@ export default function VoteDetailPage({
                   : '已结束'}
               </span>
               <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded">
-                {vote.config.voteType === 'single' ? '单选' : '多选'}
+                {vote.config?.voteType === 'single' ? '单选' : '多选'}
               </span>
             </div>
             <p className="text-muted-foreground mt-1">
@@ -195,14 +198,19 @@ export default function VoteDetailPage({
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={handleReset}
-            className="text-destructive hover:text-destructive"
-          >
-            <RotateCcw className="h-4 w-4 mr-2" />
-            重置结果
-          </Button>
+          <ConfirmDialog
+            trigger={
+              <Button variant="outline" className="text-destructive hover:text-destructive">
+                <RotateCcw className="h-4 w-4 mr-2" />
+                重置结果
+              </Button>
+            }
+            title="重置投票结果"
+            description="确定要重置投票结果吗？所有投票数据将被清空，此操作无法撤销。"
+            confirmText="重置"
+            variant="danger"
+            onConfirm={handleReset}
+          />
           {vote.status === 'active' ? (
             <Button
               variant="outline"
@@ -233,7 +241,7 @@ export default function VoteDetailPage({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">总票数</p>
-                <p className="text-3xl font-bold mt-1">{vote.stats.totalVotes}</p>
+                <p className="text-3xl font-bold mt-1">{vote.stats?.totalVotes ?? 0}</p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
                 <BarChart3 className="h-6 w-6 text-blue-500" />
@@ -247,7 +255,7 @@ export default function VoteDetailPage({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">参与人数</p>
-                <p className="text-3xl font-bold mt-1">{vote.stats.participantCount}</p>
+                <p className="text-3xl font-bold mt-1">{vote.stats?.participantCount ?? 0}</p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
                 <Users className="h-6 w-6 text-emerald-500" />
@@ -341,7 +349,7 @@ export default function VoteDetailPage({
             </Button>
           </CardHeader>
           <CardContent>
-            {vote.config.options.length === 0 ? (
+            {(vote.config?.options?.length ?? 0) === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 暂无选项
               </div>
@@ -349,7 +357,7 @@ export default function VoteDetailPage({
               <div className="bg-secondary/30 rounded-xl p-6">
                 <BarChart
                   options={vote.config.options}
-                  totalVotes={vote.stats.totalVotes}
+                  totalVotes={vote.stats?.totalVotes ?? 0}
                   showPercentage
                   showCount
                   animation
@@ -362,4 +370,3 @@ export default function VoteDetailPage({
     </div>
   );
 }
-

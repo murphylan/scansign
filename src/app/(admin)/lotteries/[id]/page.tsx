@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState, use, useCallback } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,8 +21,36 @@ import {
   RefreshCw,
   RotateCcw,
 } from 'lucide-react';
-import { Lottery, WinRecord } from '@/types/lottery';
-import { LotteryWheel } from '@/components/display/lottery-wheel';
+import { ConfirmDialog } from '@/components/shared';
+
+import {
+  getLotteryAction,
+  getLotteryWinnersAction,
+  updateLotteryAction,
+} from '@/server/actions/lotteryAction';
+
+interface LotteryData {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  status: string;
+  config: {
+    mode: string;
+    prizes: Array<{ id: string; name: string; count: number; remaining: number; probability: number }>;
+  };
+  stats: {
+    winnersCount: number;
+    participantCount: number;
+  };
+}
+
+interface WinRecord {
+  id: string;
+  phone: string | null;
+  prizeName: string;
+  drawnAt: number;
+}
 
 export default function LotteryDetailPage({
   params,
@@ -29,59 +58,46 @@ export default function LotteryDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const resolvedParams = use(params);
-  const [lottery, setLottery] = useState<Lottery | null>(null);
+  const [lottery, setLottery] = useState<LotteryData | null>(null);
   const [records, setRecords] = useState<WinRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
 
-  async function fetchLottery() {
-    try {
-      const res = await fetch(`/api/lotteries/${resolvedParams.id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setLottery(data.data);
-      }
-    } catch {
-      console.error('Failed to fetch lottery');
+  const fetchLottery = useCallback(async () => {
+    const res = await getLotteryAction(resolvedParams.id);
+    if (res.success && res.data) {
+      setLottery(res.data as LotteryData);
     }
-  }
+  }, [resolvedParams.id]);
 
-  async function fetchRecords() {
-    try {
-      const res = await fetch(`/api/lotteries/${resolvedParams.id}/records?limit=20`);
-      if (res.ok) {
-        const data = await res.json();
-        setRecords(data.data?.records || []);
-      }
-    } catch {
-      console.error('Failed to fetch records');
+  const fetchRecords = useCallback(async () => {
+    const res = await getLotteryWinnersAction(resolvedParams.id);
+    if (res.success && res.data) {
+      setRecords(res.data as WinRecord[]);
     }
-  }
+  }, [resolvedParams.id]);
 
-  async function fetchQRCode() {
-    if (!lottery) return;
+  const generateQRCode = useCallback(async (code: string) => {
     try {
-      const res = await fetch(`/api/lotteries/${resolvedParams.id}/qrcode`);
-      if (res.ok) {
-        const data = await res.json();
-        setQrCodeUrl(data.data?.qrCodeUrl);
-      }
+      const url = `${window.location.origin}/l/${code}`;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+      setQrCodeUrl(qrUrl);
     } catch {
-      console.error('Failed to fetch QR code');
+      console.error('Failed to generate QR code');
     }
-  }
+  }, []);
 
   useEffect(() => {
     Promise.all([fetchLottery(), fetchRecords()]).finally(() => {
       setLoading(false);
     });
-  }, [resolvedParams.id]);
+  }, [fetchLottery, fetchRecords]);
 
   useEffect(() => {
-    if (lottery) {
-      fetchQRCode();
+    if (lottery?.code) {
+      generateQRCode(lottery.code);
     }
-  }, [lottery]);
+  }, [lottery?.code, generateQRCode]);
 
   // SSE 实时更新
   useEffect(() => {
@@ -104,46 +120,35 @@ export default function LotteryDetailPage({
     return () => {
       eventSource.close();
     };
-  }, [lottery, resolvedParams.id]);
+  }, [lottery, resolvedParams.id, fetchLottery, fetchRecords]);
 
-  async function handleStatusChange(status: 'active' | 'paused') {
-    try {
-      const res = await fetch(`/api/lotteries/${resolvedParams.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-      if (res.ok) {
-        fetchLottery();
-      }
-    } catch {
-      console.error('Failed to update status');
+  const handleStatusChange = useCallback(async (status: 'active' | 'paused') => {
+    const res = await updateLotteryAction(resolvedParams.id, { status });
+    if (res.success) {
+      toast.success(status === 'active' ? '已恢复' : '已暂停');
+      fetchLottery();
+    } else {
+      toast.error(res.error || '操作失败');
     }
-  }
+  }, [resolvedParams.id, fetchLottery]);
 
-  async function handleReset() {
-    if (!confirm('确定要重置抽奖吗？所有中奖记录将被清空，奖品数量将恢复。')) {
-      return;
+  const handleReset = useCallback(async () => {
+    const res = await updateLotteryAction(resolvedParams.id, { reset: true });
+    if (res.success) {
+      toast.success('已重置');
+      fetchLottery();
+      fetchRecords();
+    } else {
+      toast.error(res.error || '重置失败');
     }
-    
-    try {
-      const res = await fetch(`/api/lotteries/${resolvedParams.id}?action=reset`, {
-        method: 'POST',
-      });
-      if (res.ok) {
-        fetchLottery();
-        fetchRecords();
-      }
-    } catch {
-      console.error('Failed to reset lottery');
-    }
-  }
+  }, [resolvedParams.id, fetchLottery, fetchRecords]);
 
-  function copyLink() {
+  const copyLink = useCallback(() => {
     if (!lottery) return;
     const url = `${window.location.origin}/l/${lottery.code}`;
     navigator.clipboard.writeText(url);
-  }
+    toast.success('链接已复制');
+  }, [lottery]);
 
   if (loading) {
     return (
@@ -196,7 +201,7 @@ export default function LotteryDetailPage({
                   : '已结束'}
               </span>
               <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded">
-                {lottery.config.mode === 'wheel' ? '转盘' : lottery.config.mode === 'slot' ? '老虎机' : lottery.config.mode}
+                {lottery.config?.mode === 'wheel' ? '转盘' : lottery.config?.mode === 'slot' ? '老虎机' : lottery.config?.mode}
               </span>
             </div>
             <p className="text-muted-foreground mt-1">
@@ -206,14 +211,19 @@ export default function LotteryDetailPage({
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={handleReset}
-            className="text-destructive hover:text-destructive"
-          >
-            <RotateCcw className="h-4 w-4 mr-2" />
-            重置
-          </Button>
+          <ConfirmDialog
+            trigger={
+              <Button variant="outline" className="text-destructive hover:text-destructive">
+                <RotateCcw className="h-4 w-4 mr-2" />
+                重置
+              </Button>
+            }
+            title="重置抽奖"
+            description="确定要重置抽奖吗？所有中奖记录将被清空，奖品数量将恢复。此操作无法撤销。"
+            confirmText="重置"
+            variant="danger"
+            onConfirm={handleReset}
+          />
           {lottery.status === 'active' ? (
             <Button
               variant="outline"
@@ -244,7 +254,7 @@ export default function LotteryDetailPage({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">中奖人数</p>
-                <p className="text-3xl font-bold mt-1">{lottery.stats.winnersCount}</p>
+                <p className="text-3xl font-bold mt-1">{lottery.stats?.winnersCount ?? 0}</p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-orange-500/20 flex items-center justify-center">
                 <Trophy className="h-6 w-6 text-orange-500" />
@@ -258,7 +268,7 @@ export default function LotteryDetailPage({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">参与人数</p>
-                <p className="text-3xl font-bold mt-1">{lottery.stats.participantCount}</p>
+                <p className="text-3xl font-bold mt-1">{lottery.stats?.participantCount ?? 0}</p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
                 <Users className="h-6 w-6 text-blue-500" />
@@ -347,7 +357,7 @@ export default function LotteryDetailPage({
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {lottery.config.prizes.map((prize) => (
+              {(lottery.config?.prizes ?? []).map((prize) => (
                 <div
                   key={prize.id}
                   className="flex items-center justify-between p-3 rounded-lg bg-secondary/50"
@@ -419,4 +429,3 @@ export default function LotteryDetailPage({
     </div>
   );
 }
-

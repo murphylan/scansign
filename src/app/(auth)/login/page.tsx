@@ -35,7 +35,7 @@ export default function LoginPage() {
     <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20">
       {/* Logo 和标题 */}
       <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 mb-4">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-linear-to-br from-violet-500 to-purple-600 mb-4">
           <span className="text-3xl font-bold text-white">M</span>
         </div>
         <h1 className="text-2xl font-bold text-white">欢迎回来</h1>
@@ -95,7 +95,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={isPending}
-          className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-medium flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full py-3 px-4 rounded-lg bg-linear-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-medium flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isPending ? (
             <Loader2 className="h-5 w-5 animate-spin" />

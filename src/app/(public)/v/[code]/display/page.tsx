@@ -1,10 +1,47 @@
 'use client';
 
-import { useEffect, useState, use, useRef } from 'react';
+import { useEffect, useState, use, useRef, useCallback } from 'react';
 import { QRCodeWidget } from '@/components/display/qr-code-widget';
 import { VoteChart } from '@/components/display/vote-charts';
-import { Vote, VoteOption } from '@/types/vote';
 import { Users, BarChart3 } from 'lucide-react';
+
+import { getVoteByCodeAction } from '@/server/actions/publicAction';
+
+interface VoteOption {
+  id: string;
+  title: string;
+  count: number;
+}
+
+interface VoteData {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  display?: {
+    chartType?: string;
+    showPercentage?: boolean;
+    showCount?: boolean;
+    animation?: boolean;
+    versusConfig?: unknown;
+    qrCode?: {
+      show: boolean;
+      position: string;
+      size: string;
+    };
+    background?: {
+      type: string;
+      value: string;
+    };
+  };
+  config?: {
+    options?: VoteOption[];
+  };
+  stats: {
+    totalVotes: number;
+    participantCount: number;
+  };
+}
 
 export default function VoteDisplayPage({
   params,
@@ -13,7 +50,7 @@ export default function VoteDisplayPage({
 }) {
   const resolvedParams = use(params);
   
-  const [vote, setVote] = useState<Vote | null>(null);
+  const [vote, setVote] = useState<VoteData | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,28 +59,25 @@ export default function VoteDisplayPage({
   
   const eventSourceRef = useRef<EventSource | null>(null);
 
-  useEffect(() => {
-    async function fetchVote() {
-      try {
-        const res = await fetch(`/api/votes/code/${resolvedParams.code}`);
-        if (res.ok) {
-          const data = await res.json();
-          setVote(data.data);
-          setQrCodeUrl(data.data.qrCodeUrl);
-          setOptions(data.data.config.options);
-          setStats(data.data.stats);
-        } else {
-          setError('投票不存在');
-        }
-      } catch {
-        setError('加载失败');
-      } finally {
-        setLoading(false);
-      }
+  const fetchVote = useCallback(async () => {
+    const res = await getVoteByCodeAction(resolvedParams.code);
+    if (res.success && res.data) {
+      const data = res.data as VoteData;
+      setVote(data);
+      setOptions((data.config?.options ?? []) as VoteOption[]);
+      setStats(data.stats);
+      // 生成二维码
+      const url = `${window.location.origin}/v/${resolvedParams.code}`;
+      setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`);
+    } else {
+      setError('投票不存在');
     }
-    
-    fetchVote();
+    setLoading(false);
   }, [resolvedParams.code]);
+
+  useEffect(() => {
+    fetchVote();
+  }, [fetchVote]);
 
   // SSE 连接
   useEffect(() => {
@@ -93,15 +127,16 @@ export default function VoteDisplayPage({
     );
   }
 
-  const backgroundStyle = vote.display.background.type === 'gradient'
-    ? { background: vote.display.background.value }
-    : vote.display.background.type === 'image'
+  const background = vote.display?.background || { type: 'gradient', value: 'linear-gradient(135deg, #1e3a5f 0%, #0d1b2a 100%)' };
+  const backgroundStyle = background.type === 'gradient'
+    ? { background: background.value }
+    : background.type === 'image'
     ? { 
-        backgroundImage: `url(${vote.display.background.value})`,
+        backgroundImage: `url(${background.value})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }
-    : { backgroundColor: vote.display.background.value };
+    : { backgroundColor: background.value };
 
   return (
     <div 
@@ -148,13 +183,13 @@ export default function VoteDisplayPage({
               </div>
             ) : (
               <VoteChart
-                chartType={vote.display.chartType}
+                chartType={(vote.display?.chartType || 'bar') as 'bar' | 'pie' | 'progress' | 'versus'}
                 options={options}
                 totalVotes={stats.totalVotes}
-                showPercentage={vote.display.showPercentage}
-                showCount={vote.display.showCount}
-                animation={vote.display.animation}
-                versusConfig={vote.display.versusConfig}
+                showPercentage={vote.display?.showPercentage ?? true}
+                showCount={vote.display?.showCount ?? true}
+                animation={vote.display?.animation ?? true}
+                versusConfig={vote.display?.versusConfig}
               />
             )}
           </div>
@@ -169,7 +204,7 @@ export default function VoteDisplayPage({
       </div>
 
       {/* 二维码 */}
-      {qrCodeUrl && vote.display.qrCode.show && (
+      {qrCodeUrl && vote.display?.qrCode?.show && (
         <QRCodeWidget
           qrCodeUrl={qrCodeUrl}
           position={vote.display.qrCode.position}
@@ -179,4 +214,3 @@ export default function VoteDisplayPage({
     </div>
   );
 }
-

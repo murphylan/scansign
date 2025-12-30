@@ -8,8 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { userInfoSchema } from "@/types";
-import type { ApiResponse, Department, RegisteredUser, UserCheckResponse } from "@/types";
+import type { Department, RegisteredUser } from "@/types";
 import { User, Phone, CheckCircle2, XCircle, Loader2, ShieldCheck, Building2, UserPlus, LogIn, KeyRound } from "lucide-react";
+
+import {
+  getDepartmentsAction,
+  checkUserPhoneAction,
+  checkUsernameAction,
+  confirmLoginAction,
+} from "@/server/actions/userAction";
 
 function ConfirmContent() {
   const searchParams = useSearchParams();
@@ -41,10 +48,9 @@ function ConfirmContent() {
   useEffect(() => {
     const loadDepartments = async () => {
       try {
-        const response = await fetch("/api/departments");
-        const data: ApiResponse<Department[]> = await response.json();
-        if (data.success && data.data) {
-          setDepartments(data.data);
+        const res = await getDepartmentsAction();
+        if (res.success && res.data) {
+          setDepartments(res.data);
         }
       } catch (err) {
         console.error("Load departments error:", err);
@@ -58,18 +64,13 @@ function ConfirmContent() {
     if (!phoneNumber || !/^1[3-9]\d{9}$/.test(phoneNumber)) return;
     
     try {
-      const response = await fetch("/api/user/check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: phoneNumber }),
-      });
-      const data: ApiResponse<UserCheckResponse> = await response.json();
+      const res = await checkUserPhoneAction(phoneNumber);
       
-      if (data.success && data.data?.exists && data.data.user) {
-        setExistingUser(data.data.user);
+      if (res.success && res.data?.exists && res.data.user) {
+        setExistingUser(res.data.user);
         // 填充已有信息
-        setUsername(data.data.user.username);
-        setDepartmentId(data.data.user.departmentId);
+        setUsername(res.data.user.username);
+        setDepartmentId(res.data.user.departmentId);
       } else {
         setExistingUser(null);
       }
@@ -115,17 +116,8 @@ function ConfirmContent() {
     if (!username || !departmentId) return false;
     
     try {
-      const response = await fetch("/api/user/check-username", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username,
-          departmentId,
-          excludeUserId: existingUser?.id,
-        }),
-      });
-      const data: ApiResponse<{ duplicate: boolean }> = await response.json();
-      return data.success && data.data?.duplicate === true;
+      const res = await checkUsernameAction(username, departmentId, existingUser?.id);
+      return res.success && res.data?.duplicate === true;
     } catch {
       return false;
     }
@@ -173,30 +165,24 @@ function ConfirmContent() {
     }
 
     try {
-      const response = await fetch("/api/qrcode/confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token,
-          username: validation.data.username,
-          phone: validation.data.phone,
-          departmentId: validation.data.departmentId,
-          existingUserId: existingUser?.id,
-          verifyCode: existingUser ? verifyCode : undefined,
-        }),
+      const res = await confirmLoginAction({
+        token: token!,
+        username: validation.data.username,
+        phone: validation.data.phone,
+        departmentId: validation.data.departmentId,
+        existingUserId: existingUser?.id,
+        verifyCode: existingUser ? verifyCode : undefined,
       });
 
-      const data: ApiResponse<{ verifyCode?: string }> = await response.json();
-
-      if (data.success) {
+      if (res.success) {
         // 新用户签到成功，保存返回的验证码
-        if (data.data?.verifyCode) {
-          setReturnedVerifyCode(data.data.verifyCode);
+        if (res.data?.verifyCode) {
+          setReturnedVerifyCode(res.data.verifyCode);
         }
         setSubmitStatus("success");
       } else {
         setSubmitStatus("error");
-        setErrorMessage(data.error || "操作失败");
+        setErrorMessage(res.error || "操作失败");
       }
     } catch {
       setSubmitStatus("error");

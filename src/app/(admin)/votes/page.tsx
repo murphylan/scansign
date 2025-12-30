@@ -1,7 +1,8 @@
 'use client';
 
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,7 +11,6 @@ import {
   Monitor,
   Share2,
   ArrowRight,
-  Trash2,
   Pause,
   Play,
   Copy,
@@ -18,64 +18,72 @@ import {
   Users,
   BarChart3,
 } from 'lucide-react';
-import { Vote } from '@/types/vote';
+
+import {
+  listVotesAction,
+  updateVoteAction,
+  deleteVoteAction,
+} from '@/server/actions/voteAction';
+import { DeleteConfirm } from '@/components/shared';
+
+interface VoteListItem {
+  id: string;
+  code: string;
+  title: string;
+  status: string;
+  voteType: string;
+  options: unknown[];
+  totalVotes: number;
+}
 
 export default function VotesPage() {
-  const [votes, setVotes] = useState<Vote[]>([]);
+  const [votes, setVotes] = useState<VoteListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingId, setPendingId] = useState<string | null>(null);
 
-  async function fetchVotes() {
-    try {
-      const res = await fetch('/api/votes');
-      if (res.ok) {
-        const data = await res.json();
-        setVotes(data.data || []);
-      }
-    } catch {
-      console.error('Failed to fetch votes');
-    } finally {
-      setLoading(false);
+  const fetchVotes = useCallback(async () => {
+    const res = await listVotesAction();
+    if (res.success && res.data) {
+      setVotes(res.data as VoteListItem[]);
+    } else {
+      toast.error(res.error || '获取投票列表失败');
     }
-  }
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     fetchVotes();
-  }, []);
+  }, [fetchVotes]);
 
-  async function handleStatusChange(id: string, status: 'active' | 'paused') {
-    try {
-      const res = await fetch(`/api/votes/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-      if (res.ok) {
-        fetchVotes();
-      }
-    } catch {
-      console.error('Failed to update status');
+  const handleStatusChange = useCallback(async (id: string, status: 'active' | 'paused') => {
+    setPendingId(id);
+    const res = await updateVoteAction(id, { status });
+    if (res.success) {
+      toast.success(status === 'active' ? '已恢复' : '已暂停');
+      fetchVotes();
+    } else {
+      toast.error(res.error || '操作失败');
     }
-  }
+    setPendingId(null);
+  }, [fetchVotes]);
 
-  async function handleDelete(id: string) {
-    if (!confirm('确定要删除这个投票吗？此操作无法撤销。')) return;
-    
-    try {
-      const res = await fetch(`/api/votes/${id}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        fetchVotes();
-      }
-    } catch {
-      console.error('Failed to delete vote');
+  const handleDelete = useCallback(async (id: string) => {
+    setPendingId(id);
+    const res = await deleteVoteAction(id);
+    if (res.success) {
+      toast.success('已删除');
+      fetchVotes();
+    } else {
+      toast.error(res.error || '删除失败');
     }
-  }
+    setPendingId(null);
+  }, [fetchVotes]);
 
-  function copyLink(code: string) {
+  const copyLink = useCallback((code: string) => {
     const url = `${window.location.origin}/v/${code}`;
     navigator.clipboard.writeText(url);
-  }
+    toast.success('链接已复制');
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -153,17 +161,17 @@ export default function VotesPage() {
                             : '草稿'}
                         </span>
                         <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded">
-                          {vote.config.voteType === 'single' ? '单选' : '多选'}
+                          {vote.voteType === 'single' ? '单选' : '多选'}
                         </span>
                       </div>
                       <div className="flex items-center gap-4 mt-1.5 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <BarChart3 className="h-3.5 w-3.5" />
-                          {vote.config.options.length} 个选项
+                          {(vote.options as unknown[])?.length ?? 0} 个选项
                         </span>
                         <span className="flex items-center gap-1">
                           <Users className="h-3.5 w-3.5" />
-                          {vote.stats.participantCount} 人参与
+                          {vote.totalVotes ?? 0} 票
                         </span>
                         <span className="font-mono text-xs bg-secondary px-2 py-0.5 rounded">
                           /v/{vote.code}
@@ -200,6 +208,7 @@ export default function VotesPage() {
                         variant="ghost"
                         size="icon"
                         title="暂停"
+                        disabled={pendingId === vote.id}
                         onClick={() => handleStatusChange(vote.id, 'paused')}
                       >
                         <Pause className="h-4 w-4" />
@@ -209,21 +218,18 @@ export default function VotesPage() {
                         variant="ghost"
                         size="icon"
                         title="恢复"
+                        disabled={pendingId === vote.id}
                         onClick={() => handleStatusChange(vote.id, 'active')}
                       >
                         <Play className="h-4 w-4" />
                       </Button>
                     ) : null}
 
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      title="删除"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => handleDelete(vote.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <DeleteConfirm
+                      entityName={vote.title}
+                      isLoading={pendingId === vote.id}
+                      onConfirm={() => handleDelete(vote.id)}
+                    />
 
                     <Link href={`/votes/${vote.id}`}>
                       <Button variant="ghost" size="icon" title="详情">
@@ -240,4 +246,3 @@ export default function VotesPage() {
     </div>
   );
 }
-

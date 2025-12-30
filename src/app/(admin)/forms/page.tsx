@@ -1,7 +1,8 @@
 'use client';
 
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,7 +11,6 @@ import {
   Monitor,
   Share2,
   ArrowRight,
-  Trash2,
   Pause,
   Play,
   Copy,
@@ -18,64 +18,71 @@ import {
   Download,
   LayoutList,
 } from 'lucide-react';
-import { Form } from '@/types/form';
+
+import {
+  listFormsAction,
+  updateFormAction,
+  deleteFormAction,
+} from '@/server/actions/formAction';
+import { DeleteConfirm } from '@/components/shared';
+
+interface FormListItem {
+  id: string;
+  code: string;
+  title: string;
+  status: string;
+  fields?: unknown[];
+  responseCount: number;
+}
 
 export default function FormsPage() {
-  const [forms, setForms] = useState<Form[]>([]);
+  const [forms, setForms] = useState<FormListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingId, setPendingId] = useState<string | null>(null);
 
-  async function fetchForms() {
-    try {
-      const res = await fetch('/api/forms');
-      if (res.ok) {
-        const data = await res.json();
-        setForms(data.data || []);
-      }
-    } catch {
-      console.error('Failed to fetch forms');
-    } finally {
-      setLoading(false);
+  const fetchForms = useCallback(async () => {
+    const res = await listFormsAction();
+    if (res.success && res.data) {
+      setForms(res.data as FormListItem[]);
+    } else {
+      toast.error(res.error || '获取表单列表失败');
     }
-  }
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     fetchForms();
-  }, []);
+  }, [fetchForms]);
 
-  async function handleStatusChange(id: string, status: 'active' | 'paused') {
-    try {
-      const res = await fetch(`/api/forms/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-      if (res.ok) {
-        fetchForms();
-      }
-    } catch {
-      console.error('Failed to update status');
+  const handleStatusChange = useCallback(async (id: string, status: 'active' | 'paused') => {
+    setPendingId(id);
+    const res = await updateFormAction(id, { status });
+    if (res.success) {
+      toast.success(status === 'active' ? '已恢复' : '已暂停');
+      fetchForms();
+    } else {
+      toast.error(res.error || '操作失败');
     }
-  }
+    setPendingId(null);
+  }, [fetchForms]);
 
-  async function handleDelete(id: string) {
-    if (!confirm('确定要删除这个表单吗？此操作无法撤销。')) return;
-    
-    try {
-      const res = await fetch(`/api/forms/${id}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        fetchForms();
-      }
-    } catch {
-      console.error('Failed to delete form');
+  const handleDelete = useCallback(async (id: string) => {
+    setPendingId(id);
+    const res = await deleteFormAction(id);
+    if (res.success) {
+      toast.success('已删除');
+      fetchForms();
+    } else {
+      toast.error(res.error || '删除失败');
     }
-  }
+    setPendingId(null);
+  }, [fetchForms]);
 
-  function copyLink(code: string) {
+  const copyLink = useCallback((code: string) => {
     const url = `${window.location.origin}/f/${code}`;
     navigator.clipboard.writeText(url);
-  }
+    toast.success('链接已复制');
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -156,11 +163,11 @@ export default function FormsPage() {
                       <div className="flex items-center gap-4 mt-1.5 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <LayoutList className="h-3.5 w-3.5" />
-                          {form.config.fields.length} 个字段
+                          {(form.fields as unknown[])?.length ?? 0} 个字段
                         </span>
                         <span className="flex items-center gap-1">
                           <Download className="h-3.5 w-3.5" />
-                          {form.stats.responseCount} 份提交
+                          {form.responseCount ?? 0} 份提交
                         </span>
                         <span className="font-mono text-xs bg-secondary px-2 py-0.5 rounded">
                           /f/{form.code}
@@ -197,6 +204,7 @@ export default function FormsPage() {
                         variant="ghost"
                         size="icon"
                         title="暂停"
+                        disabled={pendingId === form.id}
                         onClick={() => handleStatusChange(form.id, 'paused')}
                       >
                         <Pause className="h-4 w-4" />
@@ -206,21 +214,18 @@ export default function FormsPage() {
                         variant="ghost"
                         size="icon"
                         title="恢复"
+                        disabled={pendingId === form.id}
                         onClick={() => handleStatusChange(form.id, 'active')}
                       >
                         <Play className="h-4 w-4" />
                       </Button>
                     ) : null}
 
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      title="删除"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => handleDelete(form.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <DeleteConfirm
+                      entityName={form.title}
+                      isLoading={pendingId === form.id}
+                      onConfirm={() => handleDelete(form.id)}
+                    />
 
                     <Link href={`/forms/${form.id}`}>
                       <Button variant="ghost" size="icon" title="详情">
@@ -237,4 +242,3 @@ export default function FormsPage() {
     </div>
   );
 }
-

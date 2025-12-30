@@ -108,44 +108,6 @@ export function Sidebar({ user }: SidebarProps) {
           </button>
         </div>
 
-        {/* User info */}
-        <div className="px-4 py-3 border-b border-border">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary/50 to-emerald-500/50 flex items-center justify-center">
-              <span className="text-sm font-medium">
-                {user.nickname?.charAt(0) || user.email.charAt(0).toUpperCase()}
-              </span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">
-                {user.nickname || user.email.split("@")[0]}
-              </p>
-              <p className="text-xs text-muted-foreground truncate">
-                {user.email}
-              </p>
-            </div>
-          </div>
-
-          {/* 角色/试用期标签 */}
-          <div className="mt-2">
-            {user.role === "ADMIN" ? (
-              <span className="inline-flex items-center gap-1 text-xs bg-amber-500/20 text-amber-600 px-2 py-1 rounded-full">
-                <Crown className="h-3 w-3" />
-                管理员
-              </span>
-            ) : user.isPaid ? (
-              <span className="inline-flex items-center gap-1 text-xs bg-emerald-500/20 text-emerald-600 px-2 py-1 rounded-full">
-                付费用户
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 text-xs bg-blue-500/20 text-blue-600 px-2 py-1 rounded-full">
-                <Clock className="h-3 w-3" />
-                试用期剩余 {user.trialDaysRemaining} 天
-              </span>
-            )}
-          </div>
-        </div>
-
         {/* Navigation */}
         <nav className="flex-1 space-y-1 px-3 py-4">
           {navigation.map((item) => {
@@ -185,6 +147,37 @@ export function Sidebar({ user }: SidebarProps) {
 
         {/* Bottom section */}
         <div className="border-t border-border p-3 space-y-1">
+          {/* User info */}
+          <div className="flex items-center gap-3 px-3 py-2">
+            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/50 to-emerald-500/50 flex items-center justify-center shrink-0">
+              <span className="text-xs font-medium">
+                {user.nickname?.charAt(0) || user.email.charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">
+                {user.nickname || user.email.split("@")[0]}
+              </p>
+              <div className="flex items-center gap-2">
+                {user.role === "ADMIN" ? (
+                  <span className="inline-flex items-center gap-1 text-xs text-amber-600">
+                    <Crown className="h-3 w-3" />
+                    管理员
+                  </span>
+                ) : user.isPaid ? (
+                  <span className="text-xs text-emerald-600">付费用户</span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-xs text-blue-600">
+                    <Clock className="h-3 w-3" />
+                    试用 {user.trialDaysRemaining} 天
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-border my-2" />
+
           <Link
             href="/settings"
             className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"

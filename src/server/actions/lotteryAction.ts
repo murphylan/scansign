@@ -160,6 +160,7 @@ export async function createLotteryAction(data: LotteryFormData) {
         code,
         title: data.title,
         description: data.description,
+        status: "ACTIVE", // 创建后默认为进行中
         prizes: data.prizes || [],
         config: data.config || DEFAULT_CONFIG,
         display: data.display || DEFAULT_DISPLAY,

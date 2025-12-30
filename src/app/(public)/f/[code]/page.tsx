@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState, use, useCallback } from 'react';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,8 +15,50 @@ import {
   Star,
   ChevronLeft,
 } from 'lucide-react';
-import { Form, FormField, validateField } from '@/types/form';
 import { cn } from '@/lib/utils';
+
+import {
+  getFormByCodeAction,
+  submitFormAction,
+} from '@/server/actions/publicAction';
+
+interface FieldOption {
+  value: string;
+  label: string;
+}
+
+interface FormField {
+  id: string;
+  type: string;
+  label: string;
+  placeholder?: string;
+  required?: boolean;
+  options?: FieldOption[];
+  ratingConfig?: {
+    max: number;
+  };
+}
+
+interface FormData {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  status: string;
+  config: {
+    fields: FormField[];
+    submit?: {
+      buttonText?: string;
+      showPreview?: boolean;
+      successMessage?: string;
+      redirectUrl?: string;
+    };
+    rules?: {
+      requirePhone?: boolean;
+      limitOne?: boolean;
+    };
+  };
+}
 
 export default function FormMobilePage({
   params,
@@ -26,7 +69,7 @@ export default function FormMobilePage({
   
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState<Form | null>(null);
+  const [form, setForm] = useState<FormData | null>(null);
   const [error, setError] = useState<string | null>(null);
   
   // 表单数据
@@ -42,36 +85,42 @@ export default function FormMobilePage({
   const [successMessage, setSuccessMessage] = useState('');
   const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchForm() {
-      try {
-        const res = await fetch(`/api/forms/code/${resolvedParams.code}`);
-        if (res.ok) {
-          const data = await res.json();
-          setForm(data.data);
-        } else {
-          setError('表单不存在或已结束');
-        }
-      } catch {
-        setError('加载失败，请刷新重试');
-      } finally {
-        setLoading(false);
-      }
+  const fetchForm = useCallback(async () => {
+    const res = await getFormByCodeAction(resolvedParams.code);
+    if (res.success && res.data) {
+      setForm(res.data as FormData);
+    } else {
+      setError(res.error || '表单不存在或已结束');
     }
-    fetchForm();
+    setLoading(false);
   }, [resolvedParams.code]);
 
-  function updateFieldValue(fieldId: string, value: unknown) {
+  useEffect(() => {
+    fetchForm();
+  }, [fetchForm]);
+
+  const updateFieldValue = useCallback((fieldId: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [fieldId]: value }));
-    // 清除错误
     setFieldErrors((prev) => {
       const next = { ...prev };
       delete next[fieldId];
       return next;
     });
-  }
+  }, []);
 
-  function validateAllFields(): boolean {
+  const validateField = useCallback((field: FormField, value: unknown): string | null => {
+    if (field.required) {
+      if (value === undefined || value === null || value === '') {
+        return `请填写${field.label}`;
+      }
+      if (Array.isArray(value) && value.length === 0) {
+        return `请选择${field.label}`;
+      }
+    }
+    return null;
+  }, []);
+
+  const validateAllFields = useCallback((): boolean => {
     if (!form) return false;
     
     const errors: Record<string, string> = {};
@@ -85,54 +134,45 @@ export default function FormMobilePage({
     
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
-  }
+  }, [form, formData, validateField]);
 
-  function handlePreview() {
+  const handlePreview = useCallback(() => {
     if (!validateAllFields()) {
       return;
     }
     setShowPreview(true);
-  }
+  }, [validateAllFields]);
 
-  async function handleSubmit() {
+  const handleSubmit = useCallback(async () => {
     if (!form) return;
     
     setSubmitting(true);
     setError(null);
     
-    try {
-      const res = await fetch(`/api/forms/${form.id}/submit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: form.config.rules.requirePhone ? phone : undefined,
-          data: formData,
-        }),
-      });
+    const res = await submitFormAction(resolvedParams.code, {
+      phone: form.config.rules?.requirePhone ? phone : undefined,
+      formData,
+    });
+    
+    if (res.success) {
+      setSuccess(true);
+      setSuccessMessage(form.config.submit?.successMessage || '提交成功！');
+      toast.success('提交成功');
       
-      const data = await res.json();
-      
-      if (res.ok) {
-        setSuccess(true);
-        setSuccessMessage(data.data?.message || '提交成功！');
-        
-        if (data.data?.redirectUrl) {
-          setRedirectUrl(data.data.redirectUrl);
-          setTimeout(() => {
-            window.location.href = data.data.redirectUrl;
-          }, (data.data.redirectDelay || 2) * 1000);
-        }
-      } else {
-        setError(data.error || '提交失败');
-        setShowPreview(false);
+      if (form.config.submit?.redirectUrl) {
+        setRedirectUrl(form.config.submit.redirectUrl);
+        setTimeout(() => {
+          window.location.href = form.config.submit!.redirectUrl!;
+        }, 2000);
       }
-    } catch {
-      setError('提交失败，请重试');
+    } else {
+      setError(res.error || '提交失败');
       setShowPreview(false);
-    } finally {
-      setSubmitting(false);
+      toast.error(res.error || '提交失败');
     }
-  }
+    
+    setSubmitting(false);
+  }, [form, resolvedParams.code, phone, formData]);
 
   if (loading) {
     return (
@@ -180,6 +220,8 @@ export default function FormMobilePage({
     );
   }
 
+  const fields = form?.config.fields ?? [];
+
   // 预览确认页
   if (showPreview) {
     return (
@@ -199,13 +241,13 @@ export default function FormMobilePage({
               <CardDescription>请确认以下信息无误</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {form?.config.rules.requirePhone && (
+              {form?.config.rules?.requirePhone && (
                 <div className="flex justify-between py-2 border-b">
                   <span className="text-muted-foreground">手机号</span>
                   <span className="font-medium">{phone}</span>
                 </div>
               )}
-              {form?.config.fields.map((field) => (
+              {fields.map((field) => (
                 <div key={field.id} className="flex justify-between py-2 border-b">
                   <span className="text-muted-foreground">{field.label}</span>
                   <span className="font-medium text-right max-w-[60%]">
@@ -270,7 +312,7 @@ export default function FormMobilePage({
         <Card className="animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
           <CardContent className="pt-6 space-y-6">
             {/* 手机号 */}
-            {form?.config.rules.requirePhone && (
+            {form?.config.rules?.requirePhone && (
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
                   <Phone className="h-4 w-4" />
@@ -287,7 +329,7 @@ export default function FormMobilePage({
             )}
 
             {/* 动态字段 */}
-            {form?.config.fields.map((field) => (
+            {fields.map((field) => (
               <div key={field.id} className="space-y-2">
                 <Label>
                   {field.label}
@@ -311,7 +353,7 @@ export default function FormMobilePage({
 
             <Button
               className="w-full h-12 text-lg"
-              onClick={form?.config.submit.showPreview ? handlePreview : handleSubmit}
+              onClick={form?.config.submit?.showPreview ? handlePreview : handleSubmit}
               disabled={submitting}
             >
               {submitting ? (
@@ -320,7 +362,7 @@ export default function FormMobilePage({
                   提交中...
                 </>
               ) : (
-                form?.config.submit.buttonText || '提交'
+                form?.config.submit?.buttonText || '提交'
               )}
             </Button>
           </CardContent>
@@ -556,4 +598,3 @@ function formatValue(value: unknown, field: FormField): string {
   
   return String(value);
 }
-

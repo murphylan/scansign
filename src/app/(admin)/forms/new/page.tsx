@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,6 +24,7 @@ import {
   FIELD_TYPE_CONFIG,
 } from '@/types/form';
 import { generateId } from '@/lib/utils/code-generator';
+import { createFormAction } from '@/server/actions/formAction';
 
 export default function NewFormPage() {
   const router = useRouter();
@@ -103,56 +105,53 @@ export default function NewFormPage() {
     e.preventDefault();
     
     if (!title.trim()) {
-      alert('请输入表单标题');
+      toast.error('请输入表单标题');
       return;
     }
 
     if (fields.length === 0) {
-      alert('请至少添加一个字段');
+      toast.error('请至少添加一个字段');
       return;
     }
 
     // 检查字段标题
     for (const field of fields) {
       if (!field.label.trim()) {
-        alert('请填写所有字段的标题');
+        toast.error('请填写所有字段的标题');
         return;
       }
     }
 
     setLoading(true);
     try {
-      const res = await fetch('/api/forms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim() || undefined,
-          config: {
-            fields,
-            submit: {
-              buttonText,
-              showPreview,
-              successMessage,
-              redirectUrl: redirectUrl || undefined,
-            },
-            rules: {
-              requirePhone,
-              limitOne,
-            },
-          },
-        }),
+      const config = {
+        fields,
+        submit: {
+          buttonText,
+          showPreview,
+          successMessage,
+          redirectUrl: redirectUrl || undefined,
+        },
+        rules: {
+          requirePhone,
+          limitOne,
+        },
+      };
+
+      const res = await createFormAction({
+        title: title.trim(),
+        description: description.trim() || undefined,
+        config: JSON.parse(JSON.stringify(config)),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        router.push(`/forms/${data.data.id}`);
+      if (res.success) {
+        toast.success('创建成功');
+        router.push(`/forms/${res.data?.id}`);
       } else {
-        const error = await res.json();
-        alert(error.error || '创建失败');
+        toast.error(res.error || '创建失败');
       }
     } catch {
-      alert('创建失败，请重试');
+      toast.error('创建失败，请重试');
     } finally {
       setLoading(false);
     }

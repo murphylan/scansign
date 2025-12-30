@@ -179,6 +179,7 @@ export async function createCheckinAction(data: CheckinFormData) {
         code,
         title: data.title,
         description: data.description,
+        status: "ACTIVE", // 创建后默认为进行中
         config: data.config || DEFAULT_CONFIG,
         display: data.display || DEFAULT_DISPLAY,
         startTime: data.startTime ? new Date(data.startTime) : undefined,

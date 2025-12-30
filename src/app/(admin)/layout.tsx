@@ -44,11 +44,6 @@ export default async function AdminLayout({
 
         {/* Main content */}
         <div className="lg:pl-64">
-          {/* Top bar */}
-          <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border bg-background/95 backdrop-blur px-4 lg:px-6">
-            <div className="flex-1" />
-          </header>
-
           {/* Page content */}
           <main className="p-4 lg:p-6">{children}</main>
         </div>

@@ -1,9 +1,42 @@
 'use client';
 
-import { useEffect, useState, use, useRef } from 'react';
+import { useEffect, useState, use, useRef, useCallback } from 'react';
 import { QRCodeWidget } from '@/components/display/qr-code-widget';
-import { Form, FormResponse } from '@/types/form';
 import { FileText, Download, Clock } from 'lucide-react';
+
+import {
+  getFormByCodeAction,
+  getFormResponsesByCodeAction,
+} from '@/server/actions/publicAction';
+
+interface FormResponse {
+  id: string;
+  phone: string | null;
+  submittedAt: number;
+}
+
+interface FormData {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  display?: {
+    showStats?: boolean;
+    showRecentResponses?: boolean;
+    qrCode?: {
+      show: boolean;
+      position: string;
+      size: string;
+    };
+    background?: {
+      type: string;
+      value: string;
+    };
+  };
+  stats: {
+    responseCount: number;
+  };
+}
 
 export default function FormDisplayPage({
   params,
@@ -12,7 +45,7 @@ export default function FormDisplayPage({
 }) {
   const resolvedParams = use(params);
   
-  const [form, setForm] = useState<Form | null>(null);
+  const [form, setForm] = useState<FormData | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,47 +54,32 @@ export default function FormDisplayPage({
   
   const eventSourceRef = useRef<EventSource | null>(null);
 
+  const fetchForm = useCallback(async () => {
+    const res = await getFormByCodeAction(resolvedParams.code);
+    if (res.success && res.data) {
+      const data = res.data as FormData;
+      setForm(data);
+      setStats({ responseCount: data.stats.responseCount, todayCount: 0 });
+      // 生成二维码
+      const url = `${window.location.origin}/f/${resolvedParams.code}`;
+      setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`);
+    } else {
+      setError('表单不存在');
+    }
+    setLoading(false);
+  }, [resolvedParams.code]);
+
+  const fetchResponses = useCallback(async () => {
+    const res = await getFormResponsesByCodeAction(resolvedParams.code, 5);
+    if (res.success && res.data) {
+      setRecentResponses(res.data as FormResponse[]);
+    }
+  }, [resolvedParams.code]);
+
   useEffect(() => {
-    async function fetchForm() {
-      try {
-        const res = await fetch(`/api/forms/code/${resolvedParams.code}`);
-        if (res.ok) {
-          const data = await res.json();
-          setForm(data.data);
-          setQrCodeUrl(data.data.qrCodeUrl);
-          setStats(data.data.stats);
-        } else {
-          setError('表单不存在');
-        }
-      } catch {
-        setError('加载失败');
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    async function fetchResponses() {
-      try {
-        const formRes = await fetch(`/api/forms/code/${resolvedParams.code}`);
-        if (formRes.ok) {
-          const formData = await formRes.json();
-          const formId = formData.data?.id;
-          if (formId) {
-            const responsesRes = await fetch(`/api/forms/${formId}/responses?limit=5`);
-            if (responsesRes.ok) {
-              const responsesData = await responsesRes.json();
-              setRecentResponses(responsesData.data?.responses || []);
-            }
-          }
-        }
-      } catch {
-        // ignore
-      }
-    }
-    
     fetchForm();
     fetchResponses();
-  }, [resolvedParams.code]);
+  }, [fetchForm, fetchResponses]);
 
   // SSE 连接
   useEffect(() => {
@@ -111,15 +129,16 @@ export default function FormDisplayPage({
     );
   }
 
-  const backgroundStyle = form.display.background.type === 'gradient'
-    ? { background: form.display.background.value }
-    : form.display.background.type === 'image'
+  const background = form.display?.background || { type: 'gradient', value: 'linear-gradient(135deg, #4c1d95 0%, #6b2184 50%, #4c1d95 100%)' };
+  const backgroundStyle = background.type === 'gradient'
+    ? { background: background.value }
+    : background.type === 'image'
     ? { 
-        backgroundImage: `url(${form.display.background.value})`,
+        backgroundImage: `url(${background.value})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }
-    : { backgroundColor: form.display.background.value };
+    : { backgroundColor: background.value };
 
   return (
     <div 
@@ -147,7 +166,7 @@ export default function FormDisplayPage({
         <div className="flex-1 flex items-center justify-center">
           <div className="grid gap-8 md:grid-cols-2 max-w-4xl w-full">
             {/* 统计卡片 */}
-            {form.display.showStats && (
+            {form.display?.showStats !== false && (
               <div className="bg-black/40 backdrop-blur-md rounded-3xl p-8 text-white text-center">
                 <div className="h-20 w-20 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center mx-auto mb-6">
                   <Download className="h-10 w-10" />
@@ -165,7 +184,7 @@ export default function FormDisplayPage({
             )}
 
             {/* 最近提交 */}
-            {form.display.showRecentResponses && recentResponses.length > 0 && (
+            {form.display?.showRecentResponses !== false && recentResponses.length > 0 && (
               <div className="bg-black/40 backdrop-blur-md rounded-3xl p-6 text-white">
                 <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
                   <Clock className="h-5 w-5" />
@@ -206,7 +225,7 @@ export default function FormDisplayPage({
       </div>
 
       {/* 二维码 */}
-      {qrCodeUrl && form.display.qrCode.show && (
+      {qrCodeUrl && form.display?.qrCode?.show && (
         <QRCodeWidget
           qrCodeUrl={qrCodeUrl}
           position={form.display.qrCode.position}
@@ -232,4 +251,3 @@ function formatTime(timestamp: number): string {
     });
   }
 }
-

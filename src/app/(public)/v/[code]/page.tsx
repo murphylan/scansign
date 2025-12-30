@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState, use, useCallback } from 'react';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,9 +14,45 @@ import {
   AlertCircle,
   Check,
 } from 'lucide-react';
-import { Vote, VoteOption } from '@/types/vote';
 import { cn } from '@/lib/utils';
 import { BarChart } from '@/components/display/vote-charts';
+
+import {
+  getVoteByCodeAction,
+  checkVotePhoneAction,
+  submitVoteAction,
+} from '@/server/actions/publicAction';
+
+interface VoteOption {
+  id: string;
+  title: string;
+  description?: string;
+  count: number;
+}
+
+interface VoteData {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  status: string;
+  config: {
+    voteType: string;
+    minSelect?: number;
+    maxSelect?: number;
+    requirePhone?: boolean;
+    allowChange?: boolean;
+    options: VoteOption[];
+    showResult?: {
+      realtime?: boolean;
+      afterVote?: boolean;
+    };
+  };
+  stats: {
+    totalVotes: number;
+    participantCount: number;
+  };
+}
 
 export default function VoteMobilePage({
   params,
@@ -26,7 +63,7 @@ export default function VoteMobilePage({
   
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [vote, setVote] = useState<Vote | null>(null);
+  const [vote, setVote] = useState<VoteData | null>(null);
   const [error, setError] = useState<string | null>(null);
   
   // 表单状态
@@ -43,53 +80,40 @@ export default function VoteMobilePage({
   const [resultOptions, setResultOptions] = useState<VoteOption[]>([]);
   const [resultStats, setResultStats] = useState<{ totalVotes: number; participantCount: number } | null>(null);
 
-  useEffect(() => {
-    async function fetchVote() {
-      try {
-        const res = await fetch(`/api/votes/code/${resolvedParams.code}`);
-        if (res.ok) {
-          const data = await res.json();
-          setVote(data.data);
-        } else {
-          setError('投票不存在或已结束');
-        }
-      } catch {
-        setError('加载失败，请刷新重试');
-      } finally {
-        setLoading(false);
-      }
+  const fetchVote = useCallback(async () => {
+    const res = await getVoteByCodeAction(resolvedParams.code);
+    if (res.success && res.data) {
+      setVote(res.data as VoteData);
+    } else {
+      setError(res.error || '投票不存在或已结束');
     }
-    fetchVote();
+    setLoading(false);
   }, [resolvedParams.code]);
 
+  useEffect(() => {
+    fetchVote();
+  }, [fetchVote]);
+
   // 检查手机号是否已投票
-  async function checkPhone() {
+  const checkPhone = useCallback(async () => {
     if (!vote?.config.requirePhone) return;
     if (!phone || !/^1[3-9]\d{9}$/.test(phone)) return;
     
     setCheckingPhone(true);
-    try {
-      const res = await fetch(`/api/votes/${vote.id}/submit?phone=${phone}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.data?.hasVoted) {
-          setHasVoted(true);
-          if (data.data.selectedOptions) {
-            setSelectedOptions(data.data.selectedOptions);
-          }
-        } else {
-          setHasVoted(false);
-          setSelectedOptions([]);
-        }
+    const res = await checkVotePhoneAction(resolvedParams.code, phone);
+    if (res.success && res.data?.voted) {
+      setHasVoted(true);
+      if (res.data.selectedOptions) {
+        setSelectedOptions(res.data.selectedOptions as string[]);
       }
-    } catch {
-      // ignore
-    } finally {
-      setCheckingPhone(false);
+    } else {
+      setHasVoted(false);
+      setSelectedOptions([]);
     }
-  }
+    setCheckingPhone(false);
+  }, [phone, resolvedParams.code, vote?.config.requirePhone]);
 
-  function handleOptionSelect(optionId: string) {
+  const handleOptionSelect = useCallback((optionId: string) => {
     if (vote?.config.voteType === 'single') {
       setSelectedOptions([optionId]);
     } else {
@@ -102,9 +126,9 @@ export default function VoteMobilePage({
         }
       }
     }
-  }
+  }, [vote, selectedOptions]);
 
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!vote) return;
     
@@ -124,36 +148,33 @@ export default function VoteMobilePage({
     setSubmitting(true);
     setError(null);
     
-    try {
-      const res = await fetch(`/api/votes/${vote.id}/submit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: vote.config.requirePhone ? phone : undefined,
-          selectedOptions,
-        }),
-      });
+    const res = await submitVoteAction(resolvedParams.code, {
+      phone: vote.config.requirePhone ? phone : undefined,
+      selectedOptions,
+    });
+    
+    if (res.success) {
+      setSuccess(true);
+      toast.success('投票成功');
       
-      const data = await res.json();
-      
-      if (res.ok) {
-        setSuccess(true);
-        
-        // 显示结果
-        if (data.data?.options && vote.config.showResult.afterVote) {
-          setShowResult(true);
-          setResultOptions(data.data.options);
-          setResultStats(data.data.stats);
+      // 显示结果
+      if (vote.config.showResult?.afterVote) {
+        setShowResult(true);
+        // 重新获取投票数据以显示结果
+        const newRes = await getVoteByCodeAction(resolvedParams.code);
+        if (newRes.success && newRes.data) {
+          const newVote = newRes.data as VoteData;
+          setResultOptions(newVote.config.options);
+          setResultStats(newVote.stats);
         }
-      } else {
-        setError(data.error || '投票失败');
       }
-    } catch {
-      setError('投票失败，请重试');
-    } finally {
-      setSubmitting(false);
+    } else {
+      setError(res.error || '投票失败');
+      toast.error(res.error || '投票失败');
     }
-  }
+    
+    setSubmitting(false);
+  }, [vote, selectedOptions, resolvedParams.code, phone]);
 
   if (loading) {
     return (
@@ -222,6 +243,8 @@ export default function VoteMobilePage({
     );
   }
 
+  const options = vote?.config?.options ?? [];
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/30 p-4 py-8">
       <div className="max-w-md mx-auto space-y-6">
@@ -236,9 +259,9 @@ export default function VoteMobilePage({
           )}
           <div className="flex items-center justify-center gap-4 mt-3 text-sm text-muted-foreground">
             <span>
-              {vote?.config.voteType === 'single' ? '单选' : `多选（${vote?.config.minSelect || 1}-${vote?.config.maxSelect || vote?.config.options.length}项）`}
+              {vote?.config.voteType === 'single' ? '单选' : `多选（${vote?.config.minSelect || 1}-${vote?.config.maxSelect || options.length}项）`}
             </span>
-            {vote?.config.showResult.realtime && (
+            {vote?.config.showResult?.realtime && (
               <span>· 实时结果</span>
             )}
           </div>
@@ -289,25 +312,25 @@ export default function VoteMobilePage({
               <CardTitle>请选择</CardTitle>
               {vote?.config.voteType === 'multiple' && (
                 <CardDescription>
-                  已选 {selectedOptions.length}/{vote.config.maxSelect || vote.config.options.length} 项
+                  已选 {selectedOptions.length}/{vote.config.maxSelect || options.length} 项
                 </CardDescription>
               )}
             </CardHeader>
             <CardContent className="space-y-3">
-              {vote?.config.options.map((option) => {
+              {options.map((option) => {
                 const isSelected = selectedOptions.includes(option.id);
                 return (
                   <button
                     key={option.id}
                     type="button"
                     onClick={() => handleOptionSelect(option.id)}
-                    disabled={hasVoted && !vote.config.allowChange}
+                    disabled={hasVoted && !vote?.config.allowChange}
                     className={cn(
                       'w-full flex items-center gap-4 p-4 rounded-xl border text-left transition-all',
                       isSelected
                         ? 'border-primary bg-primary/10'
                         : 'border-border hover:border-primary/50 hover:bg-secondary/50',
-                      hasVoted && !vote.config.allowChange && 'opacity-60 cursor-not-allowed'
+                      hasVoted && !vote?.config.allowChange && 'opacity-60 cursor-not-allowed'
                     )}
                   >
                     <div
@@ -329,7 +352,7 @@ export default function VoteMobilePage({
                       )}
                     </div>
                     {/* 实时显示票数 */}
-                    {vote.config.showResult.realtime && (
+                    {vote?.config.showResult?.realtime && (
                       <span className="text-sm text-muted-foreground">
                         {option.count} 票
                       </span>
@@ -372,4 +395,3 @@ export default function VoteMobilePage({
     </div>
   );
 }
-

@@ -1,11 +1,58 @@
 'use client';
 
-import { useEffect, useState, use, useRef } from 'react';
+import { useEffect, useState, use, useRef, useCallback } from 'react';
 import { QRCodeWidget } from '@/components/display/qr-code-widget';
-import { Lottery, WinRecord, Prize } from '@/types/lottery';
 import { LotteryWheel } from '@/components/display/lottery-wheel';
 import { LotterySlot } from '@/components/display/lottery-slot';
 import { Gift, Trophy, Users, Sparkles } from 'lucide-react';
+
+import {
+  getLotteryByCodeAction,
+  getLotteryRecordsByCodeAction,
+} from '@/server/actions/publicAction';
+
+interface Prize {
+  id: string;
+  name: string;
+  count: number;
+  remaining: number;
+  isDefault?: boolean;
+}
+
+interface WinRecord {
+  id: string;
+  phone: string | null;
+  prizeName: string;
+  drawnAt: number;
+}
+
+interface LotteryData {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  config?: {
+    mode?: string;
+    prizes?: Prize[];
+  };
+  display?: {
+    showPrizeList?: boolean;
+    showWinners?: boolean;
+    qrCode?: {
+      show: boolean;
+      position: string;
+      size: string;
+    };
+    background?: {
+      type: string;
+      value: string;
+    };
+  };
+  stats: {
+    winnersCount: number;
+    participantCount: number;
+  };
+}
 
 export default function LotteryDisplayPage({
   params,
@@ -14,59 +61,44 @@ export default function LotteryDisplayPage({
 }) {
   const resolvedParams = use(params);
   
-  const [lottery, setLottery] = useState<Lottery | null>(null);
+  const [lottery, setLottery] = useState<LotteryData | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [prizes, setPrizes] = useState<Prize[]>([]);
-  const [stats, setStats] = useState({ totalDraws: 0, participantCount: 0, winnersCount: 0 });
+  const [stats, setStats] = useState({ participantCount: 0, winnersCount: 0 });
   const [recentWinners, setRecentWinners] = useState<WinRecord[]>([]);
   const [latestWinner, setLatestWinner] = useState<WinRecord | null>(null);
   
   const eventSourceRef = useRef<EventSource | null>(null);
 
+  const fetchLottery = useCallback(async () => {
+    const res = await getLotteryByCodeAction(resolvedParams.code);
+    if (res.success && res.data) {
+      const data = res.data as LotteryData;
+      setLottery(data);
+      setPrizes((data.config?.prizes ?? []) as Prize[]);
+      setStats(data.stats);
+      // 生成二维码
+      const url = `${window.location.origin}/l/${resolvedParams.code}`;
+      setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`);
+    } else {
+      setError('抽奖不存在');
+    }
+    setLoading(false);
+  }, [resolvedParams.code]);
+
+  const fetchRecords = useCallback(async () => {
+    const res = await getLotteryRecordsByCodeAction(resolvedParams.code, 10);
+    if (res.success && res.data) {
+      setRecentWinners(res.data as WinRecord[]);
+    }
+  }, [resolvedParams.code]);
+
   useEffect(() => {
-    async function fetchLottery() {
-      try {
-        const res = await fetch(`/api/lotteries/code/${resolvedParams.code}`);
-        if (res.ok) {
-          const data = await res.json();
-          setLottery(data.data);
-          setQrCodeUrl(data.data.qrCodeUrl);
-          setPrizes(data.data.config.prizes);
-          setStats(data.data.stats);
-        } else {
-          setError('抽奖不存在');
-        }
-      } catch {
-        setError('加载失败');
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    async function fetchRecords() {
-      try {
-        const lotteryRes = await fetch(`/api/lotteries/code/${resolvedParams.code}`);
-        if (lotteryRes.ok) {
-          const lotteryData = await lotteryRes.json();
-          const lotteryId = lotteryData.data?.id;
-          if (lotteryId) {
-            const recordsRes = await fetch(`/api/lotteries/${lotteryId}/records?limit=10`);
-            if (recordsRes.ok) {
-              const recordsData = await recordsRes.json();
-              setRecentWinners(recordsData.data?.records || []);
-            }
-          }
-        }
-      } catch {
-        // ignore
-      }
-    }
-    
     fetchLottery();
     fetchRecords();
-  }, [resolvedParams.code]);
+  }, [fetchLottery, fetchRecords]);
 
   // SSE 连接
   useEffect(() => {
@@ -90,7 +122,7 @@ export default function LotteryDisplayPage({
           if (data.record) {
             setLatestWinner(data.record);
             setRecentWinners((prev) => [data.record, ...prev].slice(0, 10));
-            // 3秒后清除最新中奖提示
+            // 5秒后清除最新中奖提示
             setTimeout(() => setLatestWinner(null), 5000);
           }
         }
@@ -130,15 +162,16 @@ export default function LotteryDisplayPage({
     );
   }
 
-  const backgroundStyle = lottery.display.background.type === 'gradient'
-    ? { background: lottery.display.background.value }
-    : lottery.display.background.type === 'image'
+  const background = lottery.display?.background || { type: 'gradient', value: 'linear-gradient(135deg, #c75a2d 0%, #a83232 50%, #9b2d5e 100%)' };
+  const backgroundStyle = background.type === 'gradient'
+    ? { background: background.value }
+    : background.type === 'image'
     ? { 
-        backgroundImage: `url(${lottery.display.background.value})`,
+        backgroundImage: `url(${background.value})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }
-    : { backgroundColor: lottery.display.background.value };
+    : { backgroundColor: background.value };
 
   return (
     <div 
@@ -209,13 +242,13 @@ export default function LotteryDisplayPage({
         <div className="flex-1 flex items-center justify-center gap-12">
           {/* 转盘/老虎机展示 */}
           <div className="bg-black/30 backdrop-blur-md rounded-3xl p-8">
-            {lottery.config.mode === 'wheel' ? (
+            {lottery.config?.mode === 'wheel' ? (
               <LotteryWheel
                 prizes={prizes}
                 spinning={false}
                 size={400}
               />
-            ) : lottery.config.mode === 'slot' ? (
+            ) : lottery.config?.mode === 'slot' ? (
               <LotterySlot
                 prizes={prizes}
                 spinning={false}
@@ -226,7 +259,7 @@ export default function LotteryDisplayPage({
           {/* 奖品和中奖者列表 */}
           <div className="space-y-6">
             {/* 奖品列表 */}
-            {lottery.display.showPrizeList && (
+            {lottery.display?.showPrizeList && (
               <div className="bg-black/40 backdrop-blur-md rounded-2xl p-6 text-white min-w-[300px]">
                 <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
                   <Gift className="h-5 w-5 text-yellow-400" />
@@ -249,7 +282,7 @@ export default function LotteryDisplayPage({
             )}
 
             {/* 中奖名单 */}
-            {lottery.display.showWinners && recentWinners.length > 0 && (
+            {lottery.display?.showWinners && recentWinners.length > 0 && (
               <div className="bg-black/40 backdrop-blur-md rounded-2xl p-6 text-white min-w-[300px] max-h-[300px] overflow-hidden">
                 <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
                   <Trophy className="h-5 w-5 text-yellow-400" />
@@ -288,7 +321,7 @@ export default function LotteryDisplayPage({
       </div>
 
       {/* 二维码 */}
-      {qrCodeUrl && lottery.display.qrCode.show && (
+      {qrCodeUrl && lottery.display?.qrCode?.show && (
         <QRCodeWidget
           qrCodeUrl={qrCodeUrl}
           position={lottery.display.qrCode.position}
@@ -298,4 +331,3 @@ export default function LotteryDisplayPage({
     </div>
   );
 }
-

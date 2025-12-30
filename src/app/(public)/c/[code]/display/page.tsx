@@ -1,15 +1,56 @@
 'use client';
 
-import { useEffect, useState, use, useRef } from 'react';
+import { useEffect, useState, use, useRef, useCallback } from 'react';
 import { QRCodeWidget } from '@/components/display/qr-code-widget';
 import { Danmaku } from '@/components/display/danmaku';
 import { StatsWidget } from '@/components/display/stats-widget';
-import { Checkin, CheckinRecord } from '@/types/checkin';
 import { Users } from 'lucide-react';
+
+import {
+  getCheckinByCodeAction,
+  getCheckinRecordsByCodeAction,
+} from '@/server/actions/publicAction';
 
 interface DanmakuItem {
   id: string;
   text: string;
+}
+
+interface CheckinData {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  display: {
+    welcomeTemplate?: string;
+    showStats?: boolean;
+    showRecentList?: boolean;
+    showDepartment?: boolean;
+    qrCode?: {
+      show: boolean;
+      position: string;
+      size: string;
+    };
+    background?: {
+      type: string;
+      value: string;
+    };
+  };
+  stats: {
+    total: number;
+    today: number;
+    byDepartment?: Record<string, number>;
+  };
+}
+
+interface CheckinRecord {
+  id: string;
+  participant: {
+    name: string | null;
+    phone: string | null;
+  };
+  department: string | null;
+  checkedInAt: number;
 }
 
 export default function CheckinDisplayPage({
@@ -19,7 +60,7 @@ export default function CheckinDisplayPage({
 }) {
   const resolvedParams = use(params);
   
-  const [checkin, setCheckin] = useState<Checkin | null>(null);
+  const [checkin, setCheckin] = useState<CheckinData | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,46 +69,30 @@ export default function CheckinDisplayPage({
   
   const eventSourceRef = useRef<EventSource | null>(null);
 
+  const fetchCheckin = useCallback(async () => {
+    const res = await getCheckinByCodeAction(resolvedParams.code);
+    if (res.success && res.data) {
+      setCheckin(res.data as CheckinData);
+      // 生成二维码
+      const url = `${window.location.origin}/c/${resolvedParams.code}`;
+      setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`);
+    } else {
+      setError('签到不存在');
+    }
+    setLoading(false);
+  }, [resolvedParams.code]);
+
+  const fetchRecords = useCallback(async () => {
+    const res = await getCheckinRecordsByCodeAction(resolvedParams.code, 10);
+    if (res.success && res.data) {
+      setRecentRecords(res.data as CheckinRecord[]);
+    }
+  }, [resolvedParams.code]);
+
   useEffect(() => {
-    async function fetchCheckin() {
-      try {
-        const res = await fetch(`/api/checkins/code/${resolvedParams.code}`);
-        if (res.ok) {
-          const data = await res.json();
-          setCheckin(data.data);
-          setQrCodeUrl(data.data.qrCodeUrl);
-        } else {
-          setError('签到不存在');
-        }
-      } catch {
-        setError('加载失败');
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    async function fetchRecords() {
-      try {
-        const res = await fetch(`/api/checkins/code/${resolvedParams.code}`);
-        if (res.ok) {
-          const data = await res.json();
-          const checkinId = data.data?.id;
-          if (checkinId) {
-            const recordsRes = await fetch(`/api/checkins/${checkinId}/records?limit=10`);
-            if (recordsRes.ok) {
-              const recordsData = await recordsRes.json();
-              setRecentRecords(recordsData.data || []);
-            }
-          }
-        }
-      } catch {
-        // ignore
-      }
-    }
-    
     fetchCheckin();
     fetchRecords();
-  }, [resolvedParams.code]);
+  }, [fetchCheckin, fetchRecords]);
 
   // SSE 连接
   useEffect(() => {
@@ -84,8 +109,8 @@ export default function CheckinDisplayPage({
           const record = data.data as CheckinRecord;
           
           // 添加弹幕
-          const template = checkin.display.welcomeTemplate || '🎉 欢迎 {{name}} 加入！';
-          const text = template.replace('{{name}}', record.participant.name || '新朋友');
+          const template = checkin.display?.welcomeTemplate || '🎉 欢迎 {{name}} 加入！';
+          const text = template.replace('{{name}}', record.participant?.name || '新朋友');
           
           setDanmakuItems((prev) => [
             ...prev,
@@ -107,7 +132,6 @@ export default function CheckinDisplayPage({
         }
         
         if (data.type === 'update') {
-          // 更新记录
           const record = data.data as CheckinRecord;
           setRecentRecords((prev) =>
             prev.map((r) => (r.id === record.id ? record : r))
@@ -142,15 +166,16 @@ export default function CheckinDisplayPage({
     );
   }
 
-  const backgroundStyle = checkin.display.background.type === 'gradient'
-    ? { background: checkin.display.background.value }
-    : checkin.display.background.type === 'image'
+  const background = checkin.display?.background || { type: 'gradient', value: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' };
+  const backgroundStyle = background.type === 'gradient'
+    ? { background: background.value }
+    : background.type === 'image'
     ? { 
-        backgroundImage: `url(${checkin.display.background.value})`,
+        backgroundImage: `url(${background.value})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }
-    : { backgroundColor: checkin.display.background.value };
+    : { backgroundColor: background.value };
 
   return (
     <div 
@@ -183,7 +208,7 @@ export default function CheckinDisplayPage({
         <footer className="p-8">
           <div className="flex items-end justify-between gap-8">
             {/* 最近签到 */}
-            {checkin.display.showRecentList && recentRecords.length > 0 && (
+            {checkin.display?.showRecentList && recentRecords.length > 0 && (
               <div className="flex-1 max-w-md">
                 <div className="bg-black/40 backdrop-blur-md rounded-2xl p-4">
                   <h3 className="text-white/80 text-sm font-medium mb-3 flex items-center gap-2">
@@ -198,15 +223,15 @@ export default function CheckinDisplayPage({
                         style={{ animationDelay: `${index * 0.05}s` }}
                       >
                         <div className="h-8 w-8 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center text-sm font-medium">
-                          {record.participant.name?.charAt(0) || '?'}
+                          {record.participant?.name?.charAt(0) || '?'}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium truncate">
-                            {record.participant.name || '匿名用户'}
+                            {record.participant?.name || '匿名用户'}
                           </p>
-                          {checkin.display.showDepartment && record.departmentName && (
+                          {checkin.display?.showDepartment && record.department && (
                             <p className="text-xs text-white/60 truncate">
-                              {record.departmentName}
+                              {record.department}
                             </p>
                           )}
                         </div>
@@ -221,7 +246,7 @@ export default function CheckinDisplayPage({
             )}
 
             {/* 统计 */}
-            {checkin.display.showStats && (
+            {checkin.display?.showStats && (
               <StatsWidget
                 total={checkin.stats.total}
                 today={checkin.stats.today}
@@ -233,7 +258,7 @@ export default function CheckinDisplayPage({
       </div>
 
       {/* 二维码 */}
-      {qrCodeUrl && checkin.display.qrCode.show && (
+      {qrCodeUrl && checkin.display?.qrCode?.show && (
         <QRCodeWidget
           qrCodeUrl={qrCodeUrl}
           position={checkin.display.qrCode.position}
@@ -259,4 +284,3 @@ function formatTime(timestamp: number): string {
     });
   }
 }
-

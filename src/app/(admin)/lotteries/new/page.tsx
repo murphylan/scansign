@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Prize, LotteryMode } from '@/types/lottery';
 import { generateId } from '@/lib/utils/code-generator';
+import { createLotteryAction } from '@/server/actions/lotteryAction';
 
 export default function NewLotteryPage() {
   const router = useRouter();
@@ -63,56 +65,53 @@ export default function NewLotteryPage() {
     e.preventDefault();
     
     if (!title.trim()) {
-      alert('请输入抽奖标题');
+      toast.error('请输入抽奖标题');
       return;
     }
 
     const validPrizes = prizes.filter((p) => p.name.trim());
     if (validPrizes.length < 2) {
-      alert('请至少填写2个有效奖品');
+      toast.error('请至少填写2个有效奖品');
       return;
     }
 
     // 验证概率总和
     const totalProb = validPrizes.reduce((sum, p) => sum + p.probability, 0);
     if (Math.abs(totalProb - 100) > 0.01) {
-      alert(`概率总和必须为100%，当前为${totalProb}%`);
+      toast.error(`概率总和必须为100%，当前为${totalProb}%`);
       return;
     }
 
     setLoading(true);
     try {
-      const res = await fetch('/api/lotteries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim() || undefined,
-          config: {
-            prizes: validPrizes.map((p) => ({
-              ...p,
-              remaining: p.count,
-            })),
-            mode,
-            maxDrawsPerUser,
-            requirePhone,
-            animation: {
-              duration: mode === 'wheel' ? 5000 : 3000,
-              sound: true,
-            },
-          },
-        }),
+      const config = {
+        prizes: validPrizes.map((p) => ({
+          ...p,
+          remaining: p.count,
+        })),
+        mode,
+        maxDrawsPerUser,
+        requirePhone,
+        animation: {
+          duration: mode === 'wheel' ? 5000 : 3000,
+          sound: true,
+        },
+      };
+
+      const res = await createLotteryAction({
+        title: title.trim(),
+        description: description.trim() || undefined,
+        config: JSON.parse(JSON.stringify(config)),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        router.push(`/lotteries/${data.data.id}`);
+      if (res.success) {
+        toast.success('创建成功');
+        router.push(`/lotteries/${res.data?.id}`);
       } else {
-        const error = await res.json();
-        alert(error.error || '创建失败');
+        toast.error(res.error || '创建失败');
       }
     } catch {
-      alert('创建失败，请重试');
+      toast.error('创建失败，请重试');
     } finally {
       setLoading(false);
     }

@@ -4,7 +4,8 @@ import { useEffect, useCallback, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Smartphone, RefreshCw, Clock, Loader2 } from "lucide-react";
-import type { ApiResponse, QRCodeResponse } from "@/types";
+
+import { generateQRCodeAction } from "@/server/actions/userAction";
 
 export default function LoginContent() {
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
@@ -18,15 +19,12 @@ export default function LoginContent() {
     setIsExpired(false);
     
     try {
-      const response = await fetch("/api/qrcode/generate", {
-        method: "POST",
-      });
-      const data: ApiResponse<QRCodeResponse> = await response.json();
+      const res = await generateQRCodeAction();
       
-      if (data.success && data.data) {
-        setQrCodeUrl(data.data.qrCodeUrl);
-        setExpiresAt(data.data.expiresAt);
-        setTimeLeft(Math.floor((data.data.expiresAt - Date.now()) / 1000));
+      if (res.success && res.data) {
+        setQrCodeUrl(res.data.qrCodeUrl);
+        setExpiresAt(res.data.expiresAt);
+        setTimeLeft(Math.floor((res.data.expiresAt - Date.now()) / 1000));
       }
     } catch (err) {
       console.error("Generate QR code error:", err);
@@ -152,4 +150,3 @@ export default function LoginContent() {
     </main>
   );
 }
-

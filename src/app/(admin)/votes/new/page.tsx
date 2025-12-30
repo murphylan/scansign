@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +20,7 @@ import {
 import { VoteType, ChartType, VoteOption } from '@/types/vote';
 import { QRPosition } from '@/types/common';
 import { generateId } from '@/lib/utils/code-generator';
+import { createVoteAction } from '@/server/actions/voteAction';
 
 export default function NewVotePage() {
   const router = useRouter();
@@ -73,67 +75,66 @@ export default function NewVotePage() {
     e.preventDefault();
     
     if (!title.trim()) {
-      alert('请输入投票标题');
+      toast.error('请输入投票标题');
       return;
     }
 
     const validOptions = options.filter((o) => o.title.trim());
     if (validOptions.length < 2) {
-      alert('请至少填写2个有效选项');
+      toast.error('请至少填写2个有效选项');
       return;
     }
 
     setLoading(true);
     try {
-      const res = await fetch('/api/votes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim() || undefined,
-          config: {
-            options: validOptions.map((o) => ({
-              id: o.id,
-              title: o.title.trim(),
-              count: 0,
-            })),
-            voteType,
-            minSelect: voteType === 'multiple' ? minSelect : 1,
-            maxSelect: voteType === 'multiple' ? maxSelect : 1,
-            requirePhone,
-            allowChange,
-            anonymous,
-            showResult: {
-              realtime: showRealtime,
-              afterVote: showAfterVote,
-              afterEnd: true,
-            },
-          },
-          display: {
-            chartType,
-            showPercentage: true,
-            showCount: true,
-            showVoterCount: true,
-            animation: true,
-            qrCode: {
-              show: true,
-              position: qrPosition,
-              size: 'md',
-              style: 'default',
-            },
-          },
-        }),
+      const config = {
+        options: validOptions.map((o) => ({
+          id: o.id,
+          title: o.title.trim(),
+          count: 0,
+        })),
+        voteType,
+        minSelect: voteType === 'multiple' ? minSelect : 1,
+        maxSelect: voteType === 'multiple' ? maxSelect : 1,
+        requirePhone,
+        allowChange,
+        anonymous,
+        showResult: {
+          realtime: showRealtime,
+          afterVote: showAfterVote,
+          afterEnd: true,
+        },
+      };
+
+      const display = {
+        chartType,
+        showPercentage: true,
+        showCount: true,
+        showVoterCount: true,
+        animation: true,
+        qrCode: {
+          show: true,
+          position: qrPosition,
+          size: 'md',
+          style: 'default',
+        },
+      };
+
+      const res = await createVoteAction({
+        title: title.trim(),
+        description: description.trim() || undefined,
+        config: JSON.parse(JSON.stringify(config)),
+        display: JSON.parse(JSON.stringify(display)),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        router.push(`/votes/${data.data.id}`);
+      if (res.success) {
+        toast.success('创建成功');
+        router.push(`/votes/${res.data?.id}`);
       } else {
-        const error = await res.json();
-        alert(error.error || '创建失败');
+        toast.error(res.error || '创建失败');
       }
     } catch {
-      alert('创建失败，请重试');
+      toast.error('创建失败，请重试');
     } finally {
       setLoading(false);
     }

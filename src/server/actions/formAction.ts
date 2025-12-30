@@ -157,6 +157,7 @@ export async function createFormAction(data: FormFormData) {
         code,
         title: data.title,
         description: data.description,
+        status: "ACTIVE", // 创建后默认为进行中
         fields: data.fields || [],
         config: data.config || DEFAULT_CONFIG,
         display: data.display || DEFAULT_DISPLAY,

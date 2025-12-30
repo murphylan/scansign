@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,14 +16,14 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
-import { 
-  AfterCheckinType, 
-  WallStyle, 
+import {
+  AfterCheckinType,
+  WallStyle,
   Department,
-  DEFAULT_CHECKIN_CONFIG,
   DEFAULT_CHECKIN_DISPLAY,
 } from '@/types/checkin';
 import { QRPosition } from '@/types/common';
+import { createCheckinAction } from '@/server/actions/checkinAction';
 
 export default function NewCheckinPage() {
   const router = useRouter();
@@ -70,55 +71,54 @@ export default function NewCheckinPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) {
-      alert('请输入签到标题');
+      toast.error('请输入签到标题');
       return;
     }
 
     setLoading(true);
     try {
-      const res = await fetch('/api/checkins', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim() || undefined,
-          config: {
-            fields: {
-              phone: needPhone,
-              name: needName,
-              department: needDepartment,
-              custom: [],
-            },
-            afterCheckin: {
-              type: afterType,
-              message: afterMessage,
-              redirectUrl: afterType === 'redirect' ? redirectUrl : undefined,
-              showVerifyCode,
-            },
-            allowRepeat,
-            departments: needDepartment ? departments : [],
-          },
-          display: {
-            ...DEFAULT_CHECKIN_DISPLAY,
-            wallStyle,
-            showStats,
-            qrCode: {
-              ...DEFAULT_CHECKIN_DISPLAY.qrCode,
-              position: qrPosition,
-            },
-          },
-        }),
+      const config = {
+        fields: {
+          phone: needPhone,
+          name: needName,
+          department: needDepartment,
+          custom: [] as string[],
+        },
+        afterCheckin: {
+          type: afterType,
+          message: afterMessage,
+          redirectUrl: afterType === 'redirect' ? redirectUrl : undefined,
+          showVerifyCode,
+        },
+        allowRepeat,
+        departments: needDepartment ? departments.map(d => ({ id: d.id, name: d.name })) : [],
+      };
+
+      const display = {
+        ...DEFAULT_CHECKIN_DISPLAY,
+        wallStyle,
+        showStats,
+        qrCode: {
+          ...DEFAULT_CHECKIN_DISPLAY.qrCode,
+          position: qrPosition,
+        },
+      };
+
+      const res = await createCheckinAction({
+        title: title.trim(),
+        description: description.trim() || undefined,
+        config: JSON.parse(JSON.stringify(config)),
+        display: JSON.parse(JSON.stringify(display)),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        router.push(`/checkins/${data.data.id}`);
+      if (res.success) {
+        toast.success('创建成功');
+        router.push(`/checkins/${res.data?.id}`);
       } else {
-        const error = await res.json();
-        alert(error.error || '创建失败');
+        toast.error(res.error || '创建失败');
       }
     } catch {
-      alert('创建失败，请重试');
+      toast.error('创建失败，请重试');
     } finally {
       setLoading(false);
     }
@@ -258,11 +258,10 @@ export default function NewCheckinPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-3 gap-4">
               <label
-                className={`flex flex-col items-center gap-2 p-4 rounded-lg border cursor-pointer transition-all ${
-                  afterType === 'message'
+                className={`flex flex-col items-center gap-2 p-4 rounded-lg border cursor-pointer transition-all ${afterType === 'message'
                     ? 'border-primary bg-primary/5'
                     : 'border-border hover:bg-secondary/50'
-                }`}
+                  }`}
               >
                 <input
                   type="radio"
@@ -276,11 +275,10 @@ export default function NewCheckinPage() {
                 <span className="text-xs text-muted-foreground">显示签到成功消息</span>
               </label>
               <label
-                className={`flex flex-col items-center gap-2 p-4 rounded-lg border cursor-pointer transition-all ${
-                  afterType === 'redirect'
+                className={`flex flex-col items-center gap-2 p-4 rounded-lg border cursor-pointer transition-all ${afterType === 'redirect'
                     ? 'border-primary bg-primary/5'
                     : 'border-border hover:bg-secondary/50'
-                }`}
+                  }`}
               >
                 <input
                   type="radio"
@@ -294,11 +292,10 @@ export default function NewCheckinPage() {
                 <span className="text-xs text-muted-foreground">跳转到指定 URL</span>
               </label>
               <label
-                className={`flex flex-col items-center gap-2 p-4 rounded-lg border cursor-pointer transition-all ${
-                  afterType === 'none'
+                className={`flex flex-col items-center gap-2 p-4 rounded-lg border cursor-pointer transition-all ${afterType === 'none'
                     ? 'border-primary bg-primary/5'
                     : 'border-border hover:bg-secondary/50'
-                }`}
+                  }`}
               >
                 <input
                   type="radio"
@@ -377,11 +374,10 @@ export default function NewCheckinPage() {
                   ].map((style) => (
                     <label
                       key={style.value}
-                      className={`flex items-center justify-center p-3 rounded-lg border cursor-pointer transition-all ${
-                        wallStyle === style.value
+                      className={`flex items-center justify-center p-3 rounded-lg border cursor-pointer transition-all ${wallStyle === style.value
                           ? 'border-primary bg-primary/5'
                           : 'border-border hover:bg-secondary/50'
-                      }`}
+                        }`}
                     >
                       <input
                         type="radio"
@@ -415,11 +411,10 @@ export default function NewCheckinPage() {
                   ].map((pos) => (
                     <label
                       key={pos.value}
-                      className={`flex items-center justify-center p-2 rounded-lg border cursor-pointer transition-all text-sm ${
-                        qrPosition === pos.value
+                      className={`flex items-center justify-center p-2 rounded-lg border cursor-pointer transition-all text-sm ${qrPosition === pos.value
                           ? 'border-primary bg-primary/5'
                           : 'border-border hover:bg-secondary/50'
-                      }`}
+                        }`}
                     >
                       <input
                         type="radio"

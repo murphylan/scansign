@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, use, useCallback } from 'react';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +16,40 @@ import {
   AlertCircle,
   Key,
 } from 'lucide-react';
-import { Checkin, Department } from '@/types/checkin';
+
+import {
+  getCheckinByCodeAction,
+  checkCheckinPhoneAction,
+  doCheckinAction,
+} from '@/server/actions/publicAction';
+
+interface Department {
+  id: string;
+  name: string;
+}
+
+interface CheckinData {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  status: string;
+  config: {
+    // 新结构
+    fields?: {
+      name?: boolean;
+      phone?: boolean;
+      department?: boolean;
+    };
+    allowRepeat?: boolean;
+    departments?: Department[];
+    // 旧结构（兼容）
+    requireName?: boolean;
+    requirePhone?: boolean;
+    requireVerify?: boolean;
+    allowDuplicate?: boolean;
+  };
+}
 
 export default function CheckinMobilePage({
   params,
@@ -24,11 +57,10 @@ export default function CheckinMobilePage({
   params: Promise<{ code: string }>;
 }) {
   const resolvedParams = use(params);
-  const router = useRouter();
   
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [checkin, setCheckin] = useState<Checkin | null>(null);
+  const [checkin, setCheckin] = useState<CheckinData | null>(null);
   const [error, setError] = useState<string | null>(null);
   
   // 表单状态
@@ -50,98 +82,80 @@ export default function CheckinMobilePage({
     isUpdate: boolean;
   } | null>(null);
 
-  useEffect(() => {
-    async function fetchCheckin() {
-      try {
-        const res = await fetch(`/api/checkins/code/${resolvedParams.code}`);
-        if (res.ok) {
-          const data = await res.json();
-          setCheckin(data.data);
-        } else {
-          setError('签到不存在或已结束');
-        }
-      } catch {
-        setError('加载失败，请刷新重试');
-      } finally {
-        setLoading(false);
-      }
+  const fetchCheckin = useCallback(async () => {
+    const res = await getCheckinByCodeAction(resolvedParams.code);
+    if (res.success && res.data) {
+      setCheckin(res.data as CheckinData);
+    } else {
+      setError(res.error || '签到不存在或已结束');
     }
-    fetchCheckin();
+    setLoading(false);
   }, [resolvedParams.code]);
 
+  useEffect(() => {
+    fetchCheckin();
+  }, [fetchCheckin]);
+
   // 检查手机号
-  async function checkPhone() {
+  const checkPhone = useCallback(async () => {
     if (!phone || !/^1[3-9]\d{9}$/.test(phone)) return;
     
     setCheckingPhone(true);
-    try {
-      const res = await fetch(`/api/checkins/${checkin?.id}/confirm?phone=${phone}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.data?.exists) {
-          setIsExistingUser(true);
-          setNeedVerifyCode(!checkin?.config.allowRepeat);
-          if (data.data.record) {
-            setName(data.data.record.name || '');
-            setDepartmentId(data.data.record.departmentId || '');
-          }
-        } else {
-          setIsExistingUser(false);
-          setNeedVerifyCode(false);
-        }
+    const res = await checkCheckinPhoneAction(resolvedParams.code, phone);
+    const allowRepeat = checkin?.config.allowRepeat ?? checkin?.config.allowDuplicate ?? false;
+    if (res.success && res.data?.exists) {
+      setIsExistingUser(true);
+      setNeedVerifyCode(!allowRepeat);
+      if (res.data.name) {
+        setName(res.data.name);
       }
-    } catch {
-      // ignore
-    } finally {
-      setCheckingPhone(false);
+      if (res.data.department) {
+        setDepartmentId(res.data.department);
+      }
+    } else {
+      setIsExistingUser(false);
+      setNeedVerifyCode(false);
     }
-  }
+    setCheckingPhone(false);
+  }, [phone, resolvedParams.code, checkin?.config.allowRepeat, checkin?.config.allowDuplicate]);
 
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!checkin) return;
+    
+    // 兼容新旧配置结构
+    const needName = checkin.config.fields?.name ?? checkin.config.requireName ?? false;
+    const needPhone = checkin.config.fields?.phone ?? checkin.config.requirePhone ?? true;
     
     setSubmitting(true);
     setError(null);
     
-    try {
-      const res = await fetch(`/api/checkins/${checkin.id}/confirm`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone,
-          name: checkin.config.fields.name ? name : undefined,
-          departmentId: checkin.config.fields.department ? departmentId : undefined,
-          verifyCode: needVerifyCode ? verifyCode : undefined,
-        }),
+    const res = await doCheckinAction(resolvedParams.code, {
+      phone: needPhone ? phone : undefined,
+      name: needName ? name : undefined,
+      department: departmentId || undefined,
+    });
+    
+    if (res.success) {
+      setSuccess(true);
+      setSuccessData({
+        message: '签到成功！',
+        verifyCode: res.data?.verifyCode,
+        isUpdate: isExistingUser,
       });
-      
-      const data = await res.json();
-      
-      if (res.ok) {
-        setSuccess(true);
-        setSuccessData({
-          message: data.data?.message || '签到成功！',
-          verifyCode: data.data?.verifyCode,
-          isUpdate: data.data?.isUpdate || false,
-        });
-        
-        // 处理签到后行为
-        const afterCheckin = data.data?.afterCheckin;
-        if (afterCheckin?.type === 'redirect' && afterCheckin.redirectUrl) {
-          setTimeout(() => {
-            window.location.href = afterCheckin.redirectUrl;
-          }, afterCheckin.redirectDelay ? afterCheckin.redirectDelay * 1000 : 2000);
-        }
-      } else {
-        setError(data.error || '签到失败');
-      }
-    } catch {
-      setError('签到失败，请重试');
-    } finally {
-      setSubmitting(false);
+      toast.success('签到成功');
+    } else {
+      setError(res.error || '签到失败');
+      toast.error(res.error || '签到失败');
     }
-  }
+    
+    setSubmitting(false);
+  }, [checkin, resolvedParams.code, phone, name, departmentId, isExistingUser]);
+
+  // 兼容新旧配置结构（用于渲染）
+  const requireName = checkin?.config.fields?.name ?? checkin?.config.requireName ?? false;
+  const requirePhone = checkin?.config.fields?.phone ?? checkin?.config.requirePhone ?? true;
+  const requireDepartment = checkin?.config.fields?.department ?? false;
 
   if (loading) {
     return (
@@ -183,7 +197,7 @@ export default function CheckinMobilePage({
               {name ? `${name}，` : ''}欢迎参加 {checkin?.title}
             </p>
             
-            {successData.verifyCode && checkin?.config.afterCheckin.showVerifyCode && (
+            {successData.verifyCode && (
               <div className="bg-secondary/50 rounded-xl p-4 mb-4">
                 <p className="text-sm text-muted-foreground mb-2">您的验证码</p>
                 <p className="text-4xl font-bold font-mono tracking-widest text-primary">
@@ -194,17 +208,14 @@ export default function CheckinMobilePage({
                 </p>
               </div>
             )}
-            
-            {checkin?.config.afterCheckin.type === 'redirect' && (
-              <p className="text-sm text-muted-foreground">
-                即将跳转...
-              </p>
-            )}
           </CardContent>
         </Card>
       </div>
     );
   }
+
+  const departments = (checkin?.config?.departments ?? []) as Department[];
+  const showDepartmentField = requireDepartment && departments.length > 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/30 p-4 py-8">
@@ -264,7 +275,7 @@ export default function CheckinMobilePage({
               </div>
 
               {/* 姓名 */}
-              {checkin?.config.fields.name && (
+              {requireName && (
                 <div className="space-y-2">
                   <Label htmlFor="name" className="flex items-center gap-2">
                     <User className="h-4 w-4" />
@@ -281,7 +292,7 @@ export default function CheckinMobilePage({
               )}
 
               {/* 部门 */}
-              {checkin?.config.fields.department && checkin.config.departments.length > 0 && (
+              {showDepartmentField && (
                 <div className="space-y-2">
                   <Label htmlFor="department" className="flex items-center gap-2">
                     <Building className="h-4 w-4" />
@@ -295,7 +306,7 @@ export default function CheckinMobilePage({
                     required
                   >
                     <option value="">请选择部门</option>
-                    {checkin.config.departments.map((dept: Department) => (
+                    {departments.map((dept) => (
                       <option key={dept.id} value={dept.id}>
                         {dept.name}
                       </option>
@@ -313,10 +324,10 @@ export default function CheckinMobilePage({
                   </Label>
                   <Input
                     id="verifyCode"
-                    placeholder="请输入3位验证码"
+                    placeholder="请输入验证码"
                     value={verifyCode}
                     onChange={(e) => setVerifyCode(e.target.value)}
-                    maxLength={3}
+                    maxLength={6}
                     required
                   />
                   <p className="text-xs text-muted-foreground">
@@ -355,4 +366,3 @@ export default function CheckinMobilePage({
     </div>
   );
 }
-

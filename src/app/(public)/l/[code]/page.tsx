@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useEffect, useState, use, useCallback } from 'react';
+import { toast } from 'sonner';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,10 +14,46 @@ import {
   Trophy,
   PartyPopper,
 } from 'lucide-react';
-import { Lottery, Prize, DrawResult } from '@/types/lottery';
 import { LotteryWheel } from '@/components/display/lottery-wheel';
 import { LotterySlot } from '@/components/display/lottery-slot';
 import { cn } from '@/lib/utils';
+
+import {
+  getLotteryByCodeAction,
+  checkLotteryPhoneAction,
+  drawLotteryAction,
+} from '@/server/actions/publicAction';
+
+interface Prize {
+  id: string;
+  name: string;
+  count: number;
+  remaining: number;
+  probability: number;
+  isDefault?: boolean;
+}
+
+interface LotteryData {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  status: string;
+  config: {
+    mode: string;
+    requirePhone?: boolean;
+    maxDrawsPerUser?: number;
+    prizes: Prize[];
+    animation?: {
+      duration: number;
+    };
+  };
+}
+
+interface DrawResult {
+  won: boolean;
+  prize?: string;
+}
 
 export default function LotteryMobilePage({
   params,
@@ -26,7 +63,7 @@ export default function LotteryMobilePage({
   const resolvedParams = use(params);
   
   const [loading, setLoading] = useState(true);
-  const [lottery, setLottery] = useState<Lottery | null>(null);
+  const [lottery, setLottery] = useState<LotteryData | null>(null);
   const [error, setError] = useState<string | null>(null);
   
   // 表单状态
@@ -40,47 +77,40 @@ export default function LotteryMobilePage({
   const [result, setResult] = useState<DrawResult | null>(null);
   const [targetPrizeId, setTargetPrizeId] = useState<string | undefined>();
 
-  useEffect(() => {
-    async function fetchLottery() {
-      try {
-        const res = await fetch(`/api/lotteries/code/${resolvedParams.code}`);
-        if (res.ok) {
-          const data = await res.json();
-          setLottery(data.data);
-          setRemainingDraws(data.data.config.maxDrawsPerUser);
-        } else {
-          setError('抽奖活动不存在或已结束');
-        }
-      } catch {
-        setError('加载失败，请刷新重试');
-      } finally {
-        setLoading(false);
-      }
+  const fetchLottery = useCallback(async () => {
+    const res = await getLotteryByCodeAction(resolvedParams.code);
+    if (res.success && res.data) {
+      const data = res.data as LotteryData;
+      setLottery(data);
+      setRemainingDraws(data.config.maxDrawsPerUser ?? 1);
+    } else {
+      setError(res.error || '抽奖活动不存在或已结束');
     }
-    fetchLottery();
+    setLoading(false);
   }, [resolvedParams.code]);
 
+  useEffect(() => {
+    fetchLottery();
+  }, [fetchLottery]);
+
   // 检查手机号抽奖次数
-  async function checkPhone() {
+  const checkPhone = useCallback(async () => {
     if (!lottery?.config.requirePhone) return;
     if (!phone || !/^1[3-9]\d{9}$/.test(phone)) return;
     
     setCheckingPhone(true);
-    try {
-      const res = await fetch(`/api/lotteries/${lottery.id}/draw?phone=${phone}`);
-      if (res.ok) {
-        const data = await res.json();
-        setCanDraw(data.data?.canDraw ?? true);
-        setRemainingDraws(data.data?.remainingDraws ?? 0);
-      }
-    } catch {
-      // ignore
-    } finally {
-      setCheckingPhone(false);
+    const res = await checkLotteryPhoneAction(resolvedParams.code, phone);
+    if (res.success && res.data?.drawn) {
+      setCanDraw(false);
+      setRemainingDraws(0);
+    } else {
+      setCanDraw(true);
+      setRemainingDraws(lottery.config.maxDrawsPerUser ?? 1);
     }
-  }
+    setCheckingPhone(false);
+  }, [phone, resolvedParams.code, lottery?.config.requirePhone, lottery?.config.maxDrawsPerUser]);
 
-  async function handleDraw() {
+  const handleDraw = useCallback(async () => {
     if (!lottery) return;
     
     if (lottery.config.requirePhone && !phone) {
@@ -97,48 +127,43 @@ export default function LotteryMobilePage({
     setSpinning(true);
     setResult(null);
     
-    try {
-      const res = await fetch(`/api/lotteries/${lottery.id}/draw`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone }),
-      });
-      
-      const data = await res.json();
-      
-      if (res.ok && data.data) {
-        // 设置目标奖品用于动画
-        if (data.data.won && data.data.prize) {
-          setTargetPrizeId(data.data.prize.id);
-        } else {
-          // 未中奖时随机选一个奖品作为动画目标
-          const randomPrize = lottery.config.prizes[Math.floor(Math.random() * lottery.config.prizes.length)];
-          setTargetPrizeId(randomPrize?.id);
-        }
-        
-        // 等待动画结束后显示结果
-        setTimeout(() => {
-          setResult(data.data);
-          setSpinning(false);
-          if (data.data.remainingDraws !== undefined) {
-            setRemainingDraws(data.data.remainingDraws);
-            setCanDraw(data.data.remainingDraws > 0);
-          }
-        }, lottery.config.animation.duration);
+    const res = await drawLotteryAction(resolvedParams.code, phone || undefined);
+    
+    if (res.success && res.data) {
+      // 设置目标奖品用于动画
+      const prizes = lottery.config.prizes;
+      if (res.data.prize) {
+        const matchPrize = prizes.find(p => p.name === res.data?.prize);
+        setTargetPrizeId(matchPrize?.id);
       } else {
-        setError(data.error || '抽奖失败');
-        setSpinning(false);
+        // 未中奖时随机选一个奖品作为动画目标
+        const randomPrize = prizes[Math.floor(Math.random() * prizes.length)];
+        setTargetPrizeId(randomPrize?.id);
       }
-    } catch {
-      setError('抽奖失败，请重试');
+      
+      // 等待动画结束后显示结果
+      const duration = lottery.config.animation?.duration ?? 3000;
+      setTimeout(() => {
+        setResult({
+          won: !!res.data?.prize,
+          prize: res.data?.prize,
+        });
+        setSpinning(false);
+        setRemainingDraws((prev) => Math.max(0, prev - 1));
+        setCanDraw(remainingDraws > 1);
+        toast.success(res.data?.prize ? `恭喜中奖：${res.data.prize}` : '很遗憾，未中奖');
+      }, duration);
+    } else {
+      setError(res.error || '抽奖失败');
       setSpinning(false);
+      toast.error(res.error || '抽奖失败');
     }
-  }
+  }, [lottery, phone, canDraw, resolvedParams.code, remainingDraws]);
 
-  function resetAndDrawAgain() {
+  const resetAndDrawAgain = useCallback(() => {
     setResult(null);
     setTargetPrizeId(undefined);
-  }
+  }, []);
 
   if (loading) {
     return (
@@ -165,6 +190,9 @@ export default function LotteryMobilePage({
     );
   }
 
+  const prizes = lottery?.config.prizes ?? [];
+  const duration = lottery?.config.animation?.duration ?? 3000;
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-600 via-red-600 to-red-700 p-4 py-8">
       <div className="max-w-md mx-auto space-y-6">
@@ -188,18 +216,18 @@ export default function LotteryMobilePage({
             {/* 转盘/老虎机 */}
             {lottery?.config.mode === 'wheel' ? (
               <LotteryWheel
-                prizes={lottery.config.prizes}
+                prizes={prizes}
                 spinning={spinning}
                 targetPrizeId={targetPrizeId}
-                duration={lottery.config.animation.duration}
+                duration={duration}
                 size={280}
               />
             ) : lottery?.config.mode === 'slot' ? (
               <LotterySlot
-                prizes={lottery.config.prizes}
+                prizes={prizes}
                 spinning={spinning}
                 targetPrizeId={targetPrizeId}
-                duration={lottery.config.animation.duration}
+                duration={duration}
               />
             ) : null}
 
@@ -218,7 +246,7 @@ export default function LotteryMobilePage({
                       🎉 恭喜中奖！
                     </h3>
                     <p className="text-white/90 text-lg mt-1">
-                      {result.prize?.name}
+                      {result.prize}
                     </p>
                   </>
                 ) : (
@@ -317,7 +345,7 @@ export default function LotteryMobilePage({
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {lottery?.config.prizes.filter(p => !p.isDefault).map((prize) => (
+              {prizes.filter(p => !p.isDefault).map((prize) => (
                 <div
                   key={prize.id}
                   className="flex items-center justify-between p-3 rounded-lg bg-white/10"
@@ -335,4 +363,3 @@ export default function LotteryMobilePage({
     </div>
   );
 }
-
