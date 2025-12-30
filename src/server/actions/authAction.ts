@@ -1,11 +1,13 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
-import { v4 as uuidv4 } from "uuid";
+import { eq, and, lt } from "drizzle-orm";
 
-import { prisma } from "@/lib/db";
+import { db } from "@/server/db";
+import { users, sessions } from "@/server/db/schema";
 import {
   loginSchema,
   registerSchema,
@@ -34,16 +36,15 @@ const ADMIN_PASSWORD = "15871352105abc";
 // ================================
 
 async function createSession(userId: string) {
-  const token = uuidv4();
+  const token = randomUUID();
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + SESSION_EXPIRY_DAYS);
 
-  await prisma.session.create({
-    data: {
-      userId,
-      token,
-      expiresAt,
-    },
+  await db.insert(sessions).values({
+    id: randomUUID(),
+    userId,
+    token,
+    expiresAt,
   });
 
   const cookieStore = await cookies();
@@ -71,28 +72,40 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       return null;
     }
 
-    const session = await prisma.session.findUnique({
-      where: { token: sessionToken },
-      include: { user: true },
-    });
+    // 查询 session 和用户
+    const [session] = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.token, sessionToken))
+      .limit(1);
 
     if (!session || session.expiresAt < new Date()) {
       if (session) {
-        await prisma.session.delete({ where: { id: session.id } });
+        await db.delete(sessions).where(eq(sessions.id, session.id));
       }
       return null;
     }
 
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, session.userId))
+      .limit(1);
+
+    if (!user) {
+      return null;
+    }
+
     return {
-      id: session.user.id,
-      email: session.user.email,
-      nickname: session.user.nickname,
-      role: session.user.role,
-      trialStartAt: session.user.trialStartAt,
-      trialDays: session.user.trialDays,
-      isPaid: session.user.isPaid,
-      paidAt: session.user.paidAt,
-      createdAt: session.user.createdAt,
+      id: user.id,
+      email: user.email,
+      nickname: user.nickname,
+      role: user.role,
+      trialStartAt: user.trialStartAt,
+      trialDays: user.trialDays,
+      isPaid: user.isPaid,
+      paidAt: user.paidAt,
+      createdAt: user.createdAt,
     };
   } catch {
     return null;
@@ -107,9 +120,11 @@ export async function loginAction(data: LoginFormData) {
   try {
     const validated = loginSchema.parse(data);
 
-    const user = await prisma.user.findUnique({
-      where: { email: validated.email },
-    });
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, validated.email))
+      .limit(1);
 
     if (!user) {
       return { success: false, error: "用户不存在" };
@@ -122,10 +137,10 @@ export async function loginAction(data: LoginFormData) {
     }
 
     // 更新最后登录时间
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    });
+    await db
+      .update(users)
+      .set({ lastLoginAt: new Date(), updatedAt: new Date() })
+      .where(eq(users.id, user.id));
 
     // 创建 session
     await createSession(user.id);
@@ -155,9 +170,11 @@ export async function registerAction(data: RegisterFormData) {
     const validated = registerSchema.parse(data);
 
     // 检查邮箱是否已存在
-    const existingUser = await prisma.user.findUnique({
-      where: { email: validated.email },
-    });
+    const [existingUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, validated.email))
+      .limit(1);
 
     if (existingUser) {
       return { success: false, error: "该邮箱已被注册" };
@@ -167,14 +184,18 @@ export async function registerAction(data: RegisterFormData) {
     const hashedPassword = await bcrypt.hash(validated.password, 12);
 
     // 创建用户
-    const user = await prisma.user.create({
-      data: {
+    const [user] = await db
+      .insert(users)
+      .values({
+        id: randomUUID(),
         email: validated.email,
         password: hashedPassword,
         nickname: validated.nickname || validated.email.split("@")[0],
         role: validated.email === ADMIN_EMAIL ? "ADMIN" : "USER",
-      },
-    });
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
 
     // 自动登录
     await createSession(user.id);
@@ -205,9 +226,7 @@ export async function logoutAction() {
     const sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
     if (sessionToken) {
-      await prisma.session.deleteMany({
-        where: { token: sessionToken },
-      });
+      await db.delete(sessions).where(eq(sessions.token, sessionToken));
     }
 
     cookieStore.delete(SESSION_COOKIE_NAME);
@@ -234,9 +253,11 @@ export async function changePasswordAction(data: ChangePasswordFormData) {
 
     const validated = changePasswordSchema.parse(data);
 
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-    });
+    const [dbUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1);
 
     if (!dbUser) {
       return { success: false, error: "用户不存在" };
@@ -250,10 +271,10 @@ export async function changePasswordAction(data: ChangePasswordFormData) {
 
     const hashedPassword = await bcrypt.hash(validated.newPassword, 12);
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { password: hashedPassword },
-    });
+    await db
+      .update(users)
+      .set({ password: hashedPassword, updatedAt: new Date() })
+      .where(eq(users.id, user.id));
 
     return { success: true };
   } catch (error) {
@@ -275,10 +296,10 @@ export async function changeNicknameAction(data: ChangeNicknameFormData) {
 
     const validated = changeNicknameSchema.parse(data);
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { nickname: validated.nickname },
-    });
+    await db
+      .update(users)
+      .set({ nickname: validated.nickname, updatedAt: new Date() })
+      .where(eq(users.id, user.id));
 
     revalidatePath("/settings");
 
@@ -297,22 +318,24 @@ export async function changeNicknameAction(data: ChangeNicknameFormData) {
 // ================================
 
 export async function initAdminUser() {
-  const existingAdmin = await prisma.user.findUnique({
-    where: { email: ADMIN_EMAIL },
-  });
+  const [existingAdmin] = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, ADMIN_EMAIL))
+    .limit(1);
 
   if (!existingAdmin) {
     const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 12);
-    await prisma.user.create({
-      data: {
-        email: ADMIN_EMAIL,
-        password: hashedPassword,
-        nickname: "Murphy",
-        role: "ADMIN",
-        isPaid: true,
-      },
+    await db.insert(users).values({
+      id: randomUUID(),
+      email: ADMIN_EMAIL,
+      password: hashedPassword,
+      nickname: "Murphy",
+      role: "ADMIN",
+      isPaid: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
     console.log("Admin user created:", ADMIN_EMAIL);
   }
 }
-

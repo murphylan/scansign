@@ -87,12 +87,12 @@ export default function NewVotePage() {
 
     setLoading(true);
     try {
+      // 选项数据 - 作为单独字段传递
+      const optionsData = validOptions.map((o) => ({
+        title: o.title.trim(),
+      }));
+
       const config = {
-        options: validOptions.map((o) => ({
-          id: o.id,
-          title: o.title.trim(),
-          count: 0,
-        })),
         voteType,
         minSelect: voteType === 'multiple' ? minSelect : 1,
         maxSelect: voteType === 'multiple' ? maxSelect : 1,
@@ -123,6 +123,9 @@ export default function NewVotePage() {
       const res = await createVoteAction({
         title: title.trim(),
         description: description.trim() || undefined,
+        voteType: voteType === 'multiple' ? 'MULTIPLE' : 'SINGLE',
+        maxChoices: voteType === 'multiple' ? maxSelect : 1,
+        options: optionsData,
         config: JSON.parse(JSON.stringify(config)),
         display: JSON.parse(JSON.stringify(display)),
       });

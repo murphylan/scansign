@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { eq, desc } from "drizzle-orm";
 
-import { prisma } from "@/lib/db";
+import { db } from "@/server/db";
+import { lotteries, lotteryPrizes, lotteryWinners } from "@/server/db/schema";
 
 // GET /api/lotteries/[id]/stream - SSE 实时推送
 export async function GET(
@@ -9,9 +11,11 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const lottery = await prisma.lottery.findUnique({
-    where: { id },
-  });
+  const [lottery] = await db
+    .select()
+    .from(lotteries)
+    .where(eq(lotteries.id, id))
+    .limit(1);
 
   if (!lottery) {
     return NextResponse.json(
@@ -19,6 +23,13 @@ export async function GET(
       { status: 404 }
     );
   }
+
+  // 获取奖品
+  const prizes = await db
+    .select()
+    .from(lotteryPrizes)
+    .where(eq(lotteryPrizes.lotteryId, id))
+    .orderBy(lotteryPrizes.sortOrder);
 
   const encoder = new TextEncoder();
 
@@ -29,7 +40,11 @@ export async function GET(
         encoder.encode(
           `data: ${JSON.stringify({
             type: "connected",
-            prizes: lottery.prizes,
+            prizes: prizes.map((p) => ({
+              id: p.id,
+              name: p.name,
+              remaining: p.remaining,
+            })),
             participantCount: lottery.participantCount,
           })}\n\n`
         )
@@ -49,16 +64,18 @@ export async function GET(
       // 定时刷新数据
       const refresh = setInterval(async () => {
         try {
-          const [updatedLottery, latestWinners] = await Promise.all([
-            prisma.lottery.findUnique({
-              where: { id },
-            }),
-            prisma.lotteryWinner.findMany({
-              where: { lotteryId: id },
-              orderBy: { wonAt: "desc" },
-              take: 5,
-            }),
-          ]);
+          const [updatedLottery] = await db
+            .select()
+            .from(lotteries)
+            .where(eq(lotteries.id, id))
+            .limit(1);
+
+          const latestWinners = await db
+            .select()
+            .from(lotteryWinners)
+            .where(eq(lotteryWinners.lotteryId, id))
+            .orderBy(desc(lotteryWinners.wonAt))
+            .limit(5);
 
           if (updatedLottery) {
             controller.enqueue(

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { eq, desc } from "drizzle-orm";
 
-import { prisma } from "@/lib/db";
+import { db } from "@/server/db";
+import { checkins, checkinRecords } from "@/server/db/schema";
 
 // GET /api/checkins/[id]/stream - SSE 实时推送
 export async function GET(
@@ -9,9 +11,11 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const checkin = await prisma.checkin.findUnique({
-    where: { id },
-  });
+  const [checkin] = await db
+    .select()
+    .from(checkins)
+    .where(eq(checkins.id, id))
+    .limit(1);
 
   if (!checkin) {
     return NextResponse.json(
@@ -48,16 +52,18 @@ export async function GET(
       // 定时刷新数据
       const refresh = setInterval(async () => {
         try {
-          const [updatedCheckin, latestRecords] = await Promise.all([
-            prisma.checkin.findUnique({
-              where: { id },
-            }),
-            prisma.checkinRecord.findMany({
-              where: { checkinId: id },
-              orderBy: { checkedInAt: "desc" },
-              take: 10,
-            }),
-          ]);
+          const [updatedCheckin] = await db
+            .select()
+            .from(checkins)
+            .where(eq(checkins.id, id))
+            .limit(1);
+
+          const latestRecords = await db
+            .select()
+            .from(checkinRecords)
+            .where(eq(checkinRecords.checkinId, id))
+            .orderBy(desc(checkinRecords.checkedInAt))
+            .limit(10);
 
           if (updatedCheckin) {
             controller.enqueue(

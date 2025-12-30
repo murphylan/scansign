@@ -25,6 +25,7 @@ import {
   getCheckinRecordsAction,
   updateCheckinAction,
 } from '@/server/actions/checkinAction';
+import { copyToClipboard } from '@/lib/utils/clipboard';
 
 // 页面内部使用的类型（匹配 Server Action 返回的数据结构）
 interface CheckinData {
@@ -132,11 +133,15 @@ export default function CheckinDetailPage({
     }
   }, [resolvedParams.id, fetchCheckin]);
 
-  const copyLink = useCallback(() => {
+  const copyLink = useCallback(async () => {
     if (!checkin) return;
     const url = `${window.location.origin}/c/${checkin.code}`;
-    navigator.clipboard.writeText(url);
-    toast.success('链接已复制');
+    const success = await copyToClipboard(url);
+    if (success) {
+      toast.success('链接已复制');
+    } else {
+      toast.error('复制失败，请手动复制');
+    }
   }, [checkin]);
 
   if (loading) {

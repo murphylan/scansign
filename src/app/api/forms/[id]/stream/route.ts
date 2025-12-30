@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 
-import { prisma } from "@/lib/db";
+import { db } from "@/server/db";
+import { forms } from "@/server/db/schema";
 
 // GET /api/forms/[id]/stream - SSE 实时推送
 export async function GET(
@@ -9,9 +11,11 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const form = await prisma.form.findUnique({
-    where: { id },
-  });
+  const [form] = await db
+    .select()
+    .from(forms)
+    .where(eq(forms.id, id))
+    .limit(1);
 
   if (!form) {
     return NextResponse.json(
@@ -48,9 +52,11 @@ export async function GET(
       // 定时刷新数据
       const refresh = setInterval(async () => {
         try {
-          const updatedForm = await prisma.form.findUnique({
-            where: { id },
-          });
+          const [updatedForm] = await db
+            .select()
+            .from(forms)
+            .where(eq(forms.id, id))
+            .limit(1);
 
           if (updatedForm) {
             controller.enqueue(

@@ -1,6 +1,9 @@
+import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
+import { eq, desc, sql } from "drizzle-orm";
 
-import { prisma } from "@/lib/db";
+import { db } from "@/server/db";
+import { checkins, checkinRecords } from "@/server/db/schema";
 import { generateVerifyCode } from "@/lib/utils/code-generator";
 
 // GET /api/checkins/[id]/records - 获取签到记录列表（公开访问）
@@ -12,9 +15,11 @@ export async function GET(
   const { searchParams } = new URL(request.url);
 
   try {
-    const checkin = await prisma.checkin.findUnique({
-      where: { id },
-    });
+    const [checkin] = await db
+      .select()
+      .from(checkins)
+      .where(eq(checkins.id, id))
+      .limit(1);
 
     if (!checkin) {
       return NextResponse.json(
@@ -26,17 +31,20 @@ export async function GET(
     const limit = parseInt(searchParams.get("limit") || "50");
     const offset = parseInt(searchParams.get("offset") || "0");
 
-    const [records, total] = await Promise.all([
-      prisma.checkinRecord.findMany({
-        where: { checkinId: id },
-        orderBy: { checkedInAt: "desc" },
-        take: limit,
-        skip: offset,
-      }),
-      prisma.checkinRecord.count({
-        where: { checkinId: id },
-      }),
-    ]);
+    const records = await db
+      .select()
+      .from(checkinRecords)
+      .where(eq(checkinRecords.checkinId, id))
+      .orderBy(desc(checkinRecords.checkedInAt))
+      .limit(limit)
+      .offset(offset);
+
+    const [countResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(checkinRecords)
+      .where(eq(checkinRecords.checkinId, id));
+
+    const total = Number(countResult?.count || 0);
 
     return NextResponse.json({
       success: true,
@@ -74,9 +82,11 @@ export async function POST(
     const body = await request.json();
 
     // 检查签到是否存在
-    const checkin = await prisma.checkin.findUnique({
-      where: { id },
-    });
+    const [checkin] = await db
+      .select()
+      .from(checkins)
+      .where(eq(checkins.id, id))
+      .limit(1);
 
     if (!checkin) {
       return NextResponse.json(
@@ -113,27 +123,30 @@ export async function POST(
     // 创建记录
     const verifyCode = config.requireVerify ? generateVerifyCode() : undefined;
 
-    const record = await prisma.checkinRecord.create({
-      data: {
+    const [record] = await db
+      .insert(checkinRecords)
+      .values({
+        id: randomUUID(),
         checkinId: id,
-        name: body.name,
-        phone: body.phone,
-        email: body.email,
-        department: body.department,
+        name: body.name || null,
+        phone: body.phone || null,
+        email: body.email || null,
+        department: body.department || null,
         extra: body.extra || {},
-        verifyCode,
+        verifyCode: verifyCode || null,
         isConfirmed: !verifyCode,
-      },
-    });
+      })
+      .returning();
 
     // 更新统计
-    await prisma.checkin.update({
-      where: { id },
-      data: {
-        totalCount: { increment: 1 },
-        todayCount: { increment: 1 },
-      },
-    });
+    await db
+      .update(checkins)
+      .set({
+        totalCount: sql`${checkins.totalCount} + 1`,
+        todayCount: sql`${checkins.todayCount} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(checkins.id, id));
 
     return NextResponse.json({
       success: true,

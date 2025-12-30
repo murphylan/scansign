@@ -24,6 +24,7 @@ import {
   deleteCheckinAction,
 } from '@/server/actions/checkinAction';
 import { DeleteConfirm } from '@/components/shared';
+import { copyToClipboard } from '@/lib/utils/clipboard';
 
 // 页面内部使用的类型
 interface CheckinListItem {
@@ -81,10 +82,10 @@ export default function CheckinsPage() {
     setPendingId(null);
   }, [fetchCheckins]);
 
-  const copyLink = useCallback((code: string) => {
+  const copyLink = useCallback(async (code: string) => {
     const url = `${window.location.origin}/c/${code}`;
-    navigator.clipboard.writeText(url);
-    toast.success('链接已复制');
+    const success = await copyToClipboard(url);
+    toast[success ? 'success' : 'error'](success ? '链接已复制' : '复制失败');
   }, []);
 
   return (

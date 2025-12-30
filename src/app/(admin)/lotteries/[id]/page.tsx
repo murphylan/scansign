@@ -28,6 +28,7 @@ import {
   getLotteryWinnersAction,
   updateLotteryAction,
 } from '@/server/actions/lotteryAction';
+import { copyToClipboard } from '@/lib/utils/clipboard';
 
 interface LotteryData {
   id: string;
@@ -143,11 +144,15 @@ export default function LotteryDetailPage({
     }
   }, [resolvedParams.id, fetchLottery, fetchRecords]);
 
-  const copyLink = useCallback(() => {
+  const copyLink = useCallback(async () => {
     if (!lottery) return;
     const url = `${window.location.origin}/l/${lottery.code}`;
-    navigator.clipboard.writeText(url);
-    toast.success('链接已复制');
+    const success = await copyToClipboard(url);
+    if (success) {
+      toast.success('链接已复制');
+    } else {
+      toast.error('复制失败，请手动复制');
+    }
   }, [lottery]);
 
   if (loading) {

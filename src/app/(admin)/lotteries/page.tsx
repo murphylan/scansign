@@ -25,6 +25,7 @@ import {
   deleteLotteryAction,
 } from '@/server/actions/lotteryAction';
 import { DeleteConfirm } from '@/components/shared';
+import { copyToClipboard } from '@/lib/utils/clipboard';
 
 interface LotteryListItem {
   id: string;
@@ -81,10 +82,10 @@ export default function LotteriesPage() {
     setPendingId(null);
   }, [fetchLotteries]);
 
-  const copyLink = useCallback((code: string) => {
+  const copyLink = useCallback(async (code: string) => {
     const url = `${window.location.origin}/l/${code}`;
-    navigator.clipboard.writeText(url);
-    toast.success('链接已复制');
+    const success = await copyToClipboard(url);
+    toast[success ? 'success' : 'error'](success ? '链接已复制' : '复制失败');
   }, []);
 
   return (

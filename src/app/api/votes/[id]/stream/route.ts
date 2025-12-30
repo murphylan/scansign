@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 
-import { prisma } from "@/lib/db";
+import { db } from "@/server/db";
+import { votes, voteOptions } from "@/server/db/schema";
 
 // 简单的内存订阅管理（生产环境应使用 Redis）
 const subscribers = new Map<string, Set<(data: unknown) => void>>();
@@ -19,14 +21,11 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const vote = await prisma.vote.findUnique({
-    where: { id },
-    include: {
-      options: {
-        orderBy: { sortOrder: "asc" },
-      },
-    },
-  });
+  const [vote] = await db
+    .select()
+    .from(votes)
+    .where(eq(votes.id, id))
+    .limit(1);
 
   if (!vote) {
     return NextResponse.json(
@@ -34,6 +33,12 @@ export async function GET(
       { status: 404 }
     );
   }
+
+  const options = await db
+    .select()
+    .from(voteOptions)
+    .where(eq(voteOptions.voteId, id))
+    .orderBy(voteOptions.sortOrder);
 
   const encoder = new TextEncoder();
 
@@ -44,7 +49,7 @@ export async function GET(
         encoder.encode(
           `data: ${JSON.stringify({
             type: "connected",
-            options: vote.options.map((o) => ({
+            options: options.map((o) => ({
               id: o.id,
               title: o.title,
               voteCount: o.voteCount,
@@ -83,29 +88,24 @@ export async function GET(
       // 定时刷新数据
       const refresh = setInterval(async () => {
         try {
-          const updatedVote = await prisma.vote.findUnique({
-            where: { id },
-            include: {
-              options: {
-                orderBy: { sortOrder: "asc" },
-              },
-            },
-          });
+          const updatedOptions = await db
+            .select()
+            .from(voteOptions)
+            .where(eq(voteOptions.voteId, id))
+            .orderBy(voteOptions.sortOrder);
 
-          if (updatedVote) {
-            controller.enqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({
-                  type: "update",
-                  options: updatedVote.options.map((o) => ({
-                    id: o.id,
-                    title: o.title,
-                    voteCount: o.voteCount,
-                  })),
-                })}\n\n`
-              )
-            );
-          }
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({
+                type: "update",
+                options: updatedOptions.map((o) => ({
+                  id: o.id,
+                  title: o.title,
+                  voteCount: o.voteCount,
+                })),
+              })}\n\n`
+            )
+          );
         } catch {
           clearInterval(refresh);
         }

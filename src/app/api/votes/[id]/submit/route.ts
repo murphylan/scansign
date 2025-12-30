@@ -1,6 +1,9 @@
+import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
+import { eq, and, sql } from "drizzle-orm";
 
-import { prisma } from "@/lib/db";
+import { db } from "@/server/db";
+import { votes, voteOptions, voteRecords } from "@/server/db/schema";
 
 interface SubmitVoteRequest {
   selectedOptions: string[];
@@ -18,12 +21,11 @@ export async function POST(
   try {
     const body: SubmitVoteRequest = await request.json();
 
-    const vote = await prisma.vote.findUnique({
-      where: { id },
-      include: {
-        options: true,
-      },
-    });
+    const [vote] = await db
+      .select()
+      .from(votes)
+      .where(eq(votes.id, id))
+      .limit(1);
 
     if (!vote) {
       return NextResponse.json(
@@ -38,6 +40,11 @@ export async function POST(
         { status: 400 }
       );
     }
+
+    const options = await db
+      .select()
+      .from(voteOptions)
+      .where(eq(voteOptions.voteId, id));
 
     const config = vote.config as { requirePhone?: boolean; allowChange?: boolean } | null;
 
@@ -81,7 +88,7 @@ export async function POST(
     }
 
     // 验证选项是否存在
-    const optionIds = vote.options.map((o) => o.id);
+    const optionIds = options.map((o) => o.id);
     const invalidOptions = body.selectedOptions.filter(
       (o) => !optionIds.includes(o)
     );
@@ -95,12 +102,17 @@ export async function POST(
     // 检查是否已投票
     let existingRecord = null;
     if (body.phone) {
-      existingRecord = await prisma.voteRecord.findFirst({
-        where: {
-          voteId: id,
-          phone: body.phone,
-        },
-      });
+      const [record] = await db
+        .select()
+        .from(voteRecords)
+        .where(
+          and(
+            eq(voteRecords.voteId, id),
+            eq(voteRecords.phone, body.phone)
+          )
+        )
+        .limit(1);
+      existingRecord = record || null;
     }
 
     if (existingRecord && !config?.allowChange) {
@@ -110,64 +122,57 @@ export async function POST(
       );
     }
 
-    // 使用事务处理投票
-    const result = await prisma.$transaction(async (tx) => {
+    // 处理投票
+    if (existingRecord) {
       // 如果是更新，先减少旧选项计数
-      if (existingRecord) {
-        const oldOptions = existingRecord.selectedOptions as string[];
-        for (const optionId of oldOptions) {
-          await tx.voteOption.update({
-            where: { id: optionId },
-            data: { voteCount: { decrement: 1 } },
-          });
-        }
-
-        // 更新记录
-        await tx.voteRecord.update({
-          where: { id: existingRecord.id },
-          data: {
-            selectedOptions: body.selectedOptions,
-            name: body.name,
-          },
-        });
-      } else {
-        // 创建新记录
-        await tx.voteRecord.create({
-          data: {
-            voteId: id,
-            selectedOptions: body.selectedOptions,
-            phone: body.phone,
-            name: body.name,
-          },
-        });
+      const oldOptions = existingRecord.selectedOptions as string[];
+      for (const optionId of oldOptions) {
+        await db
+          .update(voteOptions)
+          .set({ voteCount: sql`${voteOptions.voteCount} - 1` })
+          .where(eq(voteOptions.id, optionId));
       }
 
-      // 增加新选项计数
-      for (const optionId of body.selectedOptions) {
-        await tx.voteOption.update({
-          where: { id: optionId },
-          data: { voteCount: { increment: 1 } },
-        });
-      }
-
-      // 获取更新后的选项
-      const updatedOptions = await tx.voteOption.findMany({
-        where: { voteId: id },
-        orderBy: { sortOrder: "asc" },
+      // 更新记录
+      await db
+        .update(voteRecords)
+        .set({
+          selectedOptions: body.selectedOptions,
+          name: body.name || null,
+        })
+        .where(eq(voteRecords.id, existingRecord.id));
+    } else {
+      // 创建新记录
+      await db.insert(voteRecords).values({
+        id: randomUUID(),
+        voteId: id,
+        selectedOptions: body.selectedOptions,
+        phone: body.phone || null,
+        name: body.name || null,
       });
+    }
 
-      return {
-        isUpdate: !!existingRecord,
-        options: updatedOptions,
-      };
-    });
+    // 增加新选项计数
+    for (const optionId of body.selectedOptions) {
+      await db
+        .update(voteOptions)
+        .set({ voteCount: sql`${voteOptions.voteCount} + 1` })
+        .where(eq(voteOptions.id, optionId));
+    }
+
+    // 获取更新后的选项
+    const updatedOptions = await db
+      .select()
+      .from(voteOptions)
+      .where(eq(voteOptions.voteId, id))
+      .orderBy(voteOptions.sortOrder);
 
     return NextResponse.json({
       success: true,
       data: {
-        isUpdate: result.isUpdate,
-        message: result.isUpdate ? "投票已更新" : "投票成功",
-        options: result.options.map((o) => ({
+        isUpdate: !!existingRecord,
+        message: existingRecord ? "投票已更新" : "投票成功",
+        options: updatedOptions.map((o) => ({
           id: o.id,
           title: o.title,
           voteCount: o.voteCount,
@@ -200,9 +205,11 @@ export async function GET(
   }
 
   try {
-    const vote = await prisma.vote.findUnique({
-      where: { id },
-    });
+    const [vote] = await db
+      .select()
+      .from(votes)
+      .where(eq(votes.id, id))
+      .limit(1);
 
     if (!vote) {
       return NextResponse.json(
@@ -211,12 +218,16 @@ export async function GET(
       );
     }
 
-    const record = await prisma.voteRecord.findFirst({
-      where: {
-        voteId: id,
-        phone,
-      },
-    });
+    const [record] = await db
+      .select()
+      .from(voteRecords)
+      .where(
+        and(
+          eq(voteRecords.voteId, id),
+          eq(voteRecords.phone, phone)
+        )
+      )
+      .limit(1);
 
     const config = vote.config as { allowChange?: boolean } | null;
 

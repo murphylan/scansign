@@ -25,6 +25,7 @@ import {
   getFormResponsesAction,
   updateFormAction,
 } from '@/server/actions/formAction';
+import { copyToClipboard } from '@/lib/utils/clipboard';
 
 interface FormData {
   id: string;
@@ -127,11 +128,15 @@ export default function FormDetailPage({
     }
   }, [resolvedParams.id, fetchForm]);
 
-  const copyLink = useCallback(() => {
+  const copyLink = useCallback(async () => {
     if (!form) return;
     const url = `${window.location.origin}/f/${form.code}`;
-    navigator.clipboard.writeText(url);
-    toast.success('链接已复制');
+    const success = await copyToClipboard(url);
+    if (success) {
+      toast.success('链接已复制');
+    } else {
+      toast.error('复制失败，请手动复制');
+    }
   }, [form]);
 
   const exportCSV = useCallback(() => {

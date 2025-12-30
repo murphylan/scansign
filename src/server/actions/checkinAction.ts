@@ -1,11 +1,12 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
-
-import { prisma } from "@/lib/db";
+import { eq, desc, sql } from "drizzle-orm";
+import { db } from "@/server/db";
+import { checkins, checkinRecords } from "@/server/db/schema";
 import { generateCode } from "@/lib/utils/code-generator";
 import { getCurrentUser } from "./authAction";
-import { Prisma } from "@prisma/client";
 
 // ================================
 // 默认配置
@@ -44,8 +45,8 @@ const DEFAULT_DISPLAY = {
 export interface CheckinFormData {
   title: string;
   description?: string;
-  config?: Prisma.InputJsonValue;
-  display?: Prisma.InputJsonValue;
+  config?: Record<string, unknown>;
+  display?: Record<string, unknown>;
   startTime?: string;
   endTime?: string;
 }
@@ -63,31 +64,27 @@ export async function listCheckinsAction() {
     }
 
     const isAdmin = user.role === "ADMIN";
-    const where = isAdmin ? {} : { userId: user.id };
 
-    const checkins = await prisma.checkin.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      include: {
-        _count: {
-          select: { records: true },
-        },
-      },
-    });
+    const checkinList = isAdmin
+      ? await db.select().from(checkins).orderBy(desc(checkins.createdAt))
+      : await db
+          .select()
+          .from(checkins)
+          .where(eq(checkins.userId, user.id))
+          .orderBy(desc(checkins.createdAt));
 
-    const data = checkins.map((c) => ({
+    const data = checkinList.map((c) => ({
       id: c.id,
       code: c.code,
       title: c.title,
       description: c.description,
       status: c.status.toLowerCase(),
-      config: c.config,
-      display: c.display,
       stats: {
         total: c.totalCount,
         today: c.todayCount,
-        byDepartment: {},
       },
+      config: c.config,
+      display: c.display,
       startTime: c.startTime?.getTime(),
       endTime: c.endTime?.getTime(),
       createdAt: c.createdAt.getTime(),
@@ -113,14 +110,12 @@ export async function getCheckinAction(id: string) {
     }
 
     const isAdmin = user.role === "ADMIN";
-    const checkin = await prisma.checkin.findUnique({
-      where: { id },
-      include: {
-        _count: {
-          select: { records: true },
-        },
-      },
-    });
+
+    const [checkin] = await db
+      .select()
+      .from(checkins)
+      .where(eq(checkins.id, id))
+      .limit(1);
 
     if (!checkin) {
       return { success: false, error: "签到不存在" };
@@ -138,13 +133,12 @@ export async function getCheckinAction(id: string) {
         title: checkin.title,
         description: checkin.description,
         status: checkin.status.toLowerCase(),
-        config: checkin.config,
-        display: checkin.display,
         stats: {
           total: checkin.totalCount,
           today: checkin.todayCount,
-          byDepartment: {},
         },
+        config: checkin.config,
+        display: checkin.display,
         startTime: checkin.startTime?.getTime(),
         endTime: checkin.endTime?.getTime(),
         createdAt: checkin.createdAt.getTime(),
@@ -174,19 +168,23 @@ export async function createCheckinAction(data: CheckinFormData) {
 
     const code = generateCode();
 
-    const checkin = await prisma.checkin.create({
-      data: {
+    const [checkin] = await db
+      .insert(checkins)
+      .values({
+        id: randomUUID(),
         code,
         title: data.title,
-        description: data.description,
-        status: "ACTIVE", // 创建后默认为进行中
+        description: data.description || null,
+        status: "ACTIVE",
         config: data.config || DEFAULT_CONFIG,
         display: data.display || DEFAULT_DISPLAY,
-        startTime: data.startTime ? new Date(data.startTime) : undefined,
-        endTime: data.endTime ? new Date(data.endTime) : undefined,
+        startTime: data.startTime ? new Date(data.startTime) : null,
+        endTime: data.endTime ? new Date(data.endTime) : null,
         userId: user.id,
-      },
-    });
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
 
     revalidatePath("/checkins");
 
@@ -219,7 +217,12 @@ export async function updateCheckinAction(
     }
 
     const isAdmin = user.role === "ADMIN";
-    const existing = await prisma.checkin.findUnique({ where: { id } });
+
+    const [existing] = await db
+      .select()
+      .from(checkins)
+      .where(eq(checkins.id, id))
+      .limit(1);
 
     if (!existing) {
       return { success: false, error: "签到不存在" };
@@ -229,18 +232,24 @@ export async function updateCheckinAction(
       return { success: false, error: "无权限修改" };
     }
 
-    const checkin = await prisma.checkin.update({
-      where: { id },
-      data: {
-        title: data.title,
-        description: data.description,
-        status: data.status?.toUpperCase() as "DRAFT" | "ACTIVE" | "PAUSED" | "ENDED",
-        config: data.config,
-        display: data.display,
-        startTime: data.startTime ? new Date(data.startTime) : undefined,
-        endTime: data.endTime ? new Date(data.endTime) : undefined,
-      },
-    });
+    // 构建更新数据
+    const updateData: Record<string, unknown> = {
+      updatedAt: new Date(),
+    };
+
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.status !== undefined) updateData.status = data.status.toUpperCase();
+    if (data.config !== undefined) updateData.config = data.config;
+    if (data.display !== undefined) updateData.display = data.display;
+    if (data.startTime !== undefined) updateData.startTime = new Date(data.startTime);
+    if (data.endTime !== undefined) updateData.endTime = new Date(data.endTime);
+
+    const [checkin] = await db
+      .update(checkins)
+      .set(updateData)
+      .where(eq(checkins.id, id))
+      .returning();
 
     revalidatePath("/checkins");
     revalidatePath(`/checkins/${id}`);
@@ -271,7 +280,12 @@ export async function deleteCheckinAction(id: string) {
     }
 
     const isAdmin = user.role === "ADMIN";
-    const existing = await prisma.checkin.findUnique({ where: { id } });
+
+    const [existing] = await db
+      .select()
+      .from(checkins)
+      .where(eq(checkins.id, id))
+      .limit(1);
 
     if (!existing) {
       return { success: false, error: "签到不存在" };
@@ -281,7 +295,7 @@ export async function deleteCheckinAction(id: string) {
       return { success: false, error: "无权限删除" };
     }
 
-    await prisma.checkin.delete({ where: { id } });
+    await db.delete(checkins).where(eq(checkins.id, id));
 
     revalidatePath("/checkins");
 
@@ -295,7 +309,7 @@ export async function deleteCheckinAction(id: string) {
   }
 }
 
-export async function getCheckinRecordsAction(checkinId: string, limit?: number) {
+export async function getCheckinRecordsAction(checkinId: string, limit = 50) {
   try {
     const user = await getCurrentUser();
 
@@ -303,11 +317,12 @@ export async function getCheckinRecordsAction(checkinId: string, limit?: number)
       return { success: false, error: "未登录" };
     }
 
-    const records = await prisma.checkinRecord.findMany({
-      where: { checkinId },
-      orderBy: { checkedInAt: "desc" },
-      take: limit,
-    });
+    const records = await db
+      .select()
+      .from(checkinRecords)
+      .where(eq(checkinRecords.checkinId, checkinId))
+      .orderBy(desc(checkinRecords.checkedInAt))
+      .limit(limit);
 
     const data = records.map((r) => ({
       id: r.id,
@@ -317,19 +332,16 @@ export async function getCheckinRecordsAction(checkinId: string, limit?: number)
         email: r.email,
       },
       departmentName: r.department,
-      verifyCode: r.verifyCode,
       isConfirmed: r.isConfirmed,
       checkedInAt: r.checkedInAt.getTime(),
-      confirmedAt: r.confirmedAt?.getTime(),
     }));
 
     return { success: true, data };
   } catch (error) {
-    console.error("Failed to get records:", error);
+    console.error("Failed to get checkin records:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "获取记录失败",
+      error: error instanceof Error ? error.message : "获取签到记录失败",
     };
   }
 }
-

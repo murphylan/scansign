@@ -28,6 +28,7 @@ import {
   getVoteAction,
   updateVoteAction,
 } from '@/server/actions/voteAction';
+import { copyToClipboard } from '@/lib/utils/clipboard';
 
 interface VoteData {
   id: string;
@@ -130,11 +131,15 @@ export default function VoteDetailPage({
     }
   }, [resolvedParams.id, fetchVote]);
 
-  const copyLink = useCallback(() => {
+  const copyLink = useCallback(async () => {
     if (!vote) return;
     const url = `${window.location.origin}/v/${vote.code}`;
-    navigator.clipboard.writeText(url);
-    toast.success('链接已复制');
+    const success = await copyToClipboard(url);
+    if (success) {
+      toast.success('链接已复制');
+    } else {
+      toast.error('复制失败，请手动复制');
+    }
   }, [vote]);
 
   if (loading) {

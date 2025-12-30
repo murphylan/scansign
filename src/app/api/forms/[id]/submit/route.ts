@@ -1,10 +1,12 @@
+import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
+import { eq, sql, and } from "drizzle-orm";
 
-import { prisma } from "@/lib/db";
-import { Prisma } from "@prisma/client";
+import { db } from "@/server/db";
+import { forms, formResponses } from "@/server/db/schema";
 
 interface SubmitFormRequest {
-  data: Prisma.InputJsonValue;
+  data: Record<string, unknown>;
   phone?: string;
 }
 
@@ -18,9 +20,11 @@ export async function POST(
   try {
     const body: SubmitFormRequest = await request.json();
 
-    const form = await prisma.form.findUnique({
-      where: { id },
-    });
+    const [form] = await db
+      .select()
+      .from(forms)
+      .where(eq(forms.id, id))
+      .limit(1);
 
     if (!form) {
       return NextResponse.json(
@@ -62,12 +66,16 @@ export async function POST(
 
     // 检查是否已提交
     if (config?.limitOnePerUser && body.phone) {
-      const existing = await prisma.formResponse.findFirst({
-        where: {
-          formId: id,
-          submitterIp: body.phone, // 暂时用 IP 字段存手机号
-        },
-      });
+      const [existing] = await db
+        .select()
+        .from(formResponses)
+        .where(
+          and(
+            eq(formResponses.formId, id),
+            eq(formResponses.submitterIp, body.phone)
+          )
+        )
+        .limit(1);
 
       if (existing) {
         return NextResponse.json(
@@ -82,21 +90,24 @@ export async function POST(
     const ip = forwarded ? forwarded.split(",")[0].trim() : "unknown";
 
     // 创建响应
-    const response = await prisma.formResponse.create({
-      data: {
+    const [response] = await db
+      .insert(formResponses)
+      .values({
+        id: randomUUID(),
         formId: id,
         data: body.data,
         submitterIp: body.phone || ip,
-      },
-    });
+      })
+      .returning();
 
     // 更新提交计数
-    await prisma.form.update({
-      where: { id },
-      data: {
-        responseCount: { increment: 1 },
-      },
-    });
+    await db
+      .update(forms)
+      .set({
+        responseCount: sql`${forms.responseCount} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(forms.id, id));
 
     return NextResponse.json({
       success: true,
@@ -133,9 +144,11 @@ export async function GET(
   }
 
   try {
-    const form = await prisma.form.findUnique({
-      where: { id },
-    });
+    const [form] = await db
+      .select()
+      .from(forms)
+      .where(eq(forms.id, id))
+      .limit(1);
 
     if (!form) {
       return NextResponse.json(
@@ -144,12 +157,16 @@ export async function GET(
       );
     }
 
-    const response = await prisma.formResponse.findFirst({
-      where: {
-        formId: id,
-        submitterIp: phone,
-      },
-    });
+    const [response] = await db
+      .select()
+      .from(formResponses)
+      .where(
+        and(
+          eq(formResponses.formId, id),
+          eq(formResponses.submitterIp, phone)
+        )
+      )
+      .limit(1);
 
     const config = form.config as { limitOnePerUser?: boolean } | null;
 

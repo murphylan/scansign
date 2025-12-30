@@ -25,6 +25,7 @@ import {
   deleteFormAction,
 } from '@/server/actions/formAction';
 import { DeleteConfirm } from '@/components/shared';
+import { copyToClipboard } from '@/lib/utils/clipboard';
 
 interface FormListItem {
   id: string;
@@ -78,10 +79,10 @@ export default function FormsPage() {
     setPendingId(null);
   }, [fetchForms]);
 
-  const copyLink = useCallback((code: string) => {
+  const copyLink = useCallback(async (code: string) => {
     const url = `${window.location.origin}/f/${code}`;
-    navigator.clipboard.writeText(url);
-    toast.success('链接已复制');
+    const success = await copyToClipboard(url);
+    toast[success ? 'success' : 'error'](success ? '链接已复制' : '复制失败');
   }, []);
 
   return (

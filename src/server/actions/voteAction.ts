@@ -1,11 +1,12 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
-
-import { prisma } from "@/lib/db";
+import { eq, desc, sql } from "drizzle-orm";
+import { db } from "@/server/db";
+import { votes, voteOptions, voteRecords } from "@/server/db/schema";
 import { generateCode } from "@/lib/utils/code-generator";
 import { getCurrentUser } from "./authAction";
-import { Prisma } from "@prisma/client";
 
 // ================================
 // 默认配置
@@ -47,8 +48,8 @@ export interface VoteFormData {
     description?: string;
     imageUrl?: string;
   }>;
-  config?: Prisma.InputJsonValue;
-  display?: Prisma.InputJsonValue;
+  config?: Record<string, unknown>;
+  display?: Record<string, unknown>;
   startTime?: string;
   endTime?: string;
 }
@@ -66,44 +67,55 @@ export async function listVotesAction() {
     }
 
     const isAdmin = user.role === "ADMIN";
-    const where = isAdmin ? {} : { userId: user.id };
 
-    const votes = await prisma.vote.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      include: {
-        options: {
-          orderBy: { sortOrder: "asc" },
-        },
-        _count: {
-          select: { records: true },
-        },
-      },
-    });
+    // 获取投票列表
+    const voteList = isAdmin
+      ? await db.select().from(votes).orderBy(desc(votes.createdAt))
+      : await db
+          .select()
+          .from(votes)
+          .where(eq(votes.userId, user.id))
+          .orderBy(desc(votes.createdAt));
 
-    const data = votes.map((v) => ({
-      id: v.id,
-      code: v.code,
-      title: v.title,
-      description: v.description,
-      status: v.status.toLowerCase(),
-      voteType: v.voteType.toLowerCase(),
-      maxChoices: v.maxChoices,
-      options: v.options.map((o) => ({
-        id: o.id,
-        title: o.title,
-        description: o.description,
-        imageUrl: o.imageUrl,
-        voteCount: o.voteCount,
-      })),
-      config: v.config,
-      display: v.display,
-      totalVotes: v._count.records,
-      startTime: v.startTime?.getTime(),
-      endTime: v.endTime?.getTime(),
-      createdAt: v.createdAt.getTime(),
-      updatedAt: v.updatedAt.getTime(),
-    }));
+    // 获取每个投票的选项和记录数
+    const data = await Promise.all(
+      voteList.map(async (v) => {
+        const options = await db
+          .select()
+          .from(voteOptions)
+          .where(eq(voteOptions.voteId, v.id))
+          .orderBy(voteOptions.sortOrder);
+
+        const [countResult] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(voteRecords)
+          .where(eq(voteRecords.voteId, v.id));
+
+        return {
+          id: v.id,
+          code: v.code,
+          title: v.title,
+          description: v.description,
+          status: v.status.toLowerCase(),
+          voteType: v.voteType.toLowerCase(),
+          maxChoices: v.maxChoices,
+          options: options.map((o) => ({
+            id: o.id,
+            title: o.title,
+            description: o.description,
+            imageUrl: o.imageUrl,
+            voteCount: o.voteCount,
+          })),
+          config: v.config,
+          display: v.display,
+          totalVotes: Number(countResult?.count || 0),
+          startTime: v.startTime?.getTime(),
+          endTime: v.endTime?.getTime(),
+          createdAt: v.createdAt.getTime(),
+          updatedAt: v.updatedAt.getTime(),
+        };
+      })
+    );
 
     return { success: true, data };
   } catch (error) {
@@ -124,17 +136,12 @@ export async function getVoteAction(id: string) {
     }
 
     const isAdmin = user.role === "ADMIN";
-    const vote = await prisma.vote.findUnique({
-      where: { id },
-      include: {
-        options: {
-          orderBy: { sortOrder: "asc" },
-        },
-        _count: {
-          select: { records: true },
-        },
-      },
-    });
+
+    const [vote] = await db
+      .select()
+      .from(votes)
+      .where(eq(votes.id, id))
+      .limit(1);
 
     if (!vote) {
       return { success: false, error: "投票不存在" };
@@ -143,6 +150,20 @@ export async function getVoteAction(id: string) {
     if (!isAdmin && vote.userId !== user.id) {
       return { success: false, error: "无权限访问" };
     }
+
+    const options = await db
+      .select()
+      .from(voteOptions)
+      .where(eq(voteOptions.voteId, vote.id))
+      .orderBy(voteOptions.sortOrder);
+
+    const [countResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(voteRecords)
+      .where(eq(voteRecords.voteId, vote.id));
+
+    // 计算总票数
+    const totalVotes = options.reduce((sum, o) => sum + o.voteCount, 0);
 
     return {
       success: true,
@@ -154,16 +175,22 @@ export async function getVoteAction(id: string) {
         status: vote.status.toLowerCase(),
         voteType: vote.voteType.toLowerCase(),
         maxChoices: vote.maxChoices,
-        options: vote.options.map((o) => ({
-          id: o.id,
-          title: o.title,
-          description: o.description,
-          imageUrl: o.imageUrl,
-          voteCount: o.voteCount,
-        })),
-        config: vote.config,
+        config: {
+          ...((vote.config || {}) as Record<string, unknown>),
+          voteType: vote.voteType.toLowerCase(),
+          maxSelect: vote.maxChoices,
+          options: options.map((o) => ({
+            id: o.id,
+            title: o.title,
+            description: o.description,
+            count: o.voteCount,
+          })),
+        },
         display: vote.display,
-        totalVotes: vote._count.records,
+        stats: {
+          totalVotes,
+          participantCount: Number(countResult?.count || 0),
+        },
         startTime: vote.startTime?.getTime(),
         endTime: vote.endTime?.getTime(),
         createdAt: vote.createdAt.getTime(),
@@ -196,30 +223,41 @@ export async function createVoteAction(data: VoteFormData) {
     }
 
     const code = generateCode();
+    const voteId = randomUUID();
 
-    const vote = await prisma.vote.create({
-      data: {
+    // 创建投票
+    const [vote] = await db
+      .insert(votes)
+      .values({
+        id: voteId,
         code,
         title: data.title,
-        description: data.description,
-        status: "ACTIVE", // 创建后默认为进行中
+        description: data.description || null,
+        status: "ACTIVE",
         voteType: data.voteType || "SINGLE",
         maxChoices: data.maxChoices || 1,
         config: data.config || DEFAULT_CONFIG,
         display: data.display || DEFAULT_DISPLAY,
-        startTime: data.startTime ? new Date(data.startTime) : undefined,
-        endTime: data.endTime ? new Date(data.endTime) : undefined,
+        startTime: data.startTime ? new Date(data.startTime) : null,
+        endTime: data.endTime ? new Date(data.endTime) : null,
         userId: user.id,
-        options: {
-          create: data.options.map((o, index) => ({
-            title: o.title,
-            description: o.description,
-            imageUrl: o.imageUrl,
-            sortOrder: index,
-          })),
-        },
-      },
-    });
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+
+    // 创建选项
+    await db.insert(voteOptions).values(
+      data.options.map((o, index) => ({
+        id: randomUUID(),
+        voteId: vote.id,
+        title: o.title,
+        description: o.description || null,
+        imageUrl: o.imageUrl || null,
+        sortOrder: index,
+        voteCount: 0,
+      }))
+    );
 
     revalidatePath("/votes");
 
@@ -242,7 +280,7 @@ export async function createVoteAction(data: VoteFormData) {
 
 export async function updateVoteAction(
   id: string,
-  data: Partial<VoteFormData> & { status?: string }
+  data: Partial<VoteFormData> & { status?: string; reset?: boolean }
 ) {
   try {
     const user = await getCurrentUser();
@@ -252,7 +290,12 @@ export async function updateVoteAction(
     }
 
     const isAdmin = user.role === "ADMIN";
-    const existing = await prisma.vote.findUnique({ where: { id } });
+
+    const [existing] = await db
+      .select()
+      .from(votes)
+      .where(eq(votes.id, id))
+      .limit(1);
 
     if (!existing) {
       return { success: false, error: "投票不存在" };
@@ -262,20 +305,41 @@ export async function updateVoteAction(
       return { success: false, error: "无权限修改" };
     }
 
-    const vote = await prisma.vote.update({
-      where: { id },
-      data: {
-        title: data.title,
-        description: data.description,
-        status: data.status?.toUpperCase() as "DRAFT" | "ACTIVE" | "PAUSED" | "ENDED",
-        voteType: data.voteType,
-        maxChoices: data.maxChoices,
-        config: data.config,
-        display: data.display,
-        startTime: data.startTime ? new Date(data.startTime) : undefined,
-        endTime: data.endTime ? new Date(data.endTime) : undefined,
-      },
-    });
+    // 如果是重置操作
+    if (data.reset) {
+      await db
+        .update(voteOptions)
+        .set({ voteCount: 0 })
+        .where(eq(voteOptions.voteId, id));
+
+      await db.delete(voteRecords).where(eq(voteRecords.voteId, id));
+
+      revalidatePath("/votes");
+      revalidatePath(`/votes/${id}`);
+
+      return { success: true, data: { id: existing.id } };
+    }
+
+    // 构建更新数据
+    const updateData: Record<string, unknown> = {
+      updatedAt: new Date(),
+    };
+
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.status !== undefined) updateData.status = data.status.toUpperCase();
+    if (data.voteType !== undefined) updateData.voteType = data.voteType;
+    if (data.maxChoices !== undefined) updateData.maxChoices = data.maxChoices;
+    if (data.config !== undefined) updateData.config = data.config;
+    if (data.display !== undefined) updateData.display = data.display;
+    if (data.startTime !== undefined) updateData.startTime = new Date(data.startTime);
+    if (data.endTime !== undefined) updateData.endTime = new Date(data.endTime);
+
+    const [vote] = await db
+      .update(votes)
+      .set(updateData)
+      .where(eq(votes.id, id))
+      .returning();
 
     revalidatePath("/votes");
     revalidatePath(`/votes/${id}`);
@@ -306,7 +370,12 @@ export async function deleteVoteAction(id: string) {
     }
 
     const isAdmin = user.role === "ADMIN";
-    const existing = await prisma.vote.findUnique({ where: { id } });
+
+    const [existing] = await db
+      .select()
+      .from(votes)
+      .where(eq(votes.id, id))
+      .limit(1);
 
     if (!existing) {
       return { success: false, error: "投票不存在" };
@@ -316,7 +385,7 @@ export async function deleteVoteAction(id: string) {
       return { success: false, error: "无权限删除" };
     }
 
-    await prisma.vote.delete({ where: { id } });
+    await db.delete(votes).where(eq(votes.id, id));
 
     revalidatePath("/votes");
 
@@ -329,4 +398,3 @@ export async function deleteVoteAction(id: string) {
     };
   }
 }
-

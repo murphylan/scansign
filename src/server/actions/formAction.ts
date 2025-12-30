@@ -1,33 +1,27 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
-
-import { prisma } from "@/lib/db";
+import { eq, desc, sql } from "drizzle-orm";
+import { db } from "@/server/db";
+import { forms, formResponses } from "@/server/db/schema";
 import { generateCode } from "@/lib/utils/code-generator";
 import { getCurrentUser } from "./authAction";
-import { Prisma } from "@prisma/client";
 
 // ================================
 // 默认配置
 // ================================
 
 const DEFAULT_CONFIG = {
-  allowAnonymous: true,
-  limitOnePerUser: false,
-  showSubmitCount: true,
+  submitOnce: true,
+  requirePhone: false,
+  showProgress: true,
 };
 
 const DEFAULT_DISPLAY = {
-  showProgress: true,
-  qrCode: {
-    show: true,
-    position: "bottom-right",
-    size: "medium",
-  },
-  background: {
-    type: "gradient",
-    value: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-  },
+  theme: "default",
+  submitButtonText: "提交",
+  successMessage: "提交成功！",
 };
 
 // ================================
@@ -37,9 +31,9 @@ const DEFAULT_DISPLAY = {
 export interface FormFormData {
   title: string;
   description?: string;
-  fields?: Prisma.InputJsonValue;
-  config?: Prisma.InputJsonValue;
-  display?: Prisma.InputJsonValue;
+  fields?: unknown[];
+  config?: Record<string, unknown>;
+  display?: Record<string, unknown>;
   startTime?: string;
   endTime?: string;
 }
@@ -57,23 +51,25 @@ export async function listFormsAction() {
     }
 
     const isAdmin = user.role === "ADMIN";
-    const where = isAdmin ? {} : { userId: user.id };
 
-    const forms = await prisma.form.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-    });
+    const formList = isAdmin
+      ? await db.select().from(forms).orderBy(desc(forms.createdAt))
+      : await db
+          .select()
+          .from(forms)
+          .where(eq(forms.userId, user.id))
+          .orderBy(desc(forms.createdAt));
 
-    const data = forms.map((f) => ({
+    const data = formList.map((f) => ({
       id: f.id,
       code: f.code,
       title: f.title,
       description: f.description,
       status: f.status.toLowerCase(),
       fields: f.fields,
+      responseCount: f.responseCount,
       config: f.config,
       display: f.display,
-      responseCount: f.responseCount,
       startTime: f.startTime?.getTime(),
       endTime: f.endTime?.getTime(),
       createdAt: f.createdAt.getTime(),
@@ -99,9 +95,12 @@ export async function getFormAction(id: string) {
     }
 
     const isAdmin = user.role === "ADMIN";
-    const form = await prisma.form.findUnique({
-      where: { id },
-    });
+
+    const [form] = await db
+      .select()
+      .from(forms)
+      .where(eq(forms.id, id))
+      .limit(1);
 
     if (!form) {
       return { success: false, error: "表单不存在" };
@@ -119,10 +118,14 @@ export async function getFormAction(id: string) {
         title: form.title,
         description: form.description,
         status: form.status.toLowerCase(),
-        fields: form.fields,
-        config: form.config,
+        config: {
+          ...((form.config || {}) as Record<string, unknown>),
+          fields: form.fields,
+        },
         display: form.display,
-        responseCount: form.responseCount,
+        stats: {
+          responseCount: form.responseCount,
+        },
         startTime: form.startTime?.getTime(),
         endTime: form.endTime?.getTime(),
         createdAt: form.createdAt.getTime(),
@@ -152,20 +155,24 @@ export async function createFormAction(data: FormFormData) {
 
     const code = generateCode();
 
-    const form = await prisma.form.create({
-      data: {
+    const [form] = await db
+      .insert(forms)
+      .values({
+        id: randomUUID(),
         code,
         title: data.title,
-        description: data.description,
-        status: "ACTIVE", // 创建后默认为进行中
+        description: data.description || null,
+        status: "ACTIVE",
         fields: data.fields || [],
         config: data.config || DEFAULT_CONFIG,
         display: data.display || DEFAULT_DISPLAY,
-        startTime: data.startTime ? new Date(data.startTime) : undefined,
-        endTime: data.endTime ? new Date(data.endTime) : undefined,
+        startTime: data.startTime ? new Date(data.startTime) : null,
+        endTime: data.endTime ? new Date(data.endTime) : null,
         userId: user.id,
-      },
-    });
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
 
     revalidatePath("/forms");
 
@@ -198,7 +205,12 @@ export async function updateFormAction(
     }
 
     const isAdmin = user.role === "ADMIN";
-    const existing = await prisma.form.findUnique({ where: { id } });
+
+    const [existing] = await db
+      .select()
+      .from(forms)
+      .where(eq(forms.id, id))
+      .limit(1);
 
     if (!existing) {
       return { success: false, error: "表单不存在" };
@@ -208,19 +220,25 @@ export async function updateFormAction(
       return { success: false, error: "无权限修改" };
     }
 
-    const form = await prisma.form.update({
-      where: { id },
-      data: {
-        title: data.title,
-        description: data.description,
-        status: data.status?.toUpperCase() as "DRAFT" | "ACTIVE" | "PAUSED" | "ENDED",
-        fields: data.fields,
-        config: data.config,
-        display: data.display,
-        startTime: data.startTime ? new Date(data.startTime) : undefined,
-        endTime: data.endTime ? new Date(data.endTime) : undefined,
-      },
-    });
+    // 构建更新数据
+    const updateData: Record<string, unknown> = {
+      updatedAt: new Date(),
+    };
+
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.status !== undefined) updateData.status = data.status.toUpperCase();
+    if (data.fields !== undefined) updateData.fields = data.fields;
+    if (data.config !== undefined) updateData.config = data.config;
+    if (data.display !== undefined) updateData.display = data.display;
+    if (data.startTime !== undefined) updateData.startTime = new Date(data.startTime);
+    if (data.endTime !== undefined) updateData.endTime = new Date(data.endTime);
+
+    const [form] = await db
+      .update(forms)
+      .set(updateData)
+      .where(eq(forms.id, id))
+      .returning();
 
     revalidatePath("/forms");
     revalidatePath(`/forms/${id}`);
@@ -251,7 +269,12 @@ export async function deleteFormAction(id: string) {
     }
 
     const isAdmin = user.role === "ADMIN";
-    const existing = await prisma.form.findUnique({ where: { id } });
+
+    const [existing] = await db
+      .select()
+      .from(forms)
+      .where(eq(forms.id, id))
+      .limit(1);
 
     if (!existing) {
       return { success: false, error: "表单不存在" };
@@ -261,7 +284,7 @@ export async function deleteFormAction(id: string) {
       return { success: false, error: "无权限删除" };
     }
 
-    await prisma.form.delete({ where: { id } });
+    await db.delete(forms).where(eq(forms.id, id));
 
     revalidatePath("/forms");
 
@@ -275,7 +298,7 @@ export async function deleteFormAction(id: string) {
   }
 }
 
-export async function getFormResponsesAction(formId: string, limit?: number) {
+export async function getFormResponsesAction(formId: string, limit = 50) {
   try {
     const user = await getCurrentUser();
 
@@ -283,26 +306,26 @@ export async function getFormResponsesAction(formId: string, limit?: number) {
       return { success: false, error: "未登录" };
     }
 
-    const responses = await prisma.formResponse.findMany({
-      where: { formId },
-      orderBy: { submittedAt: "desc" },
-      take: limit,
-    });
+    const responses = await db
+      .select()
+      .from(formResponses)
+      .where(eq(formResponses.formId, formId))
+      .orderBy(desc(formResponses.submittedAt))
+      .limit(limit);
 
     const data = responses.map((r) => ({
       id: r.id,
-      data: r.data,
-      submitterIp: r.submitterIp,
+      phone: null,
       submittedAt: r.submittedAt.getTime(),
+      data: r.data,
     }));
 
     return { success: true, data };
   } catch (error) {
-    console.error("Failed to get responses:", error);
+    console.error("Failed to get form responses:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "获取响应失败",
+      error: error instanceof Error ? error.message : "获取表单响应失败",
     };
   }
 }
-

@@ -1,6 +1,21 @@
 "use server";
 
-import { prisma } from "@/lib/db";
+import { randomUUID } from "crypto";
+import { eq, desc, sql, and, gt } from "drizzle-orm";
+import { db } from "@/server/db";
+import {
+  checkins,
+  checkinRecords,
+  votes,
+  voteOptions,
+  voteRecords,
+  lotteries,
+  lotteryPrizes,
+  lotteryParticipants,
+  lotteryWinners,
+  forms,
+  formResponses,
+} from "@/server/db/schema";
 import { generateCode } from "@/lib/utils/code-generator";
 
 // ================================
@@ -9,14 +24,11 @@ import { generateCode } from "@/lib/utils/code-generator";
 
 export async function getCheckinByCodeAction(code: string) {
   try {
-    const checkin = await prisma.checkin.findUnique({
-      where: { code },
-      include: {
-        _count: {
-          select: { records: true },
-        },
-      },
-    });
+    const [checkin] = await db
+      .select()
+      .from(checkins)
+      .where(eq(checkins.code, code))
+      .limit(1);
 
     if (!checkin) {
       return { success: false, error: "签到不存在" };
@@ -46,19 +58,22 @@ export async function getCheckinByCodeAction(code: string) {
 
 export async function getCheckinRecordsByCodeAction(code: string, limit = 10) {
   try {
-    const checkin = await prisma.checkin.findUnique({
-      where: { code },
-    });
+    const [checkin] = await db
+      .select()
+      .from(checkins)
+      .where(eq(checkins.code, code))
+      .limit(1);
 
     if (!checkin) {
       return { success: false, error: "签到不存在" };
     }
 
-    const records = await prisma.checkinRecord.findMany({
-      where: { checkinId: checkin.id },
-      orderBy: { checkedInAt: "desc" },
-      take: limit,
-    });
+    const records = await db
+      .select()
+      .from(checkinRecords)
+      .where(eq(checkinRecords.checkinId, checkin.id))
+      .orderBy(desc(checkinRecords.checkedInAt))
+      .limit(limit);
 
     const data = records.map((r) => ({
       id: r.id,
@@ -82,9 +97,11 @@ export async function doCheckinAction(
   data: { name?: string; phone?: string; department?: string }
 ) {
   try {
-    const checkin = await prisma.checkin.findUnique({
-      where: { code },
-    });
+    const [checkin] = await db
+      .select()
+      .from(checkins)
+      .where(eq(checkins.code, code))
+      .limit(1);
 
     if (!checkin) {
       return { success: false, error: "签到不存在" };
@@ -96,24 +113,27 @@ export async function doCheckinAction(
 
     const verifyCode = generateCode(6);
 
-    const record = await prisma.checkinRecord.create({
-      data: {
+    const [record] = await db
+      .insert(checkinRecords)
+      .values({
+        id: randomUUID(),
         checkinId: checkin.id,
-        name: data.name,
-        phone: data.phone,
-        department: data.department,
+        name: data.name || null,
+        phone: data.phone || null,
+        department: data.department || null,
         verifyCode,
-      },
-    });
+      })
+      .returning();
 
     // 更新统计
-    await prisma.checkin.update({
-      where: { id: checkin.id },
-      data: {
-        totalCount: { increment: 1 },
-        todayCount: { increment: 1 },
-      },
-    });
+    await db
+      .update(checkins)
+      .set({
+        totalCount: sql`${checkins.totalCount} + 1`,
+        todayCount: sql`${checkins.todayCount} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(checkins.id, checkin.id));
 
     return {
       success: true,
@@ -130,17 +150,26 @@ export async function doCheckinAction(
 
 export async function checkCheckinPhoneAction(code: string, phone: string) {
   try {
-    const checkin = await prisma.checkin.findUnique({
-      where: { code },
-    });
+    const [checkin] = await db
+      .select()
+      .from(checkins)
+      .where(eq(checkins.code, code))
+      .limit(1);
 
     if (!checkin) {
       return { success: false, error: "签到不存在" };
     }
 
-    const record = await prisma.checkinRecord.findFirst({
-      where: { checkinId: checkin.id, phone },
-    });
+    const [record] = await db
+      .select()
+      .from(checkinRecords)
+      .where(
+        and(
+          eq(checkinRecords.checkinId, checkin.id),
+          eq(checkinRecords.phone, phone)
+        )
+      )
+      .limit(1);
 
     if (record) {
       return {
@@ -166,13 +195,47 @@ export async function checkCheckinPhoneAction(code: string, phone: string) {
 
 export async function getVoteByCodeAction(code: string) {
   try {
-    const vote = await prisma.vote.findUnique({
-      where: { code },
-    });
+    const [vote] = await db
+      .select()
+      .from(votes)
+      .where(eq(votes.code, code))
+      .limit(1);
 
     if (!vote) {
       return { success: false, error: "投票不存在" };
     }
+
+    // 获取选项
+    const options = await db
+      .select()
+      .from(voteOptions)
+      .where(eq(voteOptions.voteId, vote.id))
+      .orderBy(voteOptions.sortOrder);
+
+    // 计算总票数和参与人数
+    const totalVotes = options.reduce((sum, o) => sum + o.voteCount, 0);
+    const [countResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(voteRecords)
+      .where(eq(voteRecords.voteId, vote.id));
+    const participantCount = Number(countResult?.count || 0);
+
+    // 从数据库获取的 config
+    const dbConfig = (vote.config || {}) as Record<string, unknown>;
+
+    // 将选项数据合并到 config 中（前端期望的格式）
+    const config = {
+      ...dbConfig,
+      voteType: vote.voteType.toLowerCase(),
+      maxSelect: vote.maxChoices,
+      minSelect: 1,
+      options: options.map((o) => ({
+        id: o.id,
+        title: o.title,
+        description: o.description,
+        count: o.voteCount,
+      })),
+    };
 
     return {
       success: true,
@@ -182,11 +245,11 @@ export async function getVoteByCodeAction(code: string) {
         title: vote.title,
         description: vote.description,
         status: vote.status.toLowerCase(),
-        config: vote.config,
+        config,
         display: vote.display,
         stats: {
-          totalVotes: vote.totalVotes,
-          participantCount: vote.participantCount,
+          totalVotes,
+          participantCount,
         },
       },
     };
@@ -198,17 +261,26 @@ export async function getVoteByCodeAction(code: string) {
 
 export async function checkVotePhoneAction(code: string, phone: string) {
   try {
-    const vote = await prisma.vote.findUnique({
-      where: { code },
-    });
+    const [vote] = await db
+      .select()
+      .from(votes)
+      .where(eq(votes.code, code))
+      .limit(1);
 
     if (!vote) {
       return { success: false, error: "投票不存在" };
     }
 
-    const record = await prisma.voteRecord.findFirst({
-      where: { voteId: vote.id, phone },
-    });
+    const [record] = await db
+      .select()
+      .from(voteRecords)
+      .where(
+        and(
+          eq(voteRecords.voteId, vote.id),
+          eq(voteRecords.phone, phone)
+        )
+      )
+      .limit(1);
 
     if (record) {
       return {
@@ -232,9 +304,11 @@ export async function submitVoteAction(
   data: { phone?: string; selectedOptions: string[] }
 ) {
   try {
-    const vote = await prisma.vote.findUnique({
-      where: { code },
-    });
+    const [vote] = await db
+      .select()
+      .from(votes)
+      .where(eq(votes.code, code))
+      .limit(1);
 
     if (!vote) {
       return { success: false, error: "投票不存在" };
@@ -246,31 +320,39 @@ export async function submitVoteAction(
 
     // 检查是否已投票
     if (data.phone) {
-      const existing = await prisma.voteRecord.findFirst({
-        where: { voteId: vote.id, phone: data.phone },
-      });
+      const [existing] = await db
+        .select()
+        .from(voteRecords)
+        .where(
+          and(
+            eq(voteRecords.voteId, vote.id),
+            eq(voteRecords.phone, data.phone)
+          )
+        )
+        .limit(1);
 
       if (existing) {
         return { success: false, error: "您已投过票" };
       }
     }
 
-    await prisma.voteRecord.create({
-      data: {
-        voteId: vote.id,
-        phone: data.phone,
-        selectedOptions: data.selectedOptions,
-      },
+    // 创建投票记录
+    await db.insert(voteRecords).values({
+      id: randomUUID(),
+      voteId: vote.id,
+      phone: data.phone || null,
+      selectedOptions: data.selectedOptions,
     });
 
-    // 更新统计
-    await prisma.vote.update({
-      where: { id: vote.id },
-      data: {
-        totalVotes: { increment: data.selectedOptions.length },
-        participantCount: { increment: 1 },
-      },
-    });
+    // 更新每个选项的投票计数
+    for (const optionId of data.selectedOptions) {
+      await db
+        .update(voteOptions)
+        .set({
+          voteCount: sql`${voteOptions.voteCount} + 1`,
+        })
+        .where(eq(voteOptions.id, optionId));
+    }
 
     return { success: true };
   } catch (error) {
@@ -285,13 +367,28 @@ export async function submitVoteAction(
 
 export async function getLotteryByCodeAction(code: string) {
   try {
-    const lottery = await prisma.lottery.findUnique({
-      where: { code },
-    });
+    const [lottery] = await db
+      .select()
+      .from(lotteries)
+      .where(eq(lotteries.code, code))
+      .limit(1);
 
     if (!lottery) {
       return { success: false, error: "抽奖不存在" };
     }
+
+    // 获取奖品
+    const prizes = await db
+      .select()
+      .from(lotteryPrizes)
+      .where(eq(lotteryPrizes.lotteryId, lottery.id))
+      .orderBy(lotteryPrizes.sortOrder);
+
+    // 统计中奖人数
+    const [winnersCount] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(lotteryWinners)
+      .where(eq(lotteryWinners.lotteryId, lottery.id));
 
     return {
       success: true,
@@ -301,10 +398,18 @@ export async function getLotteryByCodeAction(code: string) {
         title: lottery.title,
         description: lottery.description,
         status: lottery.status.toLowerCase(),
-        config: lottery.config,
+        config: {
+          ...((lottery.config || {}) as Record<string, unknown>),
+          prizes: prizes.map((p) => ({
+            id: p.id,
+            name: p.name,
+            remaining: p.remaining,
+            probability: p.probability,
+          })),
+        },
         display: lottery.display,
         stats: {
-          winnersCount: lottery.winnersCount,
+          winnersCount: Number(winnersCount?.count || 0),
           participantCount: lottery.participantCount,
         },
       },
@@ -317,25 +422,28 @@ export async function getLotteryByCodeAction(code: string) {
 
 export async function getLotteryRecordsByCodeAction(code: string, limit = 10) {
   try {
-    const lottery = await prisma.lottery.findUnique({
-      where: { code },
-    });
+    const [lottery] = await db
+      .select()
+      .from(lotteries)
+      .where(eq(lotteries.code, code))
+      .limit(1);
 
     if (!lottery) {
       return { success: false, error: "抽奖不存在" };
     }
 
-    const records = await prisma.lotteryRecord.findMany({
-      where: { lotteryId: lottery.id },
-      orderBy: { drawnAt: "desc" },
-      take: limit,
-    });
+    const winners = await db
+      .select()
+      .from(lotteryWinners)
+      .where(eq(lotteryWinners.lotteryId, lottery.id))
+      .orderBy(desc(lotteryWinners.wonAt))
+      .limit(limit);
 
-    const data = records.map((r) => ({
-      id: r.id,
-      phone: r.phone,
-      prizeName: r.prizeName,
-      drawnAt: r.drawnAt.getTime(),
+    const data = winners.map((w) => ({
+      id: w.id,
+      phone: w.participantPhone,
+      prizeName: w.prizeName,
+      drawnAt: w.wonAt.getTime(),
     }));
 
     return { success: true, data };
@@ -347,24 +455,33 @@ export async function getLotteryRecordsByCodeAction(code: string, limit = 10) {
 
 export async function checkLotteryPhoneAction(code: string, phone: string) {
   try {
-    const lottery = await prisma.lottery.findUnique({
-      where: { code },
-    });
+    const [lottery] = await db
+      .select()
+      .from(lotteries)
+      .where(eq(lotteries.code, code))
+      .limit(1);
 
     if (!lottery) {
       return { success: false, error: "抽奖不存在" };
     }
 
-    const record = await prisma.lotteryRecord.findFirst({
-      where: { lotteryId: lottery.id, phone },
-    });
+    const [winner] = await db
+      .select()
+      .from(lotteryWinners)
+      .where(
+        and(
+          eq(lotteryWinners.lotteryId, lottery.id),
+          eq(lotteryWinners.participantPhone, phone)
+        )
+      )
+      .limit(1);
 
-    if (record) {
+    if (winner) {
       return {
         success: true,
         data: {
           drawn: true,
-          prize: record.prizeName,
+          prize: winner.prizeName,
         },
       };
     }
@@ -376,11 +493,17 @@ export async function checkLotteryPhoneAction(code: string, phone: string) {
   }
 }
 
-export async function drawLotteryAction(code: string, phone?: string) {
+export async function drawLotteryAction(
+  code: string,
+  phone?: string,
+  name?: string
+) {
   try {
-    const lottery = await prisma.lottery.findUnique({
-      where: { code },
-    });
+    const [lottery] = await db
+      .select()
+      .from(lotteries)
+      .where(eq(lotteries.code, code))
+      .limit(1);
 
     if (!lottery) {
       return { success: false, error: "抽奖不存在" };
@@ -392,21 +515,34 @@ export async function drawLotteryAction(code: string, phone?: string) {
 
     // 检查是否已抽奖
     if (phone) {
-      const existing = await prisma.lotteryRecord.findFirst({
-        where: { lotteryId: lottery.id, phone },
-      });
+      const [existing] = await db
+        .select()
+        .from(lotteryWinners)
+        .where(
+          and(
+            eq(lotteryWinners.lotteryId, lottery.id),
+            eq(lotteryWinners.participantPhone, phone)
+          )
+        )
+        .limit(1);
 
       if (existing) {
         return { success: false, error: "您已参与过抽奖" };
       }
     }
 
-    // 简单的随机抽奖逻辑
-    const config = lottery.config as { prizes?: Array<{ id: string; name: string; remaining: number; probability: number }> };
-    const prizes = config.prizes || [];
-    
-    // 找到一个有剩余的奖品
-    const availablePrizes = prizes.filter(p => p.remaining > 0);
+    // 获取有剩余的奖品
+    const availablePrizes = await db
+      .select()
+      .from(lotteryPrizes)
+      .where(
+        and(
+          eq(lotteryPrizes.lotteryId, lottery.id),
+          gt(lotteryPrizes.remaining, 0)
+        )
+      )
+      .orderBy(lotteryPrizes.sortOrder);
+
     if (availablePrizes.length === 0) {
       return { success: false, error: "奖品已抽完" };
     }
@@ -415,7 +551,7 @@ export async function drawLotteryAction(code: string, phone?: string) {
     const random = Math.random() * 100;
     let cumulative = 0;
     let selectedPrize = availablePrizes[availablePrizes.length - 1];
-    
+
     for (const prize of availablePrizes) {
       cumulative += prize.probability;
       if (random <= cumulative) {
@@ -424,34 +560,53 @@ export async function drawLotteryAction(code: string, phone?: string) {
       }
     }
 
-    // 创建中奖记录
-    const record = await prisma.lotteryRecord.create({
-      data: {
+    // 创建参与者记录
+    const [participant] = await db
+      .insert(lotteryParticipants)
+      .values({
+        id: randomUUID(),
         lotteryId: lottery.id,
-        phone,
-        prizeId: selectedPrize.id,
+        name: name || "匿名用户",
+        phone: phone || null,
+        hasWon: true,
+      })
+      .returning();
+
+    // 创建中奖记录
+    const [winner] = await db
+      .insert(lotteryWinners)
+      .values({
+        id: randomUUID(),
+        lotteryId: lottery.id,
+        participantId: participant.id,
+        participantName: name || "匿名用户",
+        participantPhone: phone || null,
         prizeName: selectedPrize.name,
-      },
-    });
+        prizeLevel: selectedPrize.sortOrder + 1,
+      })
+      .returning();
 
-    // 更新奖品剩余数量和统计
-    const updatedPrizes = prizes.map(p => 
-      p.id === selectedPrize.id ? { ...p, remaining: p.remaining - 1 } : p
-    );
+    // 更新奖品剩余数量
+    await db
+      .update(lotteryPrizes)
+      .set({
+        remaining: sql`${lotteryPrizes.remaining} - 1`,
+      })
+      .where(eq(lotteryPrizes.id, selectedPrize.id));
 
-    await prisma.lottery.update({
-      where: { id: lottery.id },
-      data: {
-        config: { ...config, prizes: updatedPrizes },
-        winnersCount: { increment: 1 },
-        participantCount: { increment: 1 },
-      },
-    });
+    // 更新参与人数
+    await db
+      .update(lotteries)
+      .set({
+        participantCount: sql`${lotteries.participantCount} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(lotteries.id, lottery.id));
 
     return {
       success: true,
       data: {
-        id: record.id,
+        id: winner.id,
         prize: selectedPrize.name,
       },
     };
@@ -467,9 +622,11 @@ export async function drawLotteryAction(code: string, phone?: string) {
 
 export async function getFormByCodeAction(code: string) {
   try {
-    const form = await prisma.form.findUnique({
-      where: { code },
-    });
+    const [form] = await db
+      .select()
+      .from(forms)
+      .where(eq(forms.code, code))
+      .limit(1);
 
     if (!form) {
       return { success: false, error: "表单不存在" };
@@ -483,6 +640,7 @@ export async function getFormByCodeAction(code: string) {
         title: form.title,
         description: form.description,
         status: form.status.toLowerCase(),
+        fields: form.fields,
         config: form.config,
         display: form.display,
         stats: {
@@ -498,23 +656,25 @@ export async function getFormByCodeAction(code: string) {
 
 export async function getFormResponsesByCodeAction(code: string, limit = 5) {
   try {
-    const form = await prisma.form.findUnique({
-      where: { code },
-    });
+    const [form] = await db
+      .select()
+      .from(forms)
+      .where(eq(forms.code, code))
+      .limit(1);
 
     if (!form) {
       return { success: false, error: "表单不存在" };
     }
 
-    const responses = await prisma.formResponse.findMany({
-      where: { formId: form.id },
-      orderBy: { submittedAt: "desc" },
-      take: limit,
-    });
+    const responses = await db
+      .select()
+      .from(formResponses)
+      .where(eq(formResponses.formId, form.id))
+      .orderBy(desc(formResponses.submittedAt))
+      .limit(limit);
 
     const data = responses.map((r) => ({
       id: r.id,
-      phone: r.phone,
       data: r.data,
       submittedAt: r.submittedAt.getTime(),
     }));
@@ -528,12 +688,14 @@ export async function getFormResponsesByCodeAction(code: string, limit = 5) {
 
 export async function submitFormAction(
   code: string,
-  data: { phone?: string; formData: Record<string, unknown> }
+  data: { formData: Record<string, unknown> }
 ) {
   try {
-    const form = await prisma.form.findUnique({
-      where: { code },
-    });
+    const [form] = await db
+      .select()
+      .from(forms)
+      .where(eq(forms.code, code))
+      .limit(1);
 
     if (!form) {
       return { success: false, error: "表单不存在" };
@@ -543,21 +705,20 @@ export async function submitFormAction(
       return { success: false, error: "表单未开始或已结束" };
     }
 
-    await prisma.formResponse.create({
-      data: {
-        formId: form.id,
-        phone: data.phone,
-        data: data.formData,
-      },
+    await db.insert(formResponses).values({
+      id: randomUUID(),
+      formId: form.id,
+      data: data.formData,
     });
 
     // 更新统计
-    await prisma.form.update({
-      where: { id: form.id },
-      data: {
-        responseCount: { increment: 1 },
-      },
-    });
+    await db
+      .update(forms)
+      .set({
+        responseCount: sql`${forms.responseCount} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(forms.id, form.id));
 
     return { success: true };
   } catch (error) {
@@ -565,4 +726,3 @@ export async function submitFormAction(
     return { success: false, error: "提交失败" };
   }
 }
-

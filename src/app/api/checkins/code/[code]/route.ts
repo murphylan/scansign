@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import QRCode from "qrcode";
+import { eq } from "drizzle-orm";
 
-import { prisma } from "@/lib/db";
+import { db } from "@/server/db";
+import { checkins } from "@/server/db/schema";
 import { getBaseUrlFromRequest } from "@/lib/utils/get-base-url";
 
 // GET /api/checkins/code/[code] - 根据短码获取签到（公开访问 - 手机端/大屏）
@@ -12,9 +14,11 @@ export async function GET(
   const { code } = await params;
 
   try {
-    const checkin = await prisma.checkin.findUnique({
-      where: { code },
-    });
+    const [checkin] = await db
+      .select()
+      .from(checkins)
+      .where(eq(checkins.code, code))
+      .limit(1);
 
     if (!checkin) {
       return NextResponse.json(

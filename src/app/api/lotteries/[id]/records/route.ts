@@ -1,6 +1,9 @@
+import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
+import { eq, desc, sql, and } from "drizzle-orm";
 
-import { prisma } from "@/lib/db";
+import { db } from "@/server/db";
+import { lotteries, lotteryParticipants, lotteryWinners } from "@/server/db/schema";
 
 // GET /api/lotteries/[id]/records - 获取中奖记录
 export async function GET(
@@ -11,9 +14,11 @@ export async function GET(
   const { searchParams } = new URL(request.url);
 
   try {
-    const lottery = await prisma.lottery.findUnique({
-      where: { id },
-    });
+    const [lottery] = await db
+      .select()
+      .from(lotteries)
+      .where(eq(lotteries.id, id))
+      .limit(1);
 
     if (!lottery) {
       return NextResponse.json(
@@ -25,17 +30,20 @@ export async function GET(
     const limit = parseInt(searchParams.get("limit") || "50");
     const offset = parseInt(searchParams.get("offset") || "0");
 
-    const [records, total] = await Promise.all([
-      prisma.lotteryWinner.findMany({
-        where: { lotteryId: id },
-        orderBy: { wonAt: "desc" },
-        take: limit,
-        skip: offset,
-      }),
-      prisma.lotteryWinner.count({
-        where: { lotteryId: id },
-      }),
-    ]);
+    const records = await db
+      .select()
+      .from(lotteryWinners)
+      .where(eq(lotteryWinners.lotteryId, id))
+      .orderBy(desc(lotteryWinners.wonAt))
+      .limit(limit)
+      .offset(offset);
+
+    const [countResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(lotteryWinners)
+      .where(eq(lotteryWinners.lotteryId, id));
+
+    const total = Number(countResult?.count || 0);
 
     return NextResponse.json({
       success: true,
@@ -70,9 +78,11 @@ export async function POST(
   try {
     const body = await request.json();
 
-    const lottery = await prisma.lottery.findUnique({
-      where: { id },
-    });
+    const [lottery] = await db
+      .select()
+      .from(lotteries)
+      .where(eq(lotteries.id, id))
+      .limit(1);
 
     if (!lottery) {
       return NextResponse.json(
@@ -108,12 +118,16 @@ export async function POST(
 
     // 检查是否已参与
     if (body.phone) {
-      const existing = await prisma.lotteryParticipant.findFirst({
-        where: {
-          lotteryId: id,
-          phone: body.phone,
-        },
-      });
+      const [existing] = await db
+        .select()
+        .from(lotteryParticipants)
+        .where(
+          and(
+            eq(lotteryParticipants.lotteryId, id),
+            eq(lotteryParticipants.phone, body.phone)
+          )
+        )
+        .limit(1);
 
       if (existing) {
         return NextResponse.json(
@@ -124,21 +138,24 @@ export async function POST(
     }
 
     // 创建参与记录
-    const participant = await prisma.lotteryParticipant.create({
-      data: {
+    const [participant] = await db
+      .insert(lotteryParticipants)
+      .values({
+        id: randomUUID(),
         lotteryId: id,
         name: body.name || "匿名",
-        phone: body.phone,
-      },
-    });
+        phone: body.phone || null,
+      })
+      .returning();
 
     // 更新参与人数
-    await prisma.lottery.update({
-      where: { id },
-      data: {
-        participantCount: { increment: 1 },
-      },
-    });
+    await db
+      .update(lotteries)
+      .set({
+        participantCount: sql`${lotteries.participantCount} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(lotteries.id, id));
 
     return NextResponse.json({
       success: true,

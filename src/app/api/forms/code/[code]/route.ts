@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import QRCode from "qrcode";
+import { eq } from "drizzle-orm";
 
-import { prisma } from "@/lib/db";
+import { db } from "@/server/db";
+import { forms } from "@/server/db/schema";
 import { getBaseUrlFromRequest } from "@/lib/utils/get-base-url";
 
 // GET /api/forms/code/[code] - 根据短码获取表单
@@ -12,9 +14,11 @@ export async function GET(
   const { code } = await params;
 
   try {
-    const form = await prisma.form.findUnique({
-      where: { code },
-    });
+    const [form] = await db
+      .select()
+      .from(forms)
+      .where(eq(forms.code, code))
+      .limit(1);
 
     if (!form) {
       return NextResponse.json(
