@@ -7,10 +7,12 @@ globs:
 
 # React Query Hooks 规范
 
+> **重要**: 页面必须通过 Hooks 调用 Server Actions，禁止直接使用 fetch('/api/...')
+
 ## 文件规范
 
 - **位置**: `hooks/` 目录
-- **命名**: `use-{domain}.ts`（如 `use-modules.ts`）
+- **命名**: `use-{domain}.ts`（如 `use-checkins.ts`）
 
 ## 标准模板
 
@@ -24,10 +26,10 @@ import { toast } from "sonner";
 
 // 3. Server Actions
 import {
-  listEntities,
-  createEntity,
-  updateEntityByBusinessId,
-  deleteEntityByBusinessId,
+  listEntitiesAction,
+  createEntityAction,
+  updateEntityAction,
+  deleteEntityAction,
 } from "@/server/actions/entityAction";
 
 // 4. Types
@@ -36,7 +38,7 @@ import type { Entity, EntityFormData } from "@/types/entity-types";
 export function useEntities() {
   const queryClient = useQueryClient();
 
-  // ✅ 使用 React Query 获取数据
+  // ✅ 使用 React Query 获取数据（调用 Server Action）
   const {
     data: entities = [],
     isLoading,
@@ -44,22 +46,19 @@ export function useEntities() {
   } = useQuery({
     queryKey: ["entities"],
     queryFn: async () => {
-      return (await listEntities()) as Entity[];
+      const res = await listEntitiesAction();
+      return res.success ? res.data : [];
     },
     staleTime: 0,
   });
 
-  // ✅ 创建 Mutation
+  // ✅ 创建 Mutation（调用 Server Action）
   const createEntityMutation = useMutation({
-    mutationFn: async (payload: EntityFormData) => {
-      const res = await createEntity(payload);
-      if (!res.success) {
-        throw new Error(res.error || "创建失败");
+    mutationFn: createEntityAction,
+    onSuccess: (res) => {
+      if (res.success) {
+        queryClient.invalidateQueries({ queryKey: ["entities"] });
       }
-      return res;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["entities"] });
     },
     onError: (error) => {
       console.error("创建失败:", error);
@@ -68,15 +67,11 @@ export function useEntities() {
 
   // ✅ 删除 Mutation
   const deleteEntityMutation = useMutation({
-    mutationFn: async (businessId: string) => {
-      const res = await deleteEntityByBusinessId(businessId);
-      if (!res.success) {
-        throw new Error(res.error || "删除失败");
+    mutationFn: deleteEntityAction,
+    onSuccess: (res) => {
+      if (res.success) {
+        queryClient.invalidateQueries({ queryKey: ["entities"] });
       }
-      return res;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["entities"] });
     },
     onError: (error) => {
       console.error("删除失败:", error);
@@ -93,48 +88,59 @@ export function useEntities() {
 }
 ```
 
-## Mutation 规范
+## 页面使用示例
 
-### 必须遵守
+```tsx
+"use client";
 
-1. **使用 `useMutation`** - 禁止自定义 mutation 对象
-2. **检查 `res.success`** - 失败时抛出错误
-3. **包含 `onSuccess`** - 刷新相关 queryKey
-4. **包含 `onError`** - 记录错误日志
-5. **返回 mutation 实例** - 供组件使用
+import { useCallback } from "react";
+import { toast } from "sonner";
+import { useTopLoader } from "nextjs-toploader";
+import { useEntities } from "@/hooks/use-entities";
 
-### Mutation 结构
+export default function EntitiesPage() {
+  const { start, done } = useTopLoader();
+  const { entities, isLoading, createEntityMutation } = useEntities();
 
-```typescript
-const xxxMutation = useMutation({
-  mutationFn: async (payload) => {
-    const res = await serverAction(payload);
-    if (!res.success) {
-      throw new Error(res.error || "操作失败");
-    }
-    return res;
-  },
-  onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ["xxx"] });
-  },
-  onError: (error) => {
-    console.error("操作失败:", error);
-  },
-});
+  const handleCreate = useCallback(
+    async (data: EntityFormData) => {
+      start();
+      try {
+        const res = await createEntityMutation.mutateAsync(data);
+        if (res.success) {
+          toast.success("创建成功");
+        } else {
+          toast.error(res.error || "创建失败");
+        }
+      } finally {
+        done();
+      }
+    },
+    [createEntityMutation] // ⚠️ 不添加 start/done
+  );
+
+  return (
+    <EntityForm
+      onSubmit={handleCreate}
+      isLoading={createEntityMutation.isPending}
+    />
+  );
+}
 ```
 
 ## 检查清单
 
 - [ ] 使用 `useMutation` from `@tanstack/react-query`
-- [ ] `mutationFn` 中检查 `res.success`
-- [ ] 失败时 `throw new Error(res.error)`
-- [ ] `onSuccess` 调用 `invalidateQueries`
+- [ ] `mutationFn` 调用 Server Action（不是 fetch）
+- [ ] `onSuccess` 检查 `res.success` 并刷新 queryKey
 - [ ] `onError` 记录错误
-- [ ] 返回 mutation 实例
+- [ ] 返回 mutation 实例供组件使用
+- [ ] 使用 `mutation.isPending` 而非 `isLoading`
 
 ## 禁止事项
 
+- ❌ 使用 fetch('/api/...') 获取数据
 - ❌ 自定义 mutation 对象（手动管理 isLoading/error）
 - ❌ 不使用 `useMutation`
-- ❌ `mutationFn` 中不检查 success
 - ❌ 缺少 `onSuccess` 或 `onError`
+- ❌ 使用 `isLoading` 而非 `isPending`

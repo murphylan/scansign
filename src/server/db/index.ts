@@ -7,8 +7,8 @@ if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL environment variable is required");
 }
 
-// 创建 PostgreSQL 连接
-const connectionString = process.env.DATABASE_URL;
+// 移除 ?schema=xxx 参数（这是 Prisma 格式，PostgreSQL 驱动不支持）
+const connectionString = process.env.DATABASE_URL.replace(/\?schema=\w+/, "");
 
 // 用于查询的客户端（使用连接池）
 const client = postgres(connectionString, {

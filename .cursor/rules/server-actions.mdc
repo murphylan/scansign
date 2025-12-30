@@ -6,10 +6,12 @@ globs:
 
 # Server Actions 规范
 
+> **重要**: 页面必须通过 Hooks + Server Actions 访问数据，禁止使用 fetch('/api/...')
+
 ## 文件规范
 
 - **位置**: `server/actions/` 目录
-- **命名**: `{entity}Action.ts`（如 `moduleAction.ts`）
+- **命名**: `{entity}Action.ts`（如 `checkinAction.ts`）
 - **指令**: 文件顶部必须有 `"use server";`
 
 ## 返回格式（强制）
@@ -25,130 +27,73 @@ globs:
 ```typescript
 "use server";
 
-import { getCurrentUser } from "@/server/auth/require-auth";
+import { randomUUID } from "crypto";
+import { revalidatePath } from "next/cache";
+import { eq, desc, and, sql } from "drizzle-orm";
 import { db } from "@/server/db";
 import { entities } from "@/server/db/schema";
-import { eq, desc, and } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
-import "server-only";
-import { entitySchema, type EntityFormData } from "@/types/entity-types";
-import { generateEntityId } from "@/lib/business-id";
-import { randomUUID } from "crypto";
+import { getCurrentUser } from "./authAction";
 
-export async function createEntity(data: EntityFormData) {
-  const user = await getCurrentUser();
-  if (!user) {
-    return { success: false, error: "未登录" };
-  }
-
+export async function listEntitiesAction() {
   try {
-    const validated = entitySchema.parse(data);
-    const now = new Date();
-    const businessId = await generateEntityId();
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: "未登录" };
+    }
+
+    const list = await db
+      .select()
+      .from(entities)
+      .where(eq(entities.userId, user.id))
+      .orderBy(desc(entities.createdAt));
+
+    return { success: true, data: list };
+  } catch (error) {
+    console.error("Failed to list entities:", error);
+    return { success: false, error: "获取列表失败" };
+  }
+}
+
+export async function createEntityAction(data: EntityFormData) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: "未登录" };
+    }
 
     const [entity] = await db
       .insert(entities)
       .values({
         id: randomUUID(),
-        businessId,
-        title: validated.title,
-        description: validated.description || null,
-        createdBy: user.id,
-        updatedBy: user.id,
-        createdAt: now,
-        updatedAt: now,
+        ...data,
+        userId: user.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       })
       .returning();
-
-    if (!entity) {
-      return { success: false, error: "创建失败" };
-    }
 
     revalidatePath("/entities");
     return { success: true, data: entity };
   } catch (error) {
     console.error("Failed to create entity:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "创建失败",
-    };
+    return { success: false, error: "创建失败" };
   }
 }
 
-export async function listEntities() {
+export async function deleteEntityAction(id: string) {
   try {
-    const results = await db
-      .select()
-      .from(entities)
-      .orderBy(desc(entities.createdAt));
-    return results;
-  } catch (error) {
-    console.error("Failed to list entities:", error);
-    return [];
-  }
-}
-
-export async function getEntityByBusinessId(businessId: string) {
-  try {
-    const [entity] = await db
-      .select()
-      .from(entities)
-      .where(eq(entities.businessId, businessId))
-      .limit(1);
-    return entity || null;
-  } catch (error) {
-    console.error("Failed to get entity:", error);
-    return null;
-  }
-}
-
-export async function updateEntityByBusinessId(
-  businessId: string,
-  data: Partial<EntityFormData>
-) {
-  const user = await getCurrentUser();
-  if (!user) {
-    return { success: false, error: "未登录" };
-  }
-
-  try {
-    const [updated] = await db
-      .update(entities)
-      .set({ ...data, updatedBy: user.id, updatedAt: new Date() })
-      .where(eq(entities.businessId, businessId))
-      .returning();
-
-    if (!updated) {
-      return { success: false, error: "实体不存在" };
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: "未登录" };
     }
 
-    revalidatePath("/entities");
-    return { success: true, data: updated };
-  } catch (error) {
-    console.error("Failed to update entity:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "更新失败",
-    };
-  }
-}
+    await db.delete(entities).where(eq(entities.id, id));
 
-export async function deleteEntityByBusinessId(businessId: string) {
-  const user = await getCurrentUser();
-  if (!user) {
-    return { success: false, error: "未登录" };
-  }
-
-  try {
-    await db.delete(entities).where(eq(entities.businessId, businessId));
     revalidatePath("/entities");
     return { success: true };
   } catch (error) {
     console.error("Failed to delete entity:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "删除失败",
-    };
+    return { success: false, error: "删除失败" };
   }
 }
 ```
@@ -156,27 +101,27 @@ export async function deleteEntityByBusinessId(businessId: string) {
 ## 检查清单
 
 - [ ] 文件顶部有 `"use server";`
-- [ ] 导入 `"server-only"`
 - [ ] 使用 `getCurrentUser()` 检查登录状态
 - [ ] 返回格式为 `{ success, data?, error? }`
 - [ ] 使用 try-catch 捕获异常
 - [ ] 使用 `revalidatePath()` 刷新缓存
 - [ ] 使用 Drizzle ORM（不是 Prisma）
+- [ ] 多条件查询使用 `and()` 合并
 
 ## 命名约定
 
-| 操作 | 函数名前缀 | 示例 |
+| 操作 | 函数名后缀 | 示例 |
 |------|-----------|------|
-| 创建 | `create` | `createModule` |
-| 获取单个 | `get` | `getModuleByBusinessId` |
-| 获取列表 | `list` | `listModules` |
-| 更新 | `update` | `updateModuleByBusinessId` |
-| 删除 | `delete` | `deleteModuleByBusinessId` |
+| 获取列表 | `list...Action` | `listCheckinsAction` |
+| 获取单个 | `get...Action` | `getCheckinAction` |
+| 创建 | `create...Action` | `createCheckinAction` |
+| 更新 | `update...Action` | `updateCheckinAction` |
+| 删除 | `delete...Action` | `deleteCheckinAction` |
 
 ## 禁止事项
 
 - ❌ 返回格式不是 `{ success, data, error }`
 - ❌ 不使用 try-catch
-- ❌ 抛出未捕获的错误
 - ❌ 不检查用户登录状态
 - ❌ 使用 Prisma（项目使用 Drizzle ORM）
+- ❌ 链式调用多个 `.where()`（使用 `and()` 代替）

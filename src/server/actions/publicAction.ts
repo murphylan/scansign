@@ -111,35 +111,81 @@ export async function doCheckinAction(
       return { success: false, error: "签到未开始或已结束" };
     }
 
-    const verifyCode = generateCode(6);
+    // 检查是否已存在记录（根据手机号）
+    let existingRecord = null;
+    if (data.phone) {
+      const [existing] = await db
+        .select()
+        .from(checkinRecords)
+        .where(
+          and(
+            eq(checkinRecords.checkinId, checkin.id),
+            eq(checkinRecords.phone, data.phone)
+          )
+        )
+        .limit(1);
+      existingRecord = existing;
+    }
 
-    const [record] = await db
-      .insert(checkinRecords)
-      .values({
-        id: randomUUID(),
-        checkinId: checkin.id,
-        name: data.name || null,
-        phone: data.phone || null,
-        department: data.department || null,
-        verifyCode,
-      })
-      .returning();
+    let record;
+    let isUpdate = false;
 
-    // 更新统计
-    await db
-      .update(checkins)
-      .set({
-        totalCount: sql`${checkins.totalCount} + 1`,
-        todayCount: sql`${checkins.todayCount} + 1`,
-        updatedAt: new Date(),
-      })
-      .where(eq(checkins.id, checkin.id));
+    if (existingRecord) {
+      // 重复签到：更新现有记录的签到时间，保留原验证码
+      // 这样会触发 SSE 推送，从而在大屏显示弹幕
+      const [updated] = await db
+        .update(checkinRecords)
+        .set({
+          name: data.name || existingRecord.name,
+          department: data.department || existingRecord.department,
+          checkedInAt: new Date(), // 更新签到时间，触发 SSE 推送
+        })
+        .where(eq(checkinRecords.id, existingRecord.id))
+        .returning();
+      record = updated;
+      isUpdate = true;
+      
+      // 更新签到活动的 updatedAt 以触发 SSE 检测
+      await db
+        .update(checkins)
+        .set({
+          updatedAt: new Date(),
+        })
+        .where(eq(checkins.id, checkin.id));
+    } else {
+      // 首次签到：创建新记录
+      const verifyCode = generateCode(6);
+
+      const [created] = await db
+        .insert(checkinRecords)
+        .values({
+          id: randomUUID(),
+          checkinId: checkin.id,
+          name: data.name || null,
+          phone: data.phone || null,
+          department: data.department || null,
+          verifyCode,
+        })
+        .returning();
+      record = created;
+
+      // 更新统计（只有首次签到才增加计数）
+      await db
+        .update(checkins)
+        .set({
+          totalCount: sql`${checkins.totalCount} + 1`,
+          todayCount: sql`${checkins.todayCount} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(checkins.id, checkin.id));
+    }
 
     return {
       success: true,
       data: {
         id: record.id,
         verifyCode: record.verifyCode,
+        isUpdate, // 告诉前端是更新还是新建
       },
     };
   } catch (error) {

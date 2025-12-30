@@ -332,6 +332,7 @@ export async function getCheckinRecordsAction(checkinId: string, limit = 50) {
         email: r.email,
       },
       departmentName: r.department,
+      verifyCode: r.verifyCode,
       isConfirmed: r.isConfirmed,
       checkedInAt: r.checkedInAt.getTime(),
     }));
@@ -342,6 +343,67 @@ export async function getCheckinRecordsAction(checkinId: string, limit = 50) {
     return {
       success: false,
       error: error instanceof Error ? error.message : "获取签到记录失败",
+    };
+  }
+}
+
+export async function deleteCheckinRecordAction(recordId: string) {
+  try {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return { success: false, error: "未登录" };
+    }
+
+    const isAdmin = user.role === "ADMIN";
+
+    // 先获取记录信息
+    const [record] = await db
+      .select()
+      .from(checkinRecords)
+      .where(eq(checkinRecords.id, recordId))
+      .limit(1);
+
+    if (!record) {
+      return { success: false, error: "记录不存在" };
+    }
+
+    // 检查权限：需要是管理员或签到的创建者
+    const [checkin] = await db
+      .select()
+      .from(checkins)
+      .where(eq(checkins.id, record.checkinId))
+      .limit(1);
+
+    if (!checkin) {
+      return { success: false, error: "签到不存在" };
+    }
+
+    if (!isAdmin && checkin.userId !== user.id) {
+      return { success: false, error: "无权限删除" };
+    }
+
+    // 删除记录
+    await db.delete(checkinRecords).where(eq(checkinRecords.id, recordId));
+
+    // 更新签到统计（减少计数）
+    await db
+      .update(checkins)
+      .set({
+        totalCount: sql`GREATEST(${checkins.totalCount} - 1, 0)`,
+        todayCount: sql`GREATEST(${checkins.todayCount} - 1, 0)`,
+        updatedAt: new Date(),
+      })
+      .where(eq(checkins.id, record.checkinId));
+
+    revalidatePath(`/checkins/${record.checkinId}`);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to delete checkin record:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "删除签到记录失败",
     };
   }
 }

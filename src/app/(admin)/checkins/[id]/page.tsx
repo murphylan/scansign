@@ -18,13 +18,17 @@ import {
   Pause,
   Play,
   RefreshCw,
+  Trash2,
+  Key,
 } from 'lucide-react';
 
 import {
   getCheckinAction,
   getCheckinRecordsAction,
   updateCheckinAction,
+  deleteCheckinRecordAction,
 } from '@/server/actions/checkinAction';
+import { useConfirm } from '@/components/shared/confirm-dialog';
 import { copyToClipboard } from '@/lib/utils/clipboard';
 
 // 页面内部使用的类型（匹配 Server Action 返回的数据结构）
@@ -48,6 +52,7 @@ interface RecordData {
     email: string | null;
   };
   departmentName: string | null;
+  verifyCode: string | null;
   isConfirmed: boolean;
   checkedInAt: number;
 }
@@ -58,10 +63,12 @@ export default function CheckinDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const resolvedParams = use(params);
+  const confirm = useConfirm();
   const [checkin, setCheckin] = useState<CheckinData | null>(null);
   const [records, setRecords] = useState<RecordData[]>([]);
   const [loading, setLoading] = useState(true);
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchCheckin = useCallback(async () => {
     const res = await getCheckinAction(resolvedParams.id);
@@ -143,6 +150,30 @@ export default function CheckinDetailPage({
       toast.error('复制失败，请手动复制');
     }
   }, [checkin]);
+
+  const handleDeleteRecord = useCallback(async (record: RecordData) => {
+    const confirmed = await confirm({
+      title: '删除签到记录',
+      description: `确定要删除 ${record.participant?.name || record.participant?.phone || '此用户'} 的签到记录吗？此操作不可恢复。`,
+      confirmText: '删除',
+      cancelText: '取消',
+      variant: 'destructive',
+    });
+
+    if (!confirmed) return;
+
+    setDeletingId(record.id);
+    const res = await deleteCheckinRecordAction(record.id);
+    setDeletingId(null);
+
+    if (res.success) {
+      toast.success('删除成功');
+      fetchRecords();
+      fetchCheckin();
+    } else {
+      toast.error(res.error || '删除失败');
+    }
+  }, [confirm, fetchRecords, fetchCheckin]);
 
   if (loading) {
     return (
@@ -349,7 +380,7 @@ export default function CheckinDetailPage({
                 {records.map((record) => (
                   <div
                     key={record.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-secondary/50"
+                    className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 group"
                   >
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-full bg-linear-to-br from-emerald-500 to-green-600 flex items-center justify-center text-white font-medium">
@@ -367,22 +398,46 @@ export default function CheckinDetailPage({
                               <span>{record.departmentName}</span>
                             </>
                           )}
+                          {record.verifyCode && (
+                            <>
+                              <span>·</span>
+                              <span className="flex items-center gap-1 text-amber-600">
+                                <Key className="h-3 w-3" />
+                                {record.verifyCode}
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full ${
-                          record.isConfirmed
-                            ? 'bg-emerald-500/10 text-emerald-500'
-                            : 'bg-blue-500/10 text-blue-500'
-                        }`}
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full ${
+                            record.isConfirmed
+                              ? 'bg-emerald-500/10 text-emerald-500'
+                              : 'bg-blue-500/10 text-blue-500'
+                          }`}
+                        >
+                          {record.isConfirmed ? '已确认' : '待确认'}
+                        </span>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(record.checkedInAt).toLocaleString()}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => handleDeleteRecord(record)}
+                        disabled={deletingId === record.id}
                       >
-                        {record.isConfirmed ? '已确认' : '待确认'}
-                      </span>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(record.checkedInAt).toLocaleString()}
-                      </p>
+                        {deletingId === record.id ? (
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
                     </div>
                   </div>
                 ))}

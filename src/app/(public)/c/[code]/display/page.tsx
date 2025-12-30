@@ -94,15 +94,22 @@ export default function CheckinDisplayPage({
     fetchRecords();
   }, [fetchCheckin, fetchRecords]);
 
-  // 用于在 SSE 回调中访问最新的 recentRecords
-  const recentRecordsRef = useRef<CheckinRecord[]>([]);
-  recentRecordsRef.current = recentRecords;
+  // 用于在 SSE 回调中访问最新的 recentRecords 和 checkin
+  // 使用 Map 存储 id -> timestamp 映射，方便检测重复签到
+  const recordTimestampsRef = useRef<Map<string, number>>(new Map());
+  
+  const checkinRef = useRef<CheckinData | null>(null);
+  checkinRef.current = checkin;
+  
+  // 弹幕 ID 计数器，用于重复签到时生成唯一 ID
+  const danmakuIdRef = useRef(0);
 
-  // SSE 连接
+  // SSE 连接 - 只依赖 checkin.id，避免 checkin 更新时重建连接
   useEffect(() => {
-    if (!checkin) return;
+    if (!checkin?.id) return;
 
-    const eventSource = new EventSource(`/api/checkins/${checkin.id}/stream`);
+    const checkinId = checkin.id;
+    const eventSource = new EventSource(`/api/checkins/${checkinId}/stream`);
     eventSourceRef.current = eventSource;
     
     eventSource.onmessage = (event) => {
@@ -132,17 +139,34 @@ export default function CheckinDisplayPage({
               checkedInAt: r.checkinTime,
             }));
             
-            // 检查是否有新签到（用于弹幕）
-            const currentIds = new Set(recentRecordsRef.current.map(r => r.id));
-            const newItems = newRecords.filter(r => !currentIds.has(r.id));
+            // 检查是否有新签到或重复签到（用于弹幕）
+            const itemsForDanmaku: CheckinRecord[] = [];
             
-            // 添加弹幕
-            newItems.forEach((record) => {
-              const template = checkin.display?.welcomeTemplate || '🎉 欢迎 {{name}} 加入！';
+            newRecords.forEach((record) => {
+              const prevTimestamp = recordTimestampsRef.current.get(record.id);
+              
+              if (prevTimestamp === undefined) {
+                // 新签到：之前没有这条记录
+                itemsForDanmaku.push(record);
+              } else if (record.checkedInAt > prevTimestamp) {
+                // 重复签到：同一记录但时间更新了（说明用户再次签到）
+                itemsForDanmaku.push(record);
+              }
+              
+              // 更新时间戳记录
+              recordTimestampsRef.current.set(record.id, record.checkedInAt);
+            });
+            
+            // 添加弹幕 - 使用 ref 获取最新的 display 配置
+            itemsForDanmaku.forEach((record) => {
+              const template = checkinRef.current?.display?.welcomeTemplate || '🎉 欢迎 {{name}} 加入！';
               const text = template.replace('{{name}}', record.participant?.name || '新朋友');
+              // 使用唯一 ID（record.id + 时间戳），确保重复签到也能显示弹幕
+              danmakuIdRef.current += 1;
+              const uniqueId = `${record.id}-${danmakuIdRef.current}`;
               setDanmakuItems((prev) => [
                 ...prev,
-                { id: record.id, text },
+                { id: uniqueId, text },
               ]);
             });
             
@@ -157,7 +181,7 @@ export default function CheckinDisplayPage({
     return () => {
       eventSource.close();
     };
-  }, [checkin]);
+  }, [checkin?.id]); // 只依赖 id，避免 checkin 更新时重建连接
 
   if (loading) {
     return (

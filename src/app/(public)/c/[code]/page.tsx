@@ -138,12 +138,14 @@ export default function CheckinMobilePage({
     
     if (res.success) {
       setSuccess(true);
+      // isUpdate 来自服务端：true 表示更新了已有记录，false 表示首次签到
+      const serverIsUpdate = res.data?.isUpdate ?? false;
       setSuccessData({
-        message: '签到成功！',
+        message: serverIsUpdate ? '签到成功！' : '签到成功！',
         verifyCode: res.data?.verifyCode,
-        isUpdate: isExistingUser,
+        isUpdate: serverIsUpdate,
       });
-      toast.success('签到成功');
+      toast.success(serverIsUpdate ? '欢迎回来！' : '签到成功');
     } else {
       setError(res.error || '签到失败');
       toast.error(res.error || '签到失败');
@@ -191,13 +193,13 @@ export default function CheckinMobilePage({
               <CheckCircle2 className="h-8 w-8 text-white" />
             </div>
             <h2 className="text-2xl font-bold mb-2">
-              {successData.isUpdate ? '信息更新成功' : '签到成功'}
+              {successData.isUpdate ? '欢迎回来！' : '签到成功！'}
             </h2>
             <p className="text-muted-foreground mb-6">
-              {name ? `${name}，` : ''}欢迎参加 {checkin?.title}
+              {name ? `${name}，` : ''}{successData.isUpdate ? '再次' : ''}欢迎参加 {checkin?.title}
             </p>
             
-            {successData.verifyCode && (
+            {successData.verifyCode && !successData.isUpdate && (
               <div className="bg-secondary/50 rounded-xl p-4 mb-4">
                 <p className="text-sm text-muted-foreground mb-2">您的验证码</p>
                 <p className="text-4xl font-bold font-mono tracking-widest text-primary">
@@ -205,6 +207,14 @@ export default function CheckinMobilePage({
                 </p>
                 <p className="text-xs text-muted-foreground mt-2">
                   请牢记此验证码，修改信息时需要使用
+                </p>
+              </div>
+            )}
+            
+            {successData.isUpdate && (
+              <div className="bg-blue-500/10 rounded-xl p-4 mb-4 text-blue-600">
+                <p className="text-sm">
+                  🎉 感谢您的再次参与！
                 </p>
               </div>
             )}

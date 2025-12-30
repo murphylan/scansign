@@ -9,24 +9,33 @@ alwaysApply: true
 ## 技术栈
 
 - **框架**: Next.js 16 (App Router) + React 19 + TypeScript
-- **数据库**: Drizzle ORM + PostgreSQL
+- **数据库**: **Drizzle ORM** + PostgreSQL（❌ 禁止使用 Prisma）
 - **状态管理**: TanStack React Query (服务端) + Zustand (客户端) + nuqs (URL)
 - **UI**: Radix UI + Tailwind CSS + shadcn/ui
 - **表单**: React Hook Form + Zod
 - **提示**: sonner (toast) + nextjs-toploader (加载条)
 
+## 🔴 核心原则
+
+1. **数据库访问**: 只使用 Drizzle ORM，禁止使用 Prisma
+2. **页面数据**: 使用 Hooks + Server Actions，禁止使用 fetch('/api/...')
+3. **API 路由**: 仅用于 SSE 流推送，其他操作使用 Server Actions
+
 ## 项目结构
 
 ```
-app/(platform)/          # 平台页面（需登录）
+app/(admin)/             # 管理后台页面
+app/(public)/            # 公开页面
+app/api/                 # API 路由（仅用于 SSE 流）
 components/              # 共享组件
   ui/                    # shadcn/ui 基础组件
-  data-table/            # 表格组件
   shared/                # 业务共享组件
 hooks/                   # 自定义 Hooks (use-{domain}.ts)
 server/
+  db/                    # Drizzle 数据库
+    index.ts             # 数据库连接
+    schema/              # Schema 定义
   actions/               # Server Actions ({entity}Action.ts)
-  db/schema/             # Drizzle Schema
 types/                   # 类型定义 ({domain}-types.ts)
 lib/                     # 工具函数
 ```
@@ -112,3 +121,10 @@ export default function Component() {
 - ✅ 表格列定义使用 `useMemo`
 - ✅ 回调函数使用 `useCallback`
 - ✅ 复杂计算使用 `useMemo`
+
+## 禁止事项
+
+- ❌ 使用 Prisma（项目使用 Drizzle ORM）
+- ❌ 使用 fetch('/api/...') 获取/提交数据（使用 Hooks + Server Actions）
+- ❌ 在页面中直接调用数据库（通过 Server Actions）
+- ❌ 使用 window.confirm（使用 DeleteConfirm 组件）

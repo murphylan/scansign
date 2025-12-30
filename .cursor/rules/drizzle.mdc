@@ -2,29 +2,52 @@
 description: Drizzle ORM 数据库规范 - 适用于数据库相关文件
 globs:
   - server/db/**/*.ts
+  - server/actions/**/*.ts
 ---
 
 # Drizzle ORM 规范
+
+> **重要**: 本项目**只使用 Drizzle ORM**，禁止使用 Prisma！
+
+## 项目结构
+
+```
+src/server/
+├── db/
+│   ├── index.ts          # 数据库连接
+│   └── schema/           # Schema 定义
+│       ├── index.ts      # 导出所有表
+│       ├── users.ts      # 用户相关表
+│       ├── checkins.ts   # 签到相关表
+│       ├── votes.ts      # 投票相关表
+│       ├── forms.ts      # 表单相关表
+│       └── lotteries.ts  # 抽奖相关表
+└── actions/              # Server Actions
+```
 
 ## Schema 定义
 
 位置: `server/db/schema/{entity}.ts`
 
 ```typescript
-import { pgTable, text, timestamp, boolean, integer } from "drizzle-orm/pg-core";
+import { pgTable, pgSchema, text, timestamp, boolean, integer, jsonb } from "drizzle-orm/pg-core";
 
-export const entities = pgTable("entities", {
+// 使用 tool schema
+export const toolSchema = pgSchema("tool");
+
+// 枚举定义
+export const statusEnum = toolSchema.enum("Status", ["DRAFT", "ACTIVE", "PAUSED", "ENDED"]);
+
+// 表定义
+export const entities = toolSchema.table("Entity", {
   id: text("id").primaryKey(),
-  businessId: text("business_id").notNull().unique(),
+  code: text("code").notNull().unique(),
   title: text("title").notNull(),
-  description: text("description"),
-  status: text("status").default("draft"),
-  order: integer("order"),
-  isTemplate: boolean("is_template").default(false),
-  createdBy: text("created_by").notNull(),
-  updatedBy: text("updated_by"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  status: statusEnum("status").default("DRAFT").notNull(),
+  config: jsonb("config").default({}).notNull(),
+  userId: text("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 ```
 
@@ -35,7 +58,7 @@ export const entities = pgTable("entities", {
 ```typescript
 import { db } from "@/server/db";
 import { entities } from "@/server/db/schema";
-import { eq, and, or, desc, asc, isNull, inArray } from "drizzle-orm";
+import { eq, and, or, desc, asc, sql, gt, lt, isNull, inArray } from "drizzle-orm";
 ```
 
 ### 查询单条
@@ -44,7 +67,7 @@ import { eq, and, or, desc, asc, isNull, inArray } from "drizzle-orm";
 const [entity] = await db
   .select()
   .from(entities)
-  .where(eq(entities.businessId, businessId))
+  .where(eq(entities.id, id))
   .limit(1);
 
 return entity || null;
@@ -56,22 +79,34 @@ return entity || null;
 const results = await db
   .select()
   .from(entities)
-  .where(
-    and(
-      eq(entities.status, "active"),
-      isNull(entities.parentId)
-    )
-  )
-  .orderBy(asc(entities.order), desc(entities.createdAt));
+  .where(eq(entities.status, "ACTIVE"))
+  .orderBy(desc(entities.createdAt));
 ```
 
-### 批量查询
+### 🔴 多条件查询（重要！）
+
+**禁止链式调用多个 `.where()`，必须使用 `and()` 合并条件：**
 
 ```typescript
-const items = await db
+// ❌ 错误：链式调用多个 where（会导致编译错误）
+const [record] = await db
   .select()
-  .from(entities)
-  .where(inArray(entities.businessId, businessIds));
+  .from(records)
+  .where(eq(records.entityId, entityId))
+  .where(eq(records.phone, phone))
+  .limit(1);
+
+// ✅ 正确：使用 and() 合并条件
+const [record] = await db
+  .select()
+  .from(records)
+  .where(
+    and(
+      eq(records.entityId, entityId),
+      eq(records.phone, phone)
+    )
+  )
+  .limit(1);
 ```
 
 ### 插入
@@ -83,11 +118,10 @@ const [inserted] = await db
   .insert(entities)
   .values({
     id: randomUUID(),
-    businessId: await generateEntityId(),
+    code: generateCode(),
     title: data.title,
-    description: data.description || null,
-    createdBy: user.id,
-    updatedBy: user.id,
+    status: "ACTIVE",
+    userId: user.id,
     createdAt: new Date(),
     updatedAt: new Date(),
   })
@@ -101,32 +135,30 @@ const [updated] = await db
   .update(entities)
   .set({
     title: data.title,
-    updatedBy: user.id,
     updatedAt: new Date(),
   })
-  .where(eq(entities.businessId, businessId))
+  .where(eq(entities.id, id))
   .returning();
+```
+
+### 使用 SQL 表达式更新计数
+
+```typescript
+import { sql } from "drizzle-orm";
+
+await db
+  .update(entities)
+  .set({
+    totalCount: sql\`\${entities.totalCount} + 1\`,
+    updatedAt: new Date(),
+  })
+  .where(eq(entities.id, id));
 ```
 
 ### 删除
 
 ```typescript
-await db.delete(entities).where(eq(entities.businessId, businessId));
-```
-
-## 关联查询
-
-```typescript
-const results = await db
-  .select({
-    id: items.id,
-    businessId: items.businessId,
-    title: items.title,
-    moduleTitle: modules.title,
-  })
-  .from(items)
-  .leftJoin(modules, eq(items.moduleBusinessId, modules.businessId))
-  .where(eq(items.requirementBusinessId, requirementId));
+await db.delete(entities).where(eq(entities.id, id));
 ```
 
 ## 常用操作符
@@ -134,23 +166,22 @@ const results = await db
 | 操作符 | 用途 | 示例 |
 |--------|------|------|
 | `eq` | 等于 | `eq(entities.id, id)` |
-| `and` | 与 | `and(eq(...), eq(...))` |
+| `and` | 与（合并条件） | `and(eq(...), eq(...))` |
 | `or` | 或 | `or(eq(...), eq(...))` |
 | `desc` | 降序 | `desc(entities.createdAt)` |
 | `asc` | 升序 | `asc(entities.order)` |
-| `isNull` | 为空 | `isNull(entities.parentId)` |
-| `inArray` | 在数组中 | `inArray(entities.id, ids)` |
+| `gt` | 大于 | `gt(entities.count, 0)` |
+| `sql` | 原生 SQL | \`sql\`\${entities.count} + 1\`\` |
 
 ## 检查清单
 
 - [ ] 使用 `randomUUID()` 生成主键 ID
-- [ ] 使用 `businessId` 作为业务标识符
 - [ ] 使用 `.returning()` 获取操作结果
+- [ ] 使用 `and()` 合并多个查询条件
 - [ ] 正确处理 null 值
-- [ ] 使用适当的操作符
 
 ## 禁止事项
 
 - ❌ 使用 Prisma（项目使用 Drizzle ORM）
-- ❌ 直接使用 SQL 字符串
+- ❌ 链式调用多个 `.where()`（使用 `and()` 代替）
 - ❌ 忘记 `.returning()` 获取结果
