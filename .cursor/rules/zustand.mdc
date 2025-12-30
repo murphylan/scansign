@@ -1,0 +1,132 @@
+---
+description: Zustand 状态管理规范 - 适用于全局状态 store 文件
+globs:
+  - hooks/use-*-store.ts
+---
+
+# Zustand 状态管理规范
+
+## 文件规范
+
+- **位置**: `hooks/` 目录
+- **命名**: `use-{domain}-store.ts`（如 `use-module-types-store.ts`）
+- **指令**: 文件顶部必须有 `"use client";`
+
+## 标准模板
+
+```typescript
+"use client";
+
+import { create } from "zustand";
+import type { Entity } from "@/types/entity-types";
+
+interface EntityStoreState {
+  // 数据
+  entities: Entity[];
+  loading: boolean;
+  initialized: boolean;
+
+  // Actions
+  setEntities: (entities: Entity[]) => void;
+  getEntityById: (id: string) => Entity | undefined;
+  reset: () => void;
+}
+
+export const useEntityStore = create<EntityStoreState>((set, get) => ({
+  // 初始状态
+  entities: [],
+  loading: false,
+  initialized: false,
+
+  // Actions
+  setEntities: (entities: Entity[]) => {
+    set({ entities, initialized: true });
+  },
+
+  getEntityById: (id: string) => {
+    return get().entities.find((e) => e.businessId === id);
+  },
+
+  reset: () => {
+    set({ entities: [], initialized: false });
+  },
+}));
+```
+
+## 使用场景
+
+### 适合 Zustand
+
+- 跨组件共享的客户端状态
+- 需要在多个页面间保持的状态
+- 配置类数据（模块类型、权限等）
+
+### 不适合 Zustand
+
+- 服务端数据缓存（使用 React Query）
+- 表单状态（使用 React Hook Form）
+- URL 状态（使用 nuqs）
+
+## 防止重复初始化
+
+```typescript
+const useDataStore = create<DataStoreState>((set, get) => ({
+  data: [],
+  loading: false,
+  initialized: false,
+
+  fetchData: async () => {
+    const { initialized, loading } = get();
+    // 防止重复请求
+    if (initialized || loading) return;
+
+    set({ loading: true });
+    try {
+      const data = await getData();
+      set({ data, initialized: true });
+    } catch (error) {
+      console.error("加载失败:", error);
+    } finally {
+      set({ loading: false });
+    }
+  },
+}));
+```
+
+## 在组件中使用
+
+```tsx
+"use client";
+
+import { useEntityStore } from "@/hooks/use-entity-store";
+import { useEffect } from "react";
+
+export function EntityList() {
+  const { entities, loading, initialized, fetchData } = useEntityStore();
+
+  useEffect(() => {
+    if (!initialized) {
+      fetchData();
+    }
+  }, [initialized, fetchData]);
+
+  if (loading) return <div>加载中...</div>;
+
+  return (
+    <ul>
+      {entities.map((entity) => (
+        <li key={entity.id}>{entity.title}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+## 检查清单
+
+- [ ] 文件顶部有 `"use client";`
+- [ ] 命名为 `use-{domain}-store.ts`
+- [ ] 定义 TypeScript 接口
+- [ ] 使用 `create` 创建 store
+- [ ] 包含 `initialized` 标记防止重复初始化
+- [ ] 包含 `reset` 方法清空状态

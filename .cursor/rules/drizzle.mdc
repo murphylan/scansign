@@ -1,0 +1,156 @@
+---
+description: Drizzle ORM 数据库规范 - 适用于数据库相关文件
+globs:
+  - server/db/**/*.ts
+---
+
+# Drizzle ORM 规范
+
+## Schema 定义
+
+位置: `server/db/schema/{entity}.ts`
+
+```typescript
+import { pgTable, text, timestamp, boolean, integer } from "drizzle-orm/pg-core";
+
+export const entities = pgTable("entities", {
+  id: text("id").primaryKey(),
+  businessId: text("business_id").notNull().unique(),
+  title: text("title").notNull(),
+  description: text("description"),
+  status: text("status").default("draft"),
+  order: integer("order"),
+  isTemplate: boolean("is_template").default(false),
+  createdBy: text("created_by").notNull(),
+  updatedBy: text("updated_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+```
+
+## 查询操作
+
+### 导入
+
+```typescript
+import { db } from "@/server/db";
+import { entities } from "@/server/db/schema";
+import { eq, and, or, desc, asc, isNull, inArray } from "drizzle-orm";
+```
+
+### 查询单条
+
+```typescript
+const [entity] = await db
+  .select()
+  .from(entities)
+  .where(eq(entities.businessId, businessId))
+  .limit(1);
+
+return entity || null;
+```
+
+### 查询列表
+
+```typescript
+const results = await db
+  .select()
+  .from(entities)
+  .where(
+    and(
+      eq(entities.status, "active"),
+      isNull(entities.parentId)
+    )
+  )
+  .orderBy(asc(entities.order), desc(entities.createdAt));
+```
+
+### 批量查询
+
+```typescript
+const items = await db
+  .select()
+  .from(entities)
+  .where(inArray(entities.businessId, businessIds));
+```
+
+### 插入
+
+```typescript
+import { randomUUID } from "crypto";
+
+const [inserted] = await db
+  .insert(entities)
+  .values({
+    id: randomUUID(),
+    businessId: await generateEntityId(),
+    title: data.title,
+    description: data.description || null,
+    createdBy: user.id,
+    updatedBy: user.id,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  })
+  .returning();
+```
+
+### 更新
+
+```typescript
+const [updated] = await db
+  .update(entities)
+  .set({
+    title: data.title,
+    updatedBy: user.id,
+    updatedAt: new Date(),
+  })
+  .where(eq(entities.businessId, businessId))
+  .returning();
+```
+
+### 删除
+
+```typescript
+await db.delete(entities).where(eq(entities.businessId, businessId));
+```
+
+## 关联查询
+
+```typescript
+const results = await db
+  .select({
+    id: items.id,
+    businessId: items.businessId,
+    title: items.title,
+    moduleTitle: modules.title,
+  })
+  .from(items)
+  .leftJoin(modules, eq(items.moduleBusinessId, modules.businessId))
+  .where(eq(items.requirementBusinessId, requirementId));
+```
+
+## 常用操作符
+
+| 操作符 | 用途 | 示例 |
+|--------|------|------|
+| `eq` | 等于 | `eq(entities.id, id)` |
+| `and` | 与 | `and(eq(...), eq(...))` |
+| `or` | 或 | `or(eq(...), eq(...))` |
+| `desc` | 降序 | `desc(entities.createdAt)` |
+| `asc` | 升序 | `asc(entities.order)` |
+| `isNull` | 为空 | `isNull(entities.parentId)` |
+| `inArray` | 在数组中 | `inArray(entities.id, ids)` |
+
+## 检查清单
+
+- [ ] 使用 `randomUUID()` 生成主键 ID
+- [ ] 使用 `businessId` 作为业务标识符
+- [ ] 使用 `.returning()` 获取操作结果
+- [ ] 正确处理 null 值
+- [ ] 使用适当的操作符
+
+## 禁止事项
+
+- ❌ 使用 Prisma（项目使用 Drizzle ORM）
+- ❌ 直接使用 SQL 字符串
+- ❌ 忘记 `.returning()` 获取结果

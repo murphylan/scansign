@@ -1,0 +1,371 @@
+// Prisma Schema - Murphy 互动工具集
+// 使用 PostgreSQL 数据库，tool schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["tool"]
+}
+
+// =====================
+// 用户模块
+// =====================
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String    // bcrypt 加密
+  nickname      String?
+  role          UserRole  @default(USER)
+  
+  // 试用期相关
+  trialStartAt  DateTime  @default(now())
+  trialDays     Int       @default(3)
+  isPaid        Boolean   @default(false)
+  paidAt        DateTime?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLoginAt   DateTime?
+  
+  // 关联
+  checkins      Checkin[]
+  votes         Vote[]
+  forms         Form[]
+  lotteries     Lottery[]
+  sessions      Session[]
+  
+  @@schema("tool")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([token])
+  @@index([userId])
+  @@schema("tool")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  
+  @@schema("tool")
+}
+
+// =====================
+// 签到模块
+// =====================
+
+model Checkin {
+  id          String   @id @default(uuid())
+  code        String   @unique // 短码
+  title       String
+  description String?
+  status      ActivityStatus @default(DRAFT)
+  
+  // 配置 JSON
+  config      Json     @default("{}")
+  display     Json     @default("{}")
+  
+  // 统计
+  totalCount  Int      @default(0)
+  todayCount  Int      @default(0)
+  
+  // 时间
+  startTime   DateTime?
+  endTime     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // 关联
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  records     CheckinRecord[]
+  
+  @@index([code])
+  @@index([userId])
+  @@schema("tool")
+}
+
+model CheckinRecord {
+  id           String   @id @default(uuid())
+  checkinId    String
+  
+  // 参与者信息
+  name         String?
+  phone        String?
+  email        String?
+  department   String?
+  extra        Json     @default("{}")
+  
+  // 验证
+  verifyCode   String?
+  isConfirmed  Boolean  @default(false)
+  
+  checkedInAt  DateTime @default(now())
+  confirmedAt  DateTime?
+  
+  checkin      Checkin  @relation(fields: [checkinId], references: [id], onDelete: Cascade)
+  
+  @@index([checkinId])
+  @@schema("tool")
+}
+
+// =====================
+// 投票模块
+// =====================
+
+model Vote {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  title       String
+  description String?
+  status      ActivityStatus @default(DRAFT)
+  
+  // 投票类型
+  voteType    VoteType @default(SINGLE)
+  maxChoices  Int      @default(1)
+  
+  // 配置
+  config      Json     @default("{}")
+  display     Json     @default("{}")
+  
+  // 时间
+  startTime   DateTime?
+  endTime     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // 关联
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  options     VoteOption[]
+  records     VoteRecord[]
+  
+  @@index([code])
+  @@index([userId])
+  @@schema("tool")
+}
+
+model VoteOption {
+  id          String   @id @default(uuid())
+  voteId      String
+  title       String
+  description String?
+  imageUrl    String?
+  sortOrder   Int      @default(0)
+  voteCount   Int      @default(0)
+  
+  vote        Vote     @relation(fields: [voteId], references: [id], onDelete: Cascade)
+  
+  @@index([voteId])
+  @@schema("tool")
+}
+
+model VoteRecord {
+  id              String   @id @default(uuid())
+  voteId          String
+  selectedOptions Json     @default("[]")  // 选择的选项 ID 数组
+  
+  // 投票者信息
+  name            String?
+  phone           String?
+  voterIp         String?
+  
+  votedAt         DateTime @default(now())
+  
+  vote            Vote     @relation(fields: [voteId], references: [id], onDelete: Cascade)
+  
+  @@index([voteId])
+  @@index([phone])
+  @@schema("tool")
+}
+
+enum VoteType {
+  SINGLE
+  MULTIPLE
+  
+  @@schema("tool")
+}
+
+// =====================
+// 表单模块
+// =====================
+
+model Form {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  title       String
+  description String?
+  status      ActivityStatus @default(DRAFT)
+  
+  // 表单字段定义
+  fields      Json     @default("[]")
+  
+  // 配置
+  config      Json     @default("{}")
+  display     Json     @default("{}")
+  
+  // 统计
+  responseCount Int    @default(0)
+  
+  // 时间
+  startTime   DateTime?
+  endTime     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // 关联
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  responses   FormResponse[]
+  
+  @@index([code])
+  @@index([userId])
+  @@schema("tool")
+}
+
+model FormResponse {
+  id          String   @id @default(uuid())
+  formId      String
+  
+  // 响应数据
+  data        Json     @default("{}")
+  
+  // 提交者信息
+  submitterIp String?
+  
+  submittedAt DateTime @default(now())
+  
+  form        Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  
+  @@index([formId])
+  @@schema("tool")
+}
+
+// =====================
+// 抽奖模块
+// =====================
+
+model Lottery {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  title       String
+  description String?
+  status      ActivityStatus @default(DRAFT)
+  
+  // 抽奖类型
+  lotteryType LotteryType @default(WHEEL)
+  
+  // 配置
+  prizes      Json     @default("[]")  // 奖品配置 JSON
+  config      Json     @default("{}")
+  display     Json     @default("{}")
+  
+  // 统计
+  participantCount Int @default(0)
+  
+  // 时间
+  startTime   DateTime?
+  endTime     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // 关联
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prizeItems  LotteryPrize[]
+  participants LotteryParticipant[]
+  winners     LotteryWinner[]
+  
+  @@index([code])
+  @@index([userId])
+  @@schema("tool")
+}
+
+model LotteryPrize {
+  id          String   @id @default(uuid())
+  lotteryId   String
+  name        String
+  description String?
+  imageUrl    String?
+  quantity    Int      @default(1)
+  remaining   Int      @default(1)
+  probability Float    @default(0)
+  sortOrder   Int      @default(0)
+  
+  lottery     Lottery  @relation(fields: [lotteryId], references: [id], onDelete: Cascade)
+  
+  @@index([lotteryId])
+  @@schema("tool")
+}
+
+model LotteryParticipant {
+  id          String   @id @default(uuid())
+  lotteryId   String
+  name        String
+  phone       String?
+  email       String?
+  department  String?
+  hasWon      Boolean  @default(false)
+  
+  joinedAt    DateTime @default(now())
+  
+  lottery     Lottery  @relation(fields: [lotteryId], references: [id], onDelete: Cascade)
+  winners     LotteryWinner[]
+  
+  @@index([lotteryId])
+  @@schema("tool")
+}
+
+model LotteryWinner {
+  id              String   @id @default(uuid())
+  lotteryId       String
+  participantId   String
+  participantName String
+  participantPhone String?
+  prizeName       String
+  prizeLevel      Int      @default(1)
+  
+  wonAt           DateTime @default(now())
+  
+  lottery         Lottery            @relation(fields: [lotteryId], references: [id], onDelete: Cascade)
+  participant     LotteryParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  
+  @@index([lotteryId])
+  @@schema("tool")
+}
+
+enum LotteryType {
+  WHEEL
+  SLOT
+  GRID
+  
+  @@schema("tool")
+}
+
+// =====================
+// 通用枚举
+// =====================
+
+enum ActivityStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ENDED
+  
+  @@schema("tool")
+}
+

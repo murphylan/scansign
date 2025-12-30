@@ -1,0 +1,182 @@
+---
+description: Server Actions 开发规范 - 适用于 server/actions 目录下的文件
+globs:
+  - server/actions/**/*.ts
+---
+
+# Server Actions 规范
+
+## 文件规范
+
+- **位置**: `server/actions/` 目录
+- **命名**: `{entity}Action.ts`（如 `moduleAction.ts`）
+- **指令**: 文件顶部必须有 `"use server";`
+
+## 返回格式（强制）
+
+所有 Server Action 必须返回统一格式：
+
+```typescript
+{ success: boolean, data?: T, error?: string }
+```
+
+## 标准模板
+
+```typescript
+"use server";
+
+import { getCurrentUser } from "@/server/auth/require-auth";
+import { db } from "@/server/db";
+import { entities } from "@/server/db/schema";
+import { eq, desc, and } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import "server-only";
+import { entitySchema, type EntityFormData } from "@/types/entity-types";
+import { generateEntityId } from "@/lib/business-id";
+import { randomUUID } from "crypto";
+
+export async function createEntity(data: EntityFormData) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, error: "未登录" };
+  }
+
+  try {
+    const validated = entitySchema.parse(data);
+    const now = new Date();
+    const businessId = await generateEntityId();
+
+    const [entity] = await db
+      .insert(entities)
+      .values({
+        id: randomUUID(),
+        businessId,
+        title: validated.title,
+        description: validated.description || null,
+        createdBy: user.id,
+        updatedBy: user.id,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+
+    if (!entity) {
+      return { success: false, error: "创建失败" };
+    }
+
+    revalidatePath("/entities");
+    return { success: true, data: entity };
+  } catch (error) {
+    console.error("Failed to create entity:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "创建失败",
+    };
+  }
+}
+
+export async function listEntities() {
+  try {
+    const results = await db
+      .select()
+      .from(entities)
+      .orderBy(desc(entities.createdAt));
+    return results;
+  } catch (error) {
+    console.error("Failed to list entities:", error);
+    return [];
+  }
+}
+
+export async function getEntityByBusinessId(businessId: string) {
+  try {
+    const [entity] = await db
+      .select()
+      .from(entities)
+      .where(eq(entities.businessId, businessId))
+      .limit(1);
+    return entity || null;
+  } catch (error) {
+    console.error("Failed to get entity:", error);
+    return null;
+  }
+}
+
+export async function updateEntityByBusinessId(
+  businessId: string,
+  data: Partial<EntityFormData>
+) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, error: "未登录" };
+  }
+
+  try {
+    const [updated] = await db
+      .update(entities)
+      .set({ ...data, updatedBy: user.id, updatedAt: new Date() })
+      .where(eq(entities.businessId, businessId))
+      .returning();
+
+    if (!updated) {
+      return { success: false, error: "实体不存在" };
+    }
+
+    revalidatePath("/entities");
+    return { success: true, data: updated };
+  } catch (error) {
+    console.error("Failed to update entity:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "更新失败",
+    };
+  }
+}
+
+export async function deleteEntityByBusinessId(businessId: string) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, error: "未登录" };
+  }
+
+  try {
+    await db.delete(entities).where(eq(entities.businessId, businessId));
+    revalidatePath("/entities");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to delete entity:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "删除失败",
+    };
+  }
+}
+```
+
+## 检查清单
+
+- [ ] 文件顶部有 `"use server";`
+- [ ] 导入 `"server-only"`
+- [ ] 使用 `getCurrentUser()` 检查登录状态
+- [ ] 返回格式为 `{ success, data?, error? }`
+- [ ] 使用 try-catch 捕获异常
+- [ ] 使用 `revalidatePath()` 刷新缓存
+- [ ] 使用 Drizzle ORM（不是 Prisma）
+
+## 命名约定
+
+| 操作 | 函数名前缀 | 示例 |
+|------|-----------|------|
+| 创建 | `create` | `createModule` |
+| 获取单个 | `get` | `getModuleByBusinessId` |
+| 获取列表 | `list` | `listModules` |
+| 更新 | `update` | `updateModuleByBusinessId` |
+| 删除 | `delete` | `deleteModuleByBusinessId` |
+
+## 禁止事项
+
+- ❌ 返回格式不是 `{ success, data, error }`
+- ❌ 不使用 try-catch
+- ❌ 抛出未捕获的错误
+- ❌ 不检查用户登录状态
+- ❌ 使用 Prisma（项目使用 Drizzle ORM）

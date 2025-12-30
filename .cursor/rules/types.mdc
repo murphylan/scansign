@@ -1,0 +1,129 @@
+---
+description: TypeScript 类型定义规范 - 适用于 types 目录下的文件
+globs:
+  - types/**/*.ts
+---
+
+# 类型定义规范
+
+## 文件规范
+
+- **位置**: `types/` 目录
+- **命名**: `{domain}-types.ts`（如 `module-item-types.ts`）
+- **导出**: 在 `types/index.ts` 中统一导出
+
+## 标准模板
+
+```typescript
+import z from "zod";
+
+// ================================
+// Interface 定义
+// ================================
+
+export interface Entity {
+  id: string;
+  businessId: string;
+  templateBusinessId?: string | null;
+  title: string;
+  description: string | null;
+  status: string;
+  order: number | null;
+  isTemplate: boolean;
+  createdBy: string;
+  updatedBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  // 关联数据
+  children?: Entity[];
+  items?: Item[];
+}
+
+// ================================
+// Zod Schema 定义
+// ================================
+
+export const entitySchema = z.object({
+  id: z.string().optional(),
+  businessId: z.string().optional(),
+  title: z.string().min(1, "标题不能为空"),
+  description: z.string().optional().nullable(),
+  status: z.string().optional(),
+  order: z.union([z.number(), z.null()]).optional(),
+  isTemplate: z.boolean().optional(),
+});
+
+// ================================
+// 表单数据类型（从 Schema 推断）
+// ================================
+
+export type EntityFormData = z.infer<typeof entitySchema>;
+```
+
+## Zod Schema 常用模式
+
+### 必填字段
+
+```typescript
+title: z.string().min(1, "标题不能为空")
+```
+
+### 可选字段
+
+```typescript
+description: z.string().optional()
+```
+
+### 可选且可为 null
+
+```typescript
+description: z.string().optional().nullable()
+```
+
+### 数字（自动转换）
+
+```typescript
+estimatedHours: z.coerce.number().optional().nullable()
+```
+
+### 枚举
+
+```typescript
+stage: z.enum(["grooming", "active", "completed"]).optional()
+```
+
+### 数字或 null
+
+```typescript
+order: z.union([z.number(), z.null()]).optional()
+```
+
+## 导出规范
+
+在 `types/index.ts` 中：
+
+```typescript
+// 导出所有类型
+export * from "./requirement-types";
+export * from "./module-item-types";
+export * from "./task-item-types";
+export * from "./user-types";
+```
+
+## 导入规范
+
+使用 `type` 关键字导入类型：
+
+```typescript
+import type { Entity, EntityFormData } from "@/types/entity-types";
+```
+
+## 检查清单
+
+- [ ] 文件位于 `types/` 目录
+- [ ] 命名为 `{domain}-types.ts`
+- [ ] Interface 定义完整的数据结构
+- [ ] Zod Schema 用于表单验证
+- [ ] 使用 `z.infer<>` 推断 FormData 类型
+- [ ] 在 `types/index.ts` 中导出
+- [ ] 导入时使用 `type` 关键字

@@ -1,5 +1,16 @@
-import { NextResponse } from 'next/server';
-import { getVoteById, subscribeVote } from '@/lib/stores/vote-store';
+import { NextResponse } from "next/server";
+
+import { prisma } from "@/lib/db";
+
+// 简单的内存订阅管理（生产环境应使用 Redis）
+const subscribers = new Map<string, Set<(data: unknown) => void>>();
+
+export function notifyVoteUpdate(voteId: string, data: unknown) {
+  const subs = subscribers.get(voteId);
+  if (subs) {
+    subs.forEach((callback) => callback(data));
+  }
+}
 
 // GET /api/votes/[id]/stream - SSE 实时推送
 export async function GET(
@@ -7,65 +18,120 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  
-  const vote = getVoteById(id);
+
+  const vote = await prisma.vote.findUnique({
+    where: { id },
+    include: {
+      options: {
+        orderBy: { sortOrder: "asc" },
+      },
+    },
+  });
+
   if (!vote) {
     return NextResponse.json(
-      { success: false, error: '投票不存在' },
+      { success: false, error: "投票不存在" },
       { status: 404 }
     );
   }
-  
+
   const encoder = new TextEncoder();
-  
+
   const stream = new ReadableStream({
     start(controller) {
       // 发送初始数据
       controller.enqueue(
-        encoder.encode(`data: ${JSON.stringify({ 
-          type: 'connected',
-          options: vote.config.options,
-          stats: vote.stats,
-        })}\n\n`)
+        encoder.encode(
+          `data: ${JSON.stringify({
+            type: "connected",
+            options: vote.options.map((o) => ({
+              id: o.id,
+              title: o.title,
+              voteCount: o.voteCount,
+            })),
+          })}\n\n`
+        )
       );
-      
+
       // 订阅投票事件
-      const unsubscribe = subscribeVote(id, (event, data) => {
+      const callback = (data: unknown) => {
         try {
           controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify({ type: event, ...data as object })}\n\n`)
+            encoder.encode(`data: ${JSON.stringify(data)}\n\n`)
           );
         } catch {
           // 连接已关闭
         }
-      });
-      
+      };
+
+      if (!subscribers.has(id)) {
+        subscribers.set(id, new Set());
+      }
+      subscribers.get(id)!.add(callback);
+
       // 心跳
       const heartbeat = setInterval(() => {
         try {
           controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify({ type: 'ping' })}\n\n`)
+            encoder.encode(`data: ${JSON.stringify({ type: "ping" })}\n\n`)
           );
         } catch {
           clearInterval(heartbeat);
         }
       }, 30000);
-      
+
+      // 定时刷新数据
+      const refresh = setInterval(async () => {
+        try {
+          const updatedVote = await prisma.vote.findUnique({
+            where: { id },
+            include: {
+              options: {
+                orderBy: { sortOrder: "asc" },
+              },
+            },
+          });
+
+          if (updatedVote) {
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({
+                  type: "update",
+                  options: updatedVote.options.map((o) => ({
+                    id: o.id,
+                    title: o.title,
+                    voteCount: o.voteCount,
+                  })),
+                })}\n\n`
+              )
+            );
+          }
+        } catch {
+          clearInterval(refresh);
+        }
+      }, 5000);
+
       // 清理
-      request.signal.addEventListener('abort', () => {
-        unsubscribe();
+      request.signal.addEventListener("abort", () => {
+        const subs = subscribers.get(id);
+        if (subs) {
+          subs.delete(callback);
+          if (subs.size === 0) {
+            subscribers.delete(id);
+          }
+        }
         clearInterval(heartbeat);
+        clearInterval(refresh);
         controller.close();
       });
     },
   });
-  
+
   return new Response(stream, {
     headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
     },
   });
 }
-
