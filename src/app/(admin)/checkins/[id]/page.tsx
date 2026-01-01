@@ -28,7 +28,7 @@ import {
   updateCheckinAction,
   deleteCheckinRecordAction,
 } from '@/server/actions/checkinAction';
-import { useConfirm } from '@/components/shared/confirm-dialog';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { copyToClipboard } from '@/lib/utils/clipboard';
 
 // 页面内部使用的类型（匹配 Server Action 返回的数据结构）
@@ -63,8 +63,8 @@ export default function CheckinDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const resolvedParams = use(params);
-  const confirm = useConfirm();
   const [checkin, setCheckin] = useState<CheckinData | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<RecordData | null>(null);
   const [records, setRecords] = useState<RecordData[]>([]);
   const [loading, setLoading] = useState(true);
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
@@ -152,19 +152,10 @@ export default function CheckinDetailPage({
   }, [checkin]);
 
   const handleDeleteRecord = useCallback(async (record: RecordData) => {
-    const confirmed = await confirm({
-      title: '删除签到记录',
-      description: `确定要删除 ${record.participant?.name || record.participant?.phone || '此用户'} 的签到记录吗？此操作不可恢复。`,
-      confirmText: '删除',
-      cancelText: '取消',
-      variant: 'destructive',
-    });
-
-    if (!confirmed) return;
-
     setDeletingId(record.id);
     const res = await deleteCheckinRecordAction(record.id);
     setDeletingId(null);
+    setDeleteTarget(null);
 
     if (res.success) {
       toast.success('删除成功');
@@ -173,7 +164,7 @@ export default function CheckinDetailPage({
     } else {
       toast.error(res.error || '删除失败');
     }
-  }, [confirm, fetchRecords, fetchCheckin]);
+  }, [fetchRecords, fetchCheckin]);
 
   if (loading) {
     return (
@@ -412,16 +403,7 @@ export default function CheckinDetailPage({
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right">
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded-full ${
-                            record.isConfirmed
-                              ? 'bg-emerald-500/10 text-emerald-500'
-                              : 'bg-blue-500/10 text-blue-500'
-                          }`}
-                        >
-                          {record.isConfirmed ? '已确认' : '待确认'}
-                        </span>
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-xs text-muted-foreground">
                           {new Date(record.checkedInAt).toLocaleString()}
                         </p>
                       </div>
@@ -429,7 +411,7 @@ export default function CheckinDetailPage({
                         variant="ghost"
                         size="icon"
                         className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleDeleteRecord(record)}
+                        onClick={() => setDeleteTarget(record)}
                         disabled={deletingId === record.id}
                       >
                         {deletingId === record.id ? (
@@ -446,6 +428,19 @@ export default function CheckinDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      {/* 删除确认对话框 */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="删除签到记录"
+        description={`确定要删除 ${deleteTarget?.participant?.name || deleteTarget?.participant?.phone || '此用户'} 的签到记录吗？此操作不可恢复。`}
+        confirmText="删除"
+        cancelText="取消"
+        variant="danger"
+        isLoading={!!deletingId}
+        onConfirm={() => { if (deleteTarget) handleDeleteRecord(deleteTarget); }}
+      />
     </div>
   );
 }

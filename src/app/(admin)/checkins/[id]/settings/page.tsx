@@ -41,6 +41,11 @@ interface CheckinConfig {
   };
   allowRepeat?: boolean;
   departments?: Department[];
+  durationMinutes?: number;
+  security?: {
+    enableDeviceLimit?: boolean;
+    maxCheckinPerDevice?: number;
+  };
 }
 
 interface CheckinDisplay {
@@ -94,6 +99,12 @@ export default function CheckinSettingsPage({
 
   // 允许重复签到
   const [allowRepeat, setAllowRepeat] = useState(false);
+  
+  // 有效期配置（分钟）
+  const [durationMinutes, setDurationMinutes] = useState(5);
+  
+  // 安全配置
+  const [enableDeviceLimit, setEnableDeviceLimit] = useState(true);
 
   const fetchCheckin = useCallback(async () => {
     const res = await getCheckinAction(resolvedParams.id);
@@ -113,6 +124,8 @@ export default function CheckinSettingsPage({
       setRedirectUrl(config.afterCheckin?.redirectUrl || '');
       setShowVerifyCode(config.afterCheckin?.showVerifyCode ?? true);
       setAllowRepeat(config.allowRepeat ?? false);
+      setDurationMinutes(config.durationMinutes ?? 5);
+      setEnableDeviceLimit(config.security?.enableDeviceLimit ?? true);
 
       // 解析 display
       const display = (data.display || {}) as CheckinDisplay;
@@ -171,6 +184,11 @@ export default function CheckinSettingsPage({
         },
         allowRepeat,
         departments: needDepartment ? departments.map(d => ({ id: d.id, name: d.name })) : [],
+        durationMinutes: Math.min(Math.max(1, durationMinutes), 60), // 限制在 1-60 分钟
+        security: {
+          enableDeviceLimit,
+          maxCheckinPerDevice: 1,
+        },
       };
 
       const display = {
@@ -532,7 +550,35 @@ export default function CheckinSettingsPage({
                 </div>
               </div>
 
+              {/* 签到有效期 */}
+              <div className="space-y-2">
+                <Label>签到有效期（分钟）</Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={60}
+                    value={durationMinutes}
+                    onChange={(e) => setDurationMinutes(parseInt(e.target.value) || 5)}
+                    className="w-24"
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    范围：1-60 分钟，过期后无法签到
+                  </span>
+                </div>
+              </div>
+
               <div className="space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={enableDeviceLimit}
+                    onChange={(e) => setEnableDeviceLimit(e.target.checked)}
+                    className="rounded"
+                  />
+                  <span>启用设备限制（同一手机只能签到一次）</span>
+                </label>
+                
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"

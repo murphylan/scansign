@@ -6,6 +6,7 @@ import { db } from "@/server/db";
 import {
   checkins,
   checkinRecords,
+  checkinWhitelist,
   votes,
   voteOptions,
   voteRecords,
@@ -34,6 +35,32 @@ export async function getCheckinByCodeAction(code: string) {
       return { success: false, error: "签到不存在" };
     }
 
+    // 检查有效期状态
+    const now = new Date();
+    let status = checkin.status.toLowerCase();
+    let remainingSeconds: number | null = null;
+    let isExpired = false;
+
+    if (checkin.endTime) {
+      if (now > checkin.endTime) {
+        isExpired = true;
+        status = "ended";
+        // 自动更新数据库状态
+        if (checkin.status === "ACTIVE") {
+          await db
+            .update(checkins)
+            .set({ status: "ENDED", updatedAt: new Date() })
+            .where(eq(checkins.id, checkin.id));
+        }
+      } else {
+        remainingSeconds = Math.floor((checkin.endTime.getTime() - now.getTime()) / 1000);
+      }
+    }
+
+    if (checkin.startTime && now < checkin.startTime) {
+      status = "pending";
+    }
+
     return {
       success: true,
       data: {
@@ -41,13 +68,18 @@ export async function getCheckinByCodeAction(code: string) {
         code: checkin.code,
         title: checkin.title,
         description: checkin.description,
-        status: checkin.status.toLowerCase(),
+        status,
         config: checkin.config,
         display: checkin.display,
         stats: {
           total: checkin.totalCount,
           today: checkin.todayCount,
         },
+        // 有效期信息
+        startTime: checkin.startTime?.getTime(),
+        endTime: checkin.endTime?.getTime(),
+        remainingSeconds,
+        isExpired,
       },
     };
   } catch (error) {
@@ -94,7 +126,14 @@ export async function getCheckinRecordsByCodeAction(code: string, limit = 10) {
 
 export async function doCheckinAction(
   code: string,
-  data: { name?: string; phone?: string; department?: string }
+  data: {
+    name?: string;
+    phone?: string;
+    department?: string;
+    // 安全相关参数
+    deviceFingerprint?: string;
+    deviceId?: string;
+  }
 ) {
   try {
     const [checkin] = await db
@@ -109,6 +148,90 @@ export async function doCheckinAction(
 
     if (checkin.status !== "ACTIVE") {
       return { success: false, error: "签到未开始或已结束" };
+    }
+
+    // 检查有效期
+    const now = new Date();
+    if (checkin.startTime && now < checkin.startTime) {
+      return { success: false, error: "签到尚未开始" };
+    }
+    if (checkin.endTime && now > checkin.endTime) {
+      // 自动将状态更新为已结束
+      await db
+        .update(checkins)
+        .set({ status: "ENDED", updatedAt: new Date() })
+        .where(eq(checkins.id, checkin.id));
+      return { success: false, error: "签到已过期" };
+    }
+
+    // 解析签到配置
+    const config = (checkin.config || {}) as {
+      security?: {
+        enableWhitelist?: boolean;       // 启用白名单
+        enableDeviceLimit?: boolean;     // 启用设备限制（同一设备只能签到一次）
+        maxCheckinPerDevice?: number;    // 每设备最大签到数
+        enableIpLimit?: boolean;         // 启用 IP 限制
+        maxCheckinPerIp?: number;        // 每 IP 最大签到数
+      };
+      allowRepeat?: boolean;
+      allowDuplicate?: boolean;
+    };
+
+    // 安全配置：设备限制默认启用
+    const security = {
+      enableDeviceLimit: true,      // 默认启用设备限制
+      maxCheckinPerDevice: 1,       // 默认每设备1次
+      ...config.security,           // 使用配置的值覆盖默认值
+    };
+
+    // 1. 白名单验证
+    if (security.enableWhitelist && data.phone) {
+      const [whitelistEntry] = await db
+        .select()
+        .from(checkinWhitelist)
+        .where(
+          and(
+            eq(checkinWhitelist.checkinId, checkin.id),
+            eq(checkinWhitelist.phone, data.phone)
+          )
+        )
+        .limit(1);
+
+      if (!whitelistEntry) {
+        return { success: false, error: "您不在签到名单中，请联系活动组织者" };
+      }
+    }
+
+    // 2. 设备限制验证
+    if (security.enableDeviceLimit) {
+      // 如果没有设备ID，拒绝签到
+      if (!data.deviceId) {
+        return { 
+          success: false, 
+          error: "无法识别设备，请刷新页面后重试" 
+        };
+      }
+      
+      const maxPerDevice = security.maxCheckinPerDevice || 1;
+      
+      const deviceRecords = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(checkinRecords)
+        .where(
+          and(
+            eq(checkinRecords.checkinId, checkin.id),
+            eq(checkinRecords.deviceFingerprint, data.deviceId)
+          )
+        );
+
+      const deviceCount = Number(deviceRecords[0]?.count || 0);
+      
+      if (deviceCount >= maxPerDevice) {
+        return { 
+          success: false, 
+          error: "此设备已完成签到，请勿重复操作" 
+        };
+      }
     }
 
     // 检查是否已存在记录（根据手机号）
@@ -164,7 +287,9 @@ export async function doCheckinAction(
           name: data.name || null,
           phone: data.phone || null,
           department: data.department || null,
+          deviceFingerprint: data.deviceId || null,
           verifyCode,
+          isConfirmed: true, // 签到后直接确认
         })
         .returning();
       record = created;
@@ -178,6 +303,22 @@ export async function doCheckinAction(
           updatedAt: new Date(),
         })
         .where(eq(checkins.id, checkin.id));
+
+      // 如果启用了白名单，更新白名单状态
+      if (security.enableWhitelist && data.phone) {
+        await db
+          .update(checkinWhitelist)
+          .set({
+            hasCheckedIn: true,
+            checkedInAt: new Date(),
+          })
+          .where(
+            and(
+              eq(checkinWhitelist.checkinId, checkin.id),
+              eq(checkinWhitelist.phone, data.phone)
+            )
+          );
+      }
     }
 
     return {
@@ -446,9 +587,11 @@ export async function getLotteryByCodeAction(code: string) {
         status: lottery.status.toLowerCase(),
         config: {
           ...((lottery.config || {}) as Record<string, unknown>),
+          mode: lottery.lotteryType.toLowerCase(),
           prizes: prizes.map((p) => ({
             id: p.id,
             name: p.name,
+            count: p.quantity,
             remaining: p.remaining,
             probability: p.probability,
           })),

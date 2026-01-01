@@ -34,6 +34,11 @@ export const checkinRecords = toolSchema.table("CheckinRecord", {
   department: text("department"),
   extra: jsonb("extra").default({}).notNull(),
   
+  // 安全相关字段
+  deviceFingerprint: text("deviceFingerprint"),  // 设备指纹
+  ipAddress: text("ipAddress"),                   // IP 地址
+  userAgent: text("userAgent"),                   // User-Agent
+  
   verifyCode: text("verifyCode"),
   isConfirmed: boolean("isConfirmed").default(false).notNull(),
   
@@ -41,3 +46,17 @@ export const checkinRecords = toolSchema.table("CheckinRecord", {
   confirmedAt: timestamp("confirmedAt"),
 });
 
+// 签到白名单表（预设允许签到的人员）
+export const checkinWhitelist = toolSchema.table("CheckinWhitelist", {
+  id: text("id").primaryKey(),
+  checkinId: text("checkinId").notNull().references(() => checkins.id, { onDelete: "cascade" }),
+  
+  phone: text("phone").notNull(),
+  name: text("name"),
+  department: text("department"),
+  
+  hasCheckedIn: boolean("hasCheckedIn").default(false).notNull(),
+  checkedInAt: timestamp("checkedInAt"),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});

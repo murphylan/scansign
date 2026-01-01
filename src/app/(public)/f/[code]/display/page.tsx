@@ -11,7 +11,7 @@ import {
 
 interface FormResponse {
   id: string;
-  phone: string | null;
+  data: unknown;
   submittedAt: number;
 }
 
@@ -202,7 +202,7 @@ export default function FormDisplayPage({
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium">
-                          {response.phone || '匿名用户'}
+                          {(response.data as { phone?: string })?.phone || '匿名用户'}
                         </p>
                         <p className="text-sm text-white/60">
                           {formatTime(response.submittedAt)}
@@ -228,8 +228,8 @@ export default function FormDisplayPage({
       {qrCodeUrl && form.display?.qrCode?.show && (
         <QRCodeWidget
           qrCodeUrl={qrCodeUrl}
-          position={form.display.qrCode.position}
-          size={form.display.qrCode.size}
+          position={form.display.qrCode.position as import('@/types/common').QRPosition}
+          size={form.display.qrCode.size as 'sm' | 'md' | 'lg'}
         />
       )}
     </div>

@@ -16,6 +16,7 @@ interface Prize {
   name: string;
   count: number;
   remaining: number;
+  probability: number;
   isDefault?: boolean;
 }
 
@@ -324,8 +325,8 @@ export default function LotteryDisplayPage({
       {qrCodeUrl && lottery.display?.qrCode?.show && (
         <QRCodeWidget
           qrCodeUrl={qrCodeUrl}
-          position={lottery.display.qrCode.position}
-          size={lottery.display.qrCode.size}
+          position={lottery.display.qrCode.position as import('@/types/common').QRPosition}
+          size={lottery.display.qrCode.size as 'sm' | 'md' | 'lg'}
         />
       )}
     </div>

@@ -150,8 +150,10 @@ export default function FormMobilePage({
     setError(null);
     
     const res = await submitFormAction(resolvedParams.code, {
-      phone: form.config.rules?.requirePhone ? phone : undefined,
-      formData,
+      formData: {
+        ...formData,
+        ...(form.config.rules?.requirePhone && phone ? { phone } : {}),
+      },
     });
     
     if (res.success) {
@@ -176,7 +178,7 @@ export default function FormMobilePage({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-secondary/30">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-b from-background to-secondary/30">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-muted-foreground">加载中...</p>
@@ -187,7 +189,7 @@ export default function FormMobilePage({
 
   if (error && !form) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-secondary/30 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-b from-background to-secondary/30 p-4">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6 text-center">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
@@ -201,7 +203,7 @@ export default function FormMobilePage({
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-secondary/30 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-b from-background to-secondary/30 p-4">
         <Card className="w-full max-w-md animate-fade-in-up">
           <CardContent className="pt-8 pb-8 text-center">
             <div className="h-16 w-16 rounded-full bg-linear-to-br from-purple-500 to-pink-600 flex items-center justify-center mx-auto mb-6">
@@ -225,7 +227,7 @@ export default function FormMobilePage({
   // 预览确认页
   if (showPreview) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-background to-secondary/30 p-4 py-8">
+      <div className="min-h-screen bg-linear-to-b from-background to-secondary/30 p-4 py-8">
         <div className="max-w-md mx-auto space-y-6">
           <Card>
             <CardHeader>
@@ -295,7 +297,7 @@ export default function FormMobilePage({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/30 p-4 py-8">
+    <div className="min-h-screen bg-linear-to-b from-background to-secondary/30 p-4 py-8">
       <div className="max-w-md mx-auto space-y-6">
         {/* Header */}
         <div className="text-center animate-fade-in-up">

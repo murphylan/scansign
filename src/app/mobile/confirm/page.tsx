@@ -265,7 +265,7 @@ function ConfirmContent() {
     <main className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
       {/* 背景 */}
       <div className="absolute inset-0 bg-linear-to-br from-primary/10 via-background to-accent/10" />
-      <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-primary/20 to-transparent" />
+      <div className="absolute top-0 left-0 w-full h-32 bg-linear-to-b from-primary/20 to-transparent" />
       
       <Card className="w-full max-w-sm relative animate-fade-in-up">
         <CardHeader className="text-center space-y-3 pb-2">

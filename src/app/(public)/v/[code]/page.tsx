@@ -178,7 +178,7 @@ export default function VoteMobilePage({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-secondary/30">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-b from-background to-secondary/30">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-muted-foreground">加载中...</p>
@@ -189,7 +189,7 @@ export default function VoteMobilePage({
 
   if (error && !vote) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-secondary/30 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-b from-background to-secondary/30 p-4">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6 text-center">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
@@ -203,7 +203,7 @@ export default function VoteMobilePage({
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-background to-secondary/30 p-4 py-8">
+      <div className="min-h-screen bg-linear-to-b from-background to-secondary/30 p-4 py-8">
         <div className="max-w-md mx-auto space-y-6">
           <Card className="animate-fade-in-up">
             <CardContent className="pt-8 pb-8 text-center">
@@ -246,7 +246,7 @@ export default function VoteMobilePage({
   const options = vote?.config?.options ?? [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/30 p-4 py-8">
+    <div className="min-h-screen bg-linear-to-b from-background to-secondary/30 p-4 py-8">
       <div className="max-w-md mx-auto space-y-6">
         {/* Header */}
         <div className="text-center animate-fade-in-up">

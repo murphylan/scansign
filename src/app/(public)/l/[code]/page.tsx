@@ -167,7 +167,7 @@ export default function LotteryMobilePage({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-orange-600 to-red-700">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-b from-orange-600 to-red-700">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-white" />
           <p className="text-white/80">加载中...</p>
@@ -178,7 +178,7 @@ export default function LotteryMobilePage({
 
   if (error && !lottery) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-orange-600 to-red-700 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-b from-orange-600 to-red-700 p-4">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6 text-center">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
@@ -194,7 +194,7 @@ export default function LotteryMobilePage({
   const duration = lottery?.config.animation?.duration ?? 3000;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-orange-600 via-red-600 to-red-700 p-4 py-8">
+    <div className="min-h-screen bg-linear-to-b from-orange-600 via-red-600 to-red-700 p-4 py-8">
       <div className="max-w-md mx-auto space-y-6">
         {/* Header */}
         <div className="text-center animate-fade-in-up">

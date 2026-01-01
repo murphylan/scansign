@@ -14,8 +14,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN">
-      <body className="antialiased min-h-screen">
+    <html lang="zh-CN" suppressHydrationWarning>
+      <body className="antialiased min-h-screen" suppressHydrationWarning>
         {children}
         <Toaster richColors position="top-center" />
       </body>

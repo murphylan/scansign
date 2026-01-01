@@ -45,6 +45,7 @@ export async function GET(
   const stream = new ReadableStream({
     start(controller) {
       // 发送初始数据
+      const totalVotes = options.reduce((sum, o) => sum + o.voteCount, 0);
       controller.enqueue(
         encoder.encode(
           `data: ${JSON.stringify({
@@ -52,8 +53,9 @@ export async function GET(
             options: options.map((o) => ({
               id: o.id,
               title: o.title,
-              voteCount: o.voteCount,
+              count: o.voteCount,
             })),
+            stats: { totalVotes, participantCount: 0 },
           })}\n\n`
         )
       );
@@ -94,6 +96,7 @@ export async function GET(
             .where(eq(voteOptions.voteId, id))
             .orderBy(voteOptions.sortOrder);
 
+          const updatedTotalVotes = updatedOptions.reduce((sum, o) => sum + o.voteCount, 0);
           controller.enqueue(
             encoder.encode(
               `data: ${JSON.stringify({
@@ -101,8 +104,9 @@ export async function GET(
                 options: updatedOptions.map((o) => ({
                   id: o.id,
                   title: o.title,
-                  voteCount: o.voteCount,
+                  count: o.voteCount,
                 })),
+                stats: { totalVotes: updatedTotalVotes },
               })}\n\n`
             )
           );

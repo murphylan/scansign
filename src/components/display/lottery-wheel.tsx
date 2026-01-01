@@ -157,7 +157,7 @@ export function LotteryWheel({
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10"
         style={{ width: size * 0.25, height: size * 0.25 }}
       >
-        <div className="w-full h-full rounded-full bg-gradient-to-b from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg">
+        <div className="w-full h-full rounded-full bg-linear-to-b from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg">
           <span className="text-white font-bold text-sm">
             {spinning ? '🎰' : '开始'}
           </span>

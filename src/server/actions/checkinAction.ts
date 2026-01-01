@@ -2,11 +2,18 @@
 
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, and } from "drizzle-orm";
 import { db } from "@/server/db";
-import { checkins, checkinRecords } from "@/server/db/schema";
+import { checkins, checkinRecords, checkinWhitelist } from "@/server/db/schema";
 import { generateCode } from "@/lib/utils/code-generator";
 import { getCurrentUser } from "./authAction";
+
+// ================================
+// 常量配置
+// ================================
+
+const MAX_DURATION_MINUTES = 60; // 签到最长有效期（分钟）
+const DEFAULT_DURATION_MINUTES = 5; // 签到默认有效期（分钟）
 
 // ================================
 // 默认配置
@@ -20,6 +27,13 @@ const DEFAULT_CONFIG = {
   allowDuplicate: false,
   duplicateField: "phone",
   departments: [],
+  // 有效期配置
+  durationMinutes: DEFAULT_DURATION_MINUTES, // 默认5分钟有效期
+  // 安全配置
+  security: {
+    enableDeviceLimit: true, // 默认启用设备限制
+    maxCheckinPerDevice: 1,  // 每设备最多签到1次
+  },
 };
 
 const DEFAULT_DISPLAY = {
@@ -167,6 +181,30 @@ export async function createCheckinAction(data: CheckinFormData) {
     }
 
     const code = generateCode();
+    
+    // 计算有效期
+    const config = data.config || DEFAULT_CONFIG;
+    const configObj = config as { durationMinutes?: number };
+    let durationMinutes = configObj.durationMinutes ?? DEFAULT_DURATION_MINUTES;
+    
+    // 限制最长有效期
+    if (durationMinutes > MAX_DURATION_MINUTES) {
+      durationMinutes = MAX_DURATION_MINUTES;
+    }
+    if (durationMinutes < 1) {
+      durationMinutes = 1; // 最少1分钟
+    }
+    
+    // 自动设置开始时间和结束时间
+    const now = new Date();
+    const startTime = data.startTime ? new Date(data.startTime) : now;
+    const endTime = data.endTime 
+      ? new Date(data.endTime) 
+      : new Date(startTime.getTime() + durationMinutes * 60 * 1000);
+    
+    // 确保结束时间不超过开始时间 + 最大有效期
+    const maxEndTime = new Date(startTime.getTime() + MAX_DURATION_MINUTES * 60 * 1000);
+    const finalEndTime = endTime > maxEndTime ? maxEndTime : endTime;
 
     const [checkin] = await db
       .insert(checkins)
@@ -176,10 +214,10 @@ export async function createCheckinAction(data: CheckinFormData) {
         title: data.title,
         description: data.description || null,
         status: "ACTIVE",
-        config: data.config || DEFAULT_CONFIG,
+        config: { ...config, durationMinutes },
         display: data.display || DEFAULT_DISPLAY,
-        startTime: data.startTime ? new Date(data.startTime) : null,
-        endTime: data.endTime ? new Date(data.endTime) : null,
+        startTime,
+        endTime: finalEndTime,
         userId: user.id,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -194,6 +232,8 @@ export async function createCheckinAction(data: CheckinFormData) {
         id: checkin.id,
         code: checkin.code,
         title: checkin.title,
+        startTime: startTime.getTime(),
+        endTime: finalEndTime.getTime(),
       },
     };
   } catch (error) {
@@ -404,6 +444,191 @@ export async function deleteCheckinRecordAction(recordId: string) {
     return {
       success: false,
       error: error instanceof Error ? error.message : "删除签到记录失败",
+    };
+  }
+}
+
+// ================================
+// 白名单管理
+// ================================
+
+export async function getCheckinWhitelistAction(checkinId: string) {
+  try {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return { success: false, error: "未登录" };
+    }
+
+    const whitelist = await db
+      .select()
+      .from(checkinWhitelist)
+      .where(eq(checkinWhitelist.checkinId, checkinId))
+      .orderBy(desc(checkinWhitelist.createdAt));
+
+    const data = whitelist.map((w) => ({
+      id: w.id,
+      phone: w.phone,
+      name: w.name,
+      department: w.department,
+      hasCheckedIn: w.hasCheckedIn,
+      checkedInAt: w.checkedInAt?.getTime(),
+    }));
+
+    return { success: true, data };
+  } catch (error) {
+    console.error("Failed to get whitelist:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "获取白名单失败",
+    };
+  }
+}
+
+export async function addToWhitelistAction(
+  checkinId: string,
+  data: { phone: string; name?: string; department?: string }
+) {
+  try {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return { success: false, error: "未登录" };
+    }
+
+    // 检查是否已存在
+    const [existing] = await db
+      .select()
+      .from(checkinWhitelist)
+      .where(
+        and(
+          eq(checkinWhitelist.checkinId, checkinId),
+          eq(checkinWhitelist.phone, data.phone)
+        )
+      )
+      .limit(1);
+
+    if (existing) {
+      return { success: false, error: "该手机号已在白名单中" };
+    }
+
+    await db.insert(checkinWhitelist).values({
+      id: randomUUID(),
+      checkinId,
+      phone: data.phone,
+      name: data.name || null,
+      department: data.department || null,
+    });
+
+    revalidatePath(`/checkins/${checkinId}`);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to add to whitelist:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "添加白名单失败",
+    };
+  }
+}
+
+export async function removeFromWhitelistAction(id: string) {
+  try {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return { success: false, error: "未登录" };
+    }
+
+    await db.delete(checkinWhitelist).where(eq(checkinWhitelist.id, id));
+
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to remove from whitelist:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "移除白名单失败",
+    };
+  }
+}
+
+export async function importWhitelistAction(
+  checkinId: string,
+  data: Array<{ phone: string; name?: string; department?: string }>
+) {
+  try {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return { success: false, error: "未登录" };
+    }
+
+    let imported = 0;
+    let skipped = 0;
+
+    for (const item of data) {
+      // 检查是否已存在
+      const [existing] = await db
+        .select()
+        .from(checkinWhitelist)
+        .where(
+          and(
+            eq(checkinWhitelist.checkinId, checkinId),
+            eq(checkinWhitelist.phone, item.phone)
+          )
+        )
+        .limit(1);
+
+      if (existing) {
+        skipped++;
+        continue;
+      }
+
+      await db.insert(checkinWhitelist).values({
+        id: randomUUID(),
+        checkinId,
+        phone: item.phone,
+        name: item.name || null,
+        department: item.department || null,
+      });
+      imported++;
+    }
+
+    revalidatePath(`/checkins/${checkinId}`);
+
+    return { 
+      success: true, 
+      data: { imported, skipped, total: data.length } 
+    };
+  } catch (error) {
+    console.error("Failed to import whitelist:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "导入白名单失败",
+    };
+  }
+}
+
+export async function clearWhitelistAction(checkinId: string) {
+  try {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return { success: false, error: "未登录" };
+    }
+
+    await db
+      .delete(checkinWhitelist)
+      .where(eq(checkinWhitelist.checkinId, checkinId));
+
+    revalidatePath(`/checkins/${checkinId}`);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to clear whitelist:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "清空白名单失败",
     };
   }
 }

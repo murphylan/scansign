@@ -23,7 +23,7 @@ interface VoteData {
     showPercentage?: boolean;
     showCount?: boolean;
     animation?: boolean;
-    versusConfig?: unknown;
+    versusConfig?: { leftColor: string; rightColor: string };
     qrCode?: {
       show: boolean;
       position: string;
@@ -207,8 +207,8 @@ export default function VoteDisplayPage({
       {qrCodeUrl && vote.display?.qrCode?.show && (
         <QRCodeWidget
           qrCodeUrl={qrCodeUrl}
-          position={vote.display.qrCode.position}
-          size={vote.display.qrCode.size}
+          position={vote.display.qrCode.position as import('@/types/common').QRPosition}
+          size={vote.display.qrCode.size as 'sm' | 'md' | 'lg'}
         />
       )}
     </div>

@@ -134,7 +134,7 @@ export async function POST(
         department: body.department || null,
         extra: body.extra || {},
         verifyCode: verifyCode || null,
-        isConfirmed: !verifyCode,
+        isConfirmed: true, // 签到后直接确认
       })
       .returning();
 

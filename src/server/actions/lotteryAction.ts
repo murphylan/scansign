@@ -416,3 +416,165 @@ export async function getLotteryWinnersAction(lotteryId: string, limit = 50) {
     };
   }
 }
+
+export async function getLotteryParticipantsAction(lotteryId: string, limit = 100) {
+  try {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return { success: false, error: "未登录" };
+    }
+
+    const participants = await db
+      .select()
+      .from(lotteryParticipants)
+      .where(eq(lotteryParticipants.lotteryId, lotteryId))
+      .orderBy(desc(lotteryParticipants.joinedAt))
+      .limit(limit);
+
+    const data = participants.map((p) => ({
+      id: p.id,
+      phone: p.phone,
+      name: p.name,
+      joinedAt: p.joinedAt.getTime(),
+    }));
+
+    return { success: true, data };
+  } catch (error) {
+    console.error("Failed to get lottery participants:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "获取参与者列表失败",
+    };
+  }
+}
+
+export async function drawLotteryAction(lotteryId: string, count: number = 1) {
+  try {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return { success: false, error: "未登录" };
+    }
+
+    // 获取抽奖信息
+    const [lottery] = await db
+      .select()
+      .from(lotteries)
+      .where(eq(lotteries.id, lotteryId))
+      .limit(1);
+
+    if (!lottery) {
+      return { success: false, error: "抽奖不存在" };
+    }
+
+    // 获取奖品列表
+    const prizes = await db
+      .select()
+      .from(lotteryPrizes)
+      .where(eq(lotteryPrizes.lotteryId, lotteryId))
+      .orderBy(lotteryPrizes.sortOrder);
+
+    // 获取未中奖的参与者
+    const existingWinners = await db
+      .select({ participantPhone: lotteryWinners.participantPhone })
+      .from(lotteryWinners)
+      .where(eq(lotteryWinners.lotteryId, lotteryId));
+
+    const winnerPhones = new Set(existingWinners.map(w => w.participantPhone));
+
+    const availableParticipants = await db
+      .select()
+      .from(lotteryParticipants)
+      .where(eq(lotteryParticipants.lotteryId, lotteryId));
+
+    const eligibleParticipants = availableParticipants.filter(
+      p => !winnerPhones.has(p.phone || '')
+    );
+
+    if (eligibleParticipants.length === 0) {
+      return { success: false, error: "没有可抽奖的参与者" };
+    }
+
+    // 获取有剩余的奖品
+    const availablePrizes = prizes.filter(p => p.remaining > 0);
+    if (availablePrizes.length === 0) {
+      return { success: false, error: "所有奖品已抽完" };
+    }
+
+    const winners: Array<{
+      id: string;
+      phone: string | null;
+      name: string | null;
+      prizeName: string;
+      drawnAt: number;
+    }> = [];
+
+    const actualCount = Math.min(count, eligibleParticipants.length, availablePrizes.reduce((sum, p) => sum + p.remaining, 0));
+
+    for (let i = 0; i < actualCount; i++) {
+      // 随机选择一个参与者
+      const randomIndex = Math.floor(Math.random() * eligibleParticipants.length);
+      const participant = eligibleParticipants[randomIndex];
+      
+      // 移除已选中的参与者
+      eligibleParticipants.splice(randomIndex, 1);
+
+      // 按概率选择奖品
+      const currentAvailablePrizes = availablePrizes.filter(p => p.remaining > 0);
+      if (currentAvailablePrizes.length === 0) break;
+
+      const totalProb = currentAvailablePrizes.reduce((sum, p) => sum + p.probability, 0);
+      let random = Math.random() * totalProb;
+      let selectedPrize = currentAvailablePrizes[0];
+
+      for (const prize of currentAvailablePrizes) {
+        random -= prize.probability;
+        if (random <= 0) {
+          selectedPrize = prize;
+          break;
+        }
+      }
+
+      // 创建中奖记录
+      const winnerId = randomUUID();
+      await db.insert(lotteryWinners).values({
+        id: winnerId,
+        lotteryId,
+        participantId: participant.id,
+        participantPhone: participant.phone,
+        participantName: participant.name || "匿名用户",
+        prizeName: selectedPrize.name,
+        prizeLevel: selectedPrize.sortOrder + 1,
+        wonAt: new Date(),
+      });
+
+      // 减少奖品剩余数量
+      await db
+        .update(lotteryPrizes)
+        .set({ remaining: sql`${lotteryPrizes.remaining} - 1` })
+        .where(eq(lotteryPrizes.id, selectedPrize.id));
+
+      // 更新本地数据
+      selectedPrize.remaining -= 1;
+
+      winners.push({
+        id: winnerId,
+        phone: participant.phone,
+        name: participant.name,
+        prizeName: selectedPrize.name,
+        drawnAt: Date.now(),
+      });
+    }
+
+    revalidatePath(`/lotteries/${lotteryId}`);
+
+    return { success: true, data: winners };
+  } catch (error) {
+    console.error("Failed to draw lottery:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "抽奖失败",
+    };
+  }
+}

@@ -23,13 +23,13 @@ import type {
 } from "@/types/user-types";
 
 // ================================
-// 常量配置
+// 常量配置（从环境变量读取）
 // ================================
 
-const SESSION_COOKIE_NAME = "murphy_session";
-const SESSION_EXPIRY_DAYS = 7;
-const ADMIN_EMAIL = "murphylan@hotmail.com";
-const ADMIN_PASSWORD = "15871352105abc";
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "murphy_session";
+const SESSION_EXPIRY_DAYS = parseInt(process.env.SESSION_EXPIRY_DAYS || "7", 10);
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
 
 // ================================
 // 内部辅助函数
@@ -318,6 +318,12 @@ export async function changeNicknameAction(data: ChangeNicknameFormData) {
 // ================================
 
 export async function initAdminUser() {
+  // 如果没有配置管理员信息，跳过初始化
+  if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+    console.log("Admin credentials not configured, skipping admin initialization");
+    return;
+  }
+
   const [existingAdmin] = await db
     .select()
     .from(users)

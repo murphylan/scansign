@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, use, useCallback } from 'react';
+import { useEffect, useState, use, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ import {
   checkCheckinPhoneAction,
   doCheckinAction,
 } from '@/server/actions/publicAction';
+import { getDeviceId, saveLocalCheckinRecord, hasLocalCheckinRecord } from '@/lib/utils/fingerprint';
 
 interface Department {
   id: string;
@@ -49,6 +50,11 @@ interface CheckinData {
     requireVerify?: boolean;
     allowDuplicate?: boolean;
   };
+  // 有效期信息
+  startTime?: number;
+  endTime?: number;
+  remainingSeconds?: number | null;
+  isExpired?: boolean;
 }
 
 export default function CheckinMobilePage({
@@ -81,11 +87,30 @@ export default function CheckinMobilePage({
     verifyCode?: string;
     isUpdate: boolean;
   } | null>(null);
+  
+  // 倒计时状态
+  const [remainingTime, setRemainingTime] = useState<number | null>(null);
+  const [isExpired, setIsExpired] = useState(false);
+  
+  // 客户端挂载状态（解决 hydration 问题）
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetchCheckin = useCallback(async () => {
     const res = await getCheckinByCodeAction(resolvedParams.code);
     if (res.success && res.data) {
-      setCheckin(res.data as CheckinData);
+      const data = res.data as CheckinData;
+      setCheckin(data);
+      // 初始化倒计时
+      if (data.remainingSeconds !== null && data.remainingSeconds !== undefined) {
+        setRemainingTime(data.remainingSeconds);
+      }
+      if (data.isExpired) {
+        setIsExpired(true);
+      }
     } else {
       setError(res.error || '签到不存在或已结束');
     }
@@ -95,6 +120,25 @@ export default function CheckinMobilePage({
   useEffect(() => {
     fetchCheckin();
   }, [fetchCheckin]);
+
+  // 倒计时 effect
+  useEffect(() => {
+    if (remainingTime === null || remainingTime <= 0 || isExpired || success) {
+      return;
+    }
+    
+    const timer = setInterval(() => {
+      setRemainingTime((prev) => {
+        if (prev === null || prev <= 1) {
+          setIsExpired(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [remainingTime, isExpired, success]);
 
   // 检查手机号
   const checkPhone = useCallback(async () => {
@@ -130,19 +174,26 @@ export default function CheckinMobilePage({
     setSubmitting(true);
     setError(null);
     
+    // 获取设备 ID 用于防恶意签到
+    const deviceId = getDeviceId();
+    
     const res = await doCheckinAction(resolvedParams.code, {
       phone: needPhone ? phone : undefined,
       name: needName ? name : undefined,
       department: departmentId || undefined,
+      deviceId,
     });
     
     if (res.success) {
+      // 保存签到记录到本地
+      saveLocalCheckinRecord(resolvedParams.code);
+      
       setSuccess(true);
       // isUpdate 来自服务端：true 表示更新了已有记录，false 表示首次签到
       const serverIsUpdate = res.data?.isUpdate ?? false;
       setSuccessData({
         message: serverIsUpdate ? '签到成功！' : '签到成功！',
-        verifyCode: res.data?.verifyCode,
+        verifyCode: res.data?.verifyCode ?? undefined,
         isUpdate: serverIsUpdate,
       });
       toast.success(serverIsUpdate ? '欢迎回来！' : '签到成功');
@@ -152,7 +203,7 @@ export default function CheckinMobilePage({
     }
     
     setSubmitting(false);
-  }, [checkin, resolvedParams.code, phone, name, departmentId, isExistingUser]);
+  }, [checkin, resolvedParams.code, phone, name, departmentId]);
 
   // 兼容新旧配置结构（用于渲染）
   const requireName = checkin?.config.fields?.name ?? checkin?.config.requireName ?? false;
@@ -161,7 +212,7 @@ export default function CheckinMobilePage({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-secondary/30">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-b from-background to-secondary/30">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-muted-foreground">加载中...</p>
@@ -172,7 +223,7 @@ export default function CheckinMobilePage({
 
   if (error && !checkin) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-secondary/30 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-b from-background to-secondary/30 p-4">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6 text-center">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
@@ -184,9 +235,33 @@ export default function CheckinMobilePage({
     );
   }
 
+  // 签到已过期
+  if (isExpired && !success) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-b from-background to-secondary/30 p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-8 pb-8 text-center">
+            <div className="h-16 w-16 rounded-full bg-gray-200 flex items-center justify-center mx-auto mb-6">
+              <AlertCircle className="h-8 w-8 text-gray-500" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2 text-gray-600">签到已结束</h2>
+            <p className="text-muted-foreground mb-4">
+              本次签到活动已过期
+            </p>
+            {checkin && (
+              <p className="text-sm text-muted-foreground">
+                活动：{checkin.title}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (success && successData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-secondary/30 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-b from-background to-secondary/30 p-4">
         <Card className="w-full max-w-md animate-fade-in-up">
           <CardContent className="pt-8 pb-8 text-center">
             <div className="h-16 w-16 rounded-full bg-linear-to-br from-emerald-500 to-green-600 flex items-center justify-center mx-auto mb-6">
@@ -228,7 +303,7 @@ export default function CheckinMobilePage({
   const showDepartmentField = requireDepartment && departments.length > 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/30 p-4 py-8">
+    <div className="min-h-screen bg-linear-to-b from-background to-secondary/30 p-4 py-8">
       <div className="max-w-md mx-auto space-y-6">
         {/* Header */}
         <div className="text-center animate-fade-in-up">
@@ -238,6 +313,16 @@ export default function CheckinMobilePage({
           <h1 className="text-2xl font-bold">{checkin?.title}</h1>
           {checkin?.description && (
             <p className="text-muted-foreground mt-2">{checkin.description}</p>
+          )}
+          
+          {/* 倒计时显示（仅客户端渲染） */}
+          {mounted && remainingTime !== null && remainingTime > 0 && (
+            <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-100 text-amber-700 text-sm font-medium">
+              <svg className="h-4 w-4 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+              </svg>
+              剩余时间：{Math.floor(remainingTime / 60)}:{(remainingTime % 60).toString().padStart(2, '0')}
+            </div>
           )}
         </div>
 

@@ -43,8 +43,8 @@ export function CheckinBubble({ records, className }: CheckinBubbleProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [bubbles, setBubbles] = useState<BubbleItem[]>([]);
   // 使用 ref 存储时间戳，检测重复签到
-  const recordTimestampsRef = useRef<Map<string, number>>(new Map());
-  const animationRef = useRef<number>();
+  const recordTimestampsRef = useRef<Map<string, number>>(new Map<string, number>());
+  const animationRef = useRef<number | undefined>(undefined);
 
   // 处理新记录
   useEffect(() => {
