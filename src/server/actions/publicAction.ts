@@ -488,7 +488,7 @@ export async function checkVotePhoneAction(code: string, phone: string) {
 
 export async function submitVoteAction(
   code: string,
-  data: { phone?: string; selectedOptions: string[] }
+  data: { phone?: string; selectedOptions: string[]; deviceId?: string }
 ) {
   try {
     const [vote] = await db
@@ -505,9 +505,30 @@ export async function submitVoteAction(
       return { success: false, error: "投票未开始或已结束" };
     }
 
-    // 检查是否已投票
+    // 设备指纹验证（默认启用）
+    if (!data.deviceId) {
+      return { success: false, error: "无法识别设备，请刷新页面后重试" };
+    }
+
+    // 检查设备是否已投票
+    const [deviceExisting] = await db
+      .select()
+      .from(voteRecords)
+      .where(
+        and(
+          eq(voteRecords.voteId, vote.id),
+          eq(voteRecords.deviceFingerprint, data.deviceId)
+        )
+      )
+      .limit(1);
+
+    if (deviceExisting) {
+      return { success: false, error: "此设备已完成投票，请勿重复操作" };
+    }
+
+    // 检查手机号是否已投票
     if (data.phone) {
-      const [existing] = await db
+      const [phoneExisting] = await db
         .select()
         .from(voteRecords)
         .where(
@@ -518,8 +539,8 @@ export async function submitVoteAction(
         )
         .limit(1);
 
-      if (existing) {
-        return { success: false, error: "您已投过票" };
+      if (phoneExisting) {
+        return { success: false, error: "该手机号已投过票" };
       }
     }
 
@@ -529,6 +550,7 @@ export async function submitVoteAction(
       voteId: vote.id,
       phone: data.phone || null,
       selectedOptions: data.selectedOptions,
+      deviceFingerprint: data.deviceId,
     });
 
     // 更新每个选项的投票计数

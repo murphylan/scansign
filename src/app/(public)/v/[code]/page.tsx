@@ -22,6 +22,7 @@ import {
   checkVotePhoneAction,
   submitVoteAction,
 } from '@/server/actions/publicAction';
+import { getDeviceId } from '@/lib/utils/fingerprint';
 
 interface VoteOption {
   id: string;
@@ -148,9 +149,13 @@ export default function VoteMobilePage({
     setSubmitting(true);
     setError(null);
     
+    // 获取设备 ID 用于防止重复投票
+    const deviceId = getDeviceId();
+    
     const res = await submitVoteAction(resolvedParams.code, {
       phone: vote.config.requirePhone ? phone : undefined,
       selectedOptions,
+      deviceId,
     });
     
     if (res.success) {

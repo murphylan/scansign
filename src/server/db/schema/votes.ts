@@ -46,6 +46,7 @@ export const voteRecords = toolSchema.table("VoteRecord", {
   name: text("name"),
   phone: text("phone"),
   voterIp: text("voterIp"),
+  deviceFingerprint: text("deviceFingerprint"), // 设备指纹
   
   votedAt: timestamp("votedAt").defaultNow().notNull(),
 });
