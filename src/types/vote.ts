@@ -4,6 +4,75 @@ import {
   Participant,
 } from './common';
 
+// 投票模板类型
+export type VoteTemplate = 'simple' | 'image' | 'candidate' | 'versus';
+
+// 模板配置
+export interface VoteTemplateConfig {
+  id: VoteTemplate;
+  name: string;
+  description: string;
+  icon: string;
+  defaultVoteType: VoteType;
+  supportMultiple: boolean;
+  hasImage: boolean;
+  minOptions: number;
+  maxOptions: number;
+  defaultChartType: ChartType;
+}
+
+// 预设模板配置
+export const VOTE_TEMPLATES: VoteTemplateConfig[] = [
+  {
+    id: 'simple',
+    name: '简单投票',
+    description: '快速创建纯文字选项投票',
+    icon: '📝',
+    defaultVoteType: 'single',
+    supportMultiple: true,
+    hasImage: false,
+    minOptions: 2,
+    maxOptions: 20,
+    defaultChartType: 'bar',
+  },
+  {
+    id: 'image',
+    name: '图文投票',
+    description: '带图片的投票选项，更加直观',
+    icon: '🖼️',
+    defaultVoteType: 'single',
+    supportMultiple: true,
+    hasImage: true,
+    minOptions: 2,
+    maxOptions: 12,
+    defaultChartType: 'bar',
+  },
+  {
+    id: 'candidate',
+    name: '选手投票',
+    description: '适合评选、比赛等场景',
+    icon: '🏆',
+    defaultVoteType: 'single',
+    supportMultiple: true,
+    hasImage: true,
+    minOptions: 2,
+    maxOptions: 50,
+    defaultChartType: 'bar',
+  },
+  {
+    id: 'versus',
+    name: 'PK对决',
+    description: '两个选项的正面对决',
+    icon: '⚔️',
+    defaultVoteType: 'single',
+    supportMultiple: false,
+    hasImage: true,
+    minOptions: 2,
+    maxOptions: 2,
+    defaultChartType: 'versus',
+  },
+];
+
 // 投票类型
 export type VoteType = 'single' | 'multiple';
 
