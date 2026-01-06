@@ -1,5 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// 是否录制宣传视频模式
+const isVideoMode = process.env.VIDEO_MODE === 'true';
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
@@ -12,16 +15,22 @@ export default defineConfig({
   ],
   use: {
     baseURL: 'http://localhost:3000',
-    trace: 'on-first-retry',
-    screenshot: 'on',
-    video: 'retain-on-failure',
+    trace: isVideoMode ? 'off' : 'on-first-retry',
+    screenshot: isVideoMode ? 'off' : 'on',
+    video: isVideoMode 
+      ? { mode: 'on', size: { width: 1280, height: 720 } }  // 720p 16:9
+      : 'retain-on-failure',
   },
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { 
+        ...devices['Desktop Chrome'],
+        // 视频模式下使用固定视口
+        ...(isVideoMode && { viewport: { width: 1280, height: 720 } }),
+      },
     },
   ],
   outputDir: 'e2e/test-results',
-  timeout: 60000,
+  timeout: isVideoMode ? 600000 : 60000,  // 视频模式 10 分钟超时
 });
