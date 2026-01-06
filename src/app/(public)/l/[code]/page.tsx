@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, use, useCallback } from 'react';
+import { useEffect, useState, use, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,19 +9,18 @@ import { Label } from '@/components/ui/label';
 import {
   Gift,
   Phone,
+  User,
   Loader2,
   AlertCircle,
   Trophy,
   PartyPopper,
+  CheckCircle,
+  Users,
 } from 'lucide-react';
-import { LotteryWheel } from '@/components/display/lottery-wheel';
-import { LotterySlot } from '@/components/display/lottery-slot';
-import { cn } from '@/lib/utils';
 
 import {
   getLotteryByCodeAction,
-  checkLotteryPhoneAction,
-  drawLotteryAction,
+  joinLotteryAction,
 } from '@/server/actions/publicAction';
 
 interface Prize {
@@ -29,8 +28,6 @@ interface Prize {
   name: string;
   count: number;
   remaining: number;
-  probability: number;
-  isDefault?: boolean;
 }
 
 interface LotteryData {
@@ -42,17 +39,18 @@ interface LotteryData {
   config: {
     mode: string;
     requirePhone?: boolean;
-    maxDrawsPerUser?: number;
+    requireName?: boolean;
     prizes: Prize[];
-    animation?: {
-      duration: number;
-    };
+  };
+  stats: {
+    participantCount: number;
+    winnersCount: number;
   };
 }
 
-interface DrawResult {
+interface WinResult {
   won: boolean;
-  prize?: string;
+  prizeName?: string;
 }
 
 export default function LotteryMobilePage({
@@ -68,21 +66,21 @@ export default function LotteryMobilePage({
   
   // 表单状态
   const [phone, setPhone] = useState('');
-  const [canDraw, setCanDraw] = useState(true);
-  const [remainingDraws, setRemainingDraws] = useState(1);
-  const [checkingPhone, setCheckingPhone] = useState(false);
+  const [name, setName] = useState('');
+  const [joining, setJoining] = useState(false);
+  const [joined, setJoined] = useState(false);
+  const [participantId, setParticipantId] = useState<string | null>(null);
   
-  // 抽奖状态
-  const [spinning, setSpinning] = useState(false);
-  const [result, setResult] = useState<DrawResult | null>(null);
-  const [targetPrizeId, setTargetPrizeId] = useState<string | undefined>();
+  // 中奖状态（通过 SSE 接收）
+  const [winResult, setWinResult] = useState<WinResult | null>(null);
+  
+  const eventSourceRef = useRef<EventSource | null>(null);
 
   const fetchLottery = useCallback(async () => {
     const res = await getLotteryByCodeAction(resolvedParams.code);
     if (res.success && res.data) {
       const data = res.data as LotteryData;
       setLottery(data);
-      setRemainingDraws(data.config.maxDrawsPerUser ?? 1);
     } else {
       setError(res.error || '抽奖活动不存在或已结束');
     }
@@ -93,81 +91,76 @@ export default function LotteryMobilePage({
     fetchLottery();
   }, [fetchLottery]);
 
-  // 检查手机号抽奖次数
-  const checkPhone = useCallback(async () => {
-    if (!lottery?.config.requirePhone) return;
-    if (!phone || !/^1[3-9]\d{9}$/.test(phone)) return;
-    
-    setCheckingPhone(true);
-    const res = await checkLotteryPhoneAction(resolvedParams.code, phone);
-    if (res.success && res.data?.drawn) {
-      setCanDraw(false);
-      setRemainingDraws(0);
-    } else {
-      setCanDraw(true);
-      setRemainingDraws(lottery.config.maxDrawsPerUser ?? 1);
-    }
-    setCheckingPhone(false);
-  }, [phone, resolvedParams.code, lottery?.config.requirePhone, lottery?.config.maxDrawsPerUser]);
+  // SSE 监听中奖结果
+  useEffect(() => {
+    if (!lottery || !participantId) return;
 
-  const handleDraw = useCallback(async () => {
+    const eventSource = new EventSource(`/api/lotteries/${lottery.id}/stream?participantId=${participantId}`);
+    eventSourceRef.current = eventSource;
+    
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'win' && data.participantId === participantId) {
+          // 当前用户中奖
+          setWinResult({
+            won: true,
+            prizeName: data.prizeName,
+          });
+          toast.success(`🎉 恭喜中奖：${data.prizeName}`);
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [lottery, participantId]);
+
+  const handleJoin = useCallback(async () => {
     if (!lottery) return;
     
     if (lottery.config.requirePhone && !phone) {
-      setError('请输入手机号');
+      toast.error('请输入手机号');
       return;
     }
     
-    if (!canDraw) {
-      setError('您的抽奖次数已用完');
+    if (lottery.config.requireName && !name) {
+      toast.error('请输入姓名');
       return;
     }
     
+    if (phone && !/^1[3-9]\d{9}$/.test(phone)) {
+      toast.error('请输入正确的手机号');
+      return;
+    }
+    
+    setJoining(true);
     setError(null);
-    setSpinning(true);
-    setResult(null);
     
-    const res = await drawLotteryAction(resolvedParams.code, phone || undefined);
+    const res = await joinLotteryAction(resolvedParams.code, {
+      phone: phone || undefined,
+      name: name || undefined,
+    });
     
     if (res.success && res.data) {
-      // 设置目标奖品用于动画
-      const prizes = lottery.config.prizes;
-      if (res.data.prize) {
-        const matchPrize = prizes.find(p => p.name === res.data?.prize);
-        setTargetPrizeId(matchPrize?.id);
-      } else {
-        // 未中奖时随机选一个奖品作为动画目标
-        const randomPrize = prizes[Math.floor(Math.random() * prizes.length)];
-        setTargetPrizeId(randomPrize?.id);
-      }
-      
-      // 等待动画结束后显示结果
-      const duration = lottery.config.animation?.duration ?? 3000;
-      setTimeout(() => {
-        setResult({
-          won: !!res.data?.prize,
-          prize: res.data?.prize,
-        });
-        setSpinning(false);
-        setRemainingDraws((prev) => Math.max(0, prev - 1));
-        setCanDraw(remainingDraws > 1);
-        toast.success(res.data?.prize ? `恭喜中奖：${res.data.prize}` : '很遗憾，未中奖');
-      }, duration);
+      setJoined(true);
+      setParticipantId(res.data.participantId);
+      toast.success('签到成功，请等待主持人开奖');
     } else {
-      setError(res.error || '抽奖失败');
-      setSpinning(false);
-      toast.error(res.error || '抽奖失败');
+      setError(res.error || '签到失败');
+      toast.error(res.error || '签到失败');
     }
-  }, [lottery, phone, canDraw, resolvedParams.code, remainingDraws]);
-
-  const resetAndDrawAgain = useCallback(() => {
-    setResult(null);
-    setTargetPrizeId(undefined);
-  }, []);
+    
+    setJoining(false);
+  }, [lottery, phone, name, resolvedParams.code]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-linear-to-b from-orange-600 to-red-700">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-orange-600 to-red-700">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-white" />
           <p className="text-white/80">加载中...</p>
@@ -178,8 +171,8 @@ export default function LotteryMobilePage({
 
   if (error && !lottery) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-linear-to-b from-orange-600 to-red-700 p-4">
-        <Card className="w-full max-w-md">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-orange-600 to-red-700 p-4">
+        <Card className="w-full max-w-sm">
           <CardContent className="pt-6 text-center">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
             <h2 className="text-lg font-semibold mb-2">无法加载</h2>
@@ -191,174 +184,168 @@ export default function LotteryMobilePage({
   }
 
   const prizes = lottery?.config.prizes ?? [];
-  const duration = lottery?.config.animation?.duration ?? 3000;
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-orange-600 via-red-600 to-red-700 p-4 py-8">
-      <div className="max-w-md mx-auto space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-orange-600 via-red-600 to-red-700 px-4 py-6 overflow-x-hidden">
+      <div className="w-full max-w-sm mx-auto space-y-4">
         {/* Header */}
-        <div className="text-center animate-fade-in-up">
-          <div className="h-16 w-16 rounded-2xl bg-linear-to-br from-yellow-400 to-orange-500 flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <Gift className="h-8 w-8 text-white" />
+        <div className="text-center">
+          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mx-auto mb-3 shadow-lg">
+            <Gift className="h-7 w-7 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">{lottery?.title}</h1>
+          <h1 className="text-xl font-bold text-white">{lottery?.title}</h1>
           {lottery?.description && (
-            <p className="text-white/80 mt-2">{lottery.description}</p>
+            <p className="text-white/80 mt-1 text-sm">{lottery.description}</p>
           )}
-          <p className="text-white/60 mt-1 text-sm">
-            剩余抽奖次数：{remainingDraws}
-          </p>
         </div>
 
-        {/* 抽奖区域 */}
-        <Card className="animate-fade-in-up bg-black/20 backdrop-blur border-white/20" style={{ animationDelay: '0.1s' }}>
-          <CardContent className="pt-6 flex flex-col items-center">
-            {/* 转盘/老虎机 */}
-            {lottery?.config.mode === 'wheel' ? (
-              <LotteryWheel
-                prizes={prizes}
-                spinning={spinning}
-                targetPrizeId={targetPrizeId}
-                duration={duration}
-                size={280}
-              />
-            ) : lottery?.config.mode === 'slot' ? (
-              <LotterySlot
-                prizes={prizes}
-                spinning={spinning}
-                targetPrizeId={targetPrizeId}
-                duration={duration}
-              />
-            ) : null}
+        {/* 中奖结果 */}
+        {winResult && (
+          <Card className="bg-gradient-to-r from-yellow-400 to-orange-500 border-0 animate-bounce">
+            <CardContent className="pt-6 text-center">
+              <PartyPopper className="h-12 w-12 text-white mx-auto mb-3" />
+              <h3 className="text-2xl font-bold text-white">🎉 恭喜中奖！</h3>
+              <p className="text-white/90 text-xl mt-2">{winResult.prizeName}</p>
+              <p className="text-white/70 text-sm mt-3">请联系工作人员领取奖品</p>
+            </CardContent>
+          </Card>
+        )}
 
-            {/* 结果展示 */}
-            {result && (
-              <div className={cn(
-                'mt-6 p-4 rounded-xl text-center w-full',
-                result.won 
-                  ? 'bg-gradient-to-r from-yellow-400 to-orange-500' 
-                  : 'bg-white/10'
-              )}>
-                {result.won ? (
+        {/* 签到表单 */}
+        {!joined && !winResult && (
+          <Card className="bg-black/20 backdrop-blur border-white/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-white flex items-center gap-2 text-base">
+                <Users className="h-5 w-5" />
+                签到参与抽奖
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {lottery?.config.requireName && (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2 text-white text-sm">
+                    <User className="h-4 w-4" />
+                    姓名
+                  </Label>
+                  <Input
+                    type="text"
+                    placeholder="请输入您的姓名"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    disabled={joining}
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11"
+                  />
+                </div>
+              )}
+              
+              {lottery?.config.requirePhone && (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2 text-white text-sm">
+                    <Phone className="h-4 w-4" />
+                    手机号
+                  </Label>
+                  <Input
+                    type="tel"
+                    placeholder="请输入手机号"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    maxLength={11}
+                    disabled={joining}
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11"
+                  />
+                </div>
+              )}
+              
+              {error && (
+                <div className="p-3 rounded-lg bg-red-500/20 text-white text-sm flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+              
+              <Button
+                className="w-full h-12 text-base font-bold bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white"
+                onClick={handleJoin}
+                disabled={joining}
+              >
+                {joining ? (
                   <>
-                    <PartyPopper className="h-10 w-10 text-white mx-auto mb-2" />
-                    <h3 className="text-xl font-bold text-white">
-                      🎉 恭喜中奖！
-                    </h3>
-                    <p className="text-white/90 text-lg mt-1">
-                      {result.prize}
-                    </p>
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                    签到中...
                   </>
                 ) : (
                   <>
-                    <Trophy className="h-10 w-10 text-white/50 mx-auto mb-2" />
-                    <h3 className="text-lg font-medium text-white">
-                      很遗憾，未中奖
-                    </h3>
-                    <p className="text-white/60 text-sm mt-1">
-                      下次好运！
-                    </p>
+                    <CheckCircle className="h-5 w-5 mr-2" />
+                    立即签到
                   </>
                 )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* 手机号输入 */}
-        {lottery?.config.requirePhone && !result && (
-          <Card className="animate-fade-in-up bg-black/20 backdrop-blur border-white/20" style={{ animationDelay: '0.2s' }}>
-            <CardContent className="pt-6">
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2 text-white">
-                  <Phone className="h-4 w-4" />
-                  手机号
-                </Label>
-                <Input
-                  type="tel"
-                  placeholder="请输入手机号"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  onBlur={checkPhone}
-                  maxLength={11}
-                  disabled={spinning}
-                  className="bg-white/10 border-white/20 text-white placeholder:text-white/40"
-                />
-                {checkingPhone && (
-                  <p className="text-xs text-white/60 flex items-center gap-1">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    检查中...
+        {/* 已签到状态 */}
+        {joined && !winResult && (
+          <Card className="bg-black/20 backdrop-blur border-white/20">
+            <CardContent className="pt-6 text-center">
+              <div className="relative inline-block">
+                <CheckCircle className="h-14 w-14 text-green-400 mx-auto" />
+                <div className="absolute -top-1 -right-1 h-4 w-4 bg-green-400 rounded-full animate-ping" />
+              </div>
+              <h3 className="text-lg font-semibold text-white mt-3 mb-2">签到成功</h3>
+              <p className="text-white/70 text-sm">请关注大屏幕</p>
+              <p className="text-white/70 text-sm">等待主持人开奖</p>
+              
+              {(name || phone) && (
+                <div className="mt-4 p-3 rounded-lg bg-white/10">
+                  <p className="text-white/80 text-sm">
+                    {name && <span className="block">姓名：{name}</span>}
+                    {phone && <span className="block">手机：{phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')}</span>}
                   </p>
-                )}
-                {!canDraw && !checkingPhone && phone && (
-                  <p className="text-xs text-yellow-300">
-                    您的抽奖次数已用完
-                  </p>
-                )}
+                </div>
+              )}
+              
+              <div className="mt-4 flex items-center justify-center gap-1 text-yellow-300">
+                <div className="w-2 h-2 rounded-full bg-yellow-300 animate-bounce" style={{ animationDelay: '0ms' }} />
+                <div className="w-2 h-2 rounded-full bg-yellow-300 animate-bounce" style={{ animationDelay: '150ms' }} />
+                <div className="w-2 h-2 rounded-full bg-yellow-300 animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
             </CardContent>
           </Card>
         )}
 
-        {error && (
-          <div className="p-3 rounded-lg bg-red-500/20 text-white text-sm flex items-center gap-2">
-            <AlertCircle className="h-4 w-4" />
-            {error}
-          </div>
-        )}
-
-        {/* 抽奖按钮 */}
-        {!result ? (
-          <Button
-            className="w-full h-14 text-xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white shadow-lg animate-fade-in-up"
-            style={{ animationDelay: '0.3s' }}
-            onClick={handleDraw}
-            disabled={spinning || !canDraw}
-          >
-            {spinning ? (
-              <>
-                <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                抽奖中...
-              </>
-            ) : !canDraw ? (
-              '抽奖次数已用完'
-            ) : (
-              '🎰 开始抽奖'
-            )}
-          </Button>
-        ) : remainingDraws > 0 ? (
-          <Button
-            className="w-full h-14 text-xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white shadow-lg"
-            onClick={resetAndDrawAgain}
-          >
-            🎰 再抽一次 ({remainingDraws}次)
-          </Button>
-        ) : null}
-
         {/* 奖品列表 */}
-        <Card className="animate-fade-in-up bg-black/20 backdrop-blur border-white/20" style={{ animationDelay: '0.4s' }}>
-          <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
+        <Card className="bg-black/20 backdrop-blur border-white/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-white flex items-center gap-2 text-base">
               <Trophy className="h-5 w-5" />
-              奖品列表
+              奖项设置
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {prizes.filter(p => !p.isDefault).map((prize) => (
+              {prizes.map((prize, index) => (
                 <div
                   key={prize.id}
                   className="flex items-center justify-between p-3 rounded-lg bg-white/10"
                 >
-                  <span className="text-white font-medium">{prize.name}</span>
-                  <span className="text-white/60 text-sm">
-                    剩余 {prize.remaining}/{prize.count}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-yellow-500/20 text-yellow-300 flex items-center justify-center text-xs font-bold">
+                      {index + 1}
+                    </span>
+                    <span className="text-white font-medium text-sm">{prize.name}</span>
+                  </div>
+                  <span className="text-white/60 text-sm">{prize.count} 名</span>
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
+
+        {/* 底部提示 */}
+        <p className="text-center text-white/50 text-xs pb-2">
+          祝您好运 🍀
+        </p>
       </div>
     </div>
   );

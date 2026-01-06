@@ -40,11 +40,17 @@ export function LotteryWheel({
 
     ctx.clearRect(0, 0, size, size);
 
-    if (prizes.length === 0) return;
+    // 如果没有奖品，显示默认样式
+    const displayPrizes = prizes.length > 0 ? prizes : [
+      { id: '1', name: '一等奖', count: 1, remaining: 1, probability: 25 },
+      { id: '2', name: '二等奖', count: 2, remaining: 2, probability: 25 },
+      { id: '3', name: '三等奖', count: 3, remaining: 3, probability: 25 },
+      { id: '4', name: '参与奖', count: 10, remaining: 10, probability: 25 },
+    ];
 
-    const sliceAngle = (2 * Math.PI) / prizes.length;
+    const sliceAngle = (2 * Math.PI) / displayPrizes.length;
 
-    prizes.forEach((prize, index) => {
+    displayPrizes.forEach((prize, index) => {
       const startAngle = index * sliceAngle - Math.PI / 2;
       const endAngle = startAngle + sliceAngle;
 

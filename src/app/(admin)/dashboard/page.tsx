@@ -47,7 +47,7 @@ const quickCreateItems = [
     href: '/votes/new',
     icon: Vote,
     color: 'from-blue-500 to-indigo-600',
-    available: false,
+    available: true,
   },
   {
     name: '抽奖',
@@ -55,7 +55,7 @@ const quickCreateItems = [
     href: '/lotteries/new',
     icon: Gift,
     color: 'from-orange-500 to-red-600',
-    available: false,
+    available: true,
   },
   {
     name: '表单',
@@ -63,7 +63,7 @@ const quickCreateItems = [
     href: '/forms/new',
     icon: FileText,
     color: 'from-purple-500 to-pink-600',
-    available: false,
+    available: true,
   },
 ];
 

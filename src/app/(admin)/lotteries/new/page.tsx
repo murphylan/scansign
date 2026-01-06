@@ -14,10 +14,19 @@ import {
   Plus,
   Trash2,
   GripVertical,
+  Users,
+  Trophy,
 } from 'lucide-react';
-import { Prize, LotteryMode } from '@/types/lottery';
+import { LotteryMode } from '@/types/lottery';
 import { generateId } from '@/lib/utils/code-generator';
 import { createLotteryAction } from '@/server/actions/lotteryAction';
+
+interface PrizeConfig {
+  id: string;
+  name: string;
+  count: number;  // 中奖人数
+  level: number;  // 奖项等级（1=一等奖，2=二等奖...）
+}
 
 export default function NewLotteryPage() {
   const router = useRouter();
@@ -27,37 +36,40 @@ export default function NewLotteryPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
 
-  // 奖品
-  const [prizes, setPrizes] = useState<Prize[]>([
-    { id: generateId(), name: '一等奖', count: 1, remaining: 1, probability: 5 },
-    { id: generateId(), name: '二等奖', count: 3, remaining: 3, probability: 10 },
-    { id: generateId(), name: '三等奖', count: 10, remaining: 10, probability: 20 },
-    { id: generateId(), name: '谢谢参与', count: 100, remaining: 100, probability: 65, isDefault: true },
+  // 奖品配置（简化：只需名称和中奖人数）
+  const [prizes, setPrizes] = useState<PrizeConfig[]>([
+    { id: generateId(), name: '一等奖', count: 1, level: 1 },
+    { id: generateId(), name: '二等奖', count: 3, level: 2 },
+    { id: generateId(), name: '三等奖', count: 5, level: 3 },
   ]);
 
   // 模式
   const [mode, setMode] = useState<LotteryMode>('wheel');
 
   // 规则
-  const [maxDrawsPerUser, setMaxDrawsPerUser] = useState(1);
   const [requirePhone, setRequirePhone] = useState(true);
+  const [requireName, setRequireName] = useState(true);
 
   function addPrize() {
+    const nextLevel = prizes.length + 1;
+    const levelNames = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+    const levelName = nextLevel <= 10 ? `${levelNames[nextLevel - 1]}等奖` : `${nextLevel}等奖`;
+    
     setPrizes([
       ...prizes,
-      { id: generateId(), name: '', count: 1, remaining: 1, probability: 0 },
+      { id: generateId(), name: levelName, count: 1, level: nextLevel },
     ]);
   }
 
   function removePrize(id: string) {
-    if (prizes.length <= 2) {
-      alert('至少需要2个奖品');
+    if (prizes.length <= 1) {
+      toast.error('至少需要1个奖项');
       return;
     }
     setPrizes(prizes.filter((p) => p.id !== id));
   }
 
-  function updatePrize(id: string, updates: Partial<Prize>) {
+  function updatePrize(id: string, updates: Partial<PrizeConfig>) {
     setPrizes(prizes.map((p) => (p.id === id ? { ...p, ...updates } : p)));
   }
 
@@ -69,29 +81,20 @@ export default function NewLotteryPage() {
       return;
     }
 
-    const validPrizes = prizes.filter((p) => p.name.trim());
-    if (validPrizes.length < 2) {
-      toast.error('请至少填写2个有效奖品');
-      return;
-    }
-
-    // 验证概率总和
-    const totalProb = validPrizes.reduce((sum, p) => sum + p.probability, 0);
-    if (Math.abs(totalProb - 100) > 0.01) {
-      toast.error(`概率总和必须为100%，当前为${totalProb}%`);
+    const validPrizes = prizes.filter((p) => p.name.trim() && p.count > 0);
+    if (validPrizes.length < 1) {
+      toast.error('请至少设置1个有效奖项');
       return;
     }
 
     setLoading(true);
     try {
       const config = {
-        prizes: validPrizes.map((p) => ({
-          ...p,
-          remaining: p.count,
-        })),
         mode,
-        maxDrawsPerUser,
         requirePhone,
+        requireName,
+        // 新的抽奖模式：主持人从签到用户池中抽取
+        drawMode: 'host',  // 'host' = 主持人抽奖, 'self' = 自助抽奖
         animation: {
           duration: mode === 'wheel' ? 5000 : 3000,
           sound: true,
@@ -101,6 +104,11 @@ export default function NewLotteryPage() {
       const res = await createLotteryAction({
         title: title.trim(),
         description: description.trim() || undefined,
+        prizes: validPrizes.map((p, index) => ({
+          name: p.name,
+          quantity: p.count,
+          probability: 0, // 不再使用概率，改用随机抽取
+        })),
         config: JSON.parse(JSON.stringify(config)),
       });
 
@@ -117,7 +125,7 @@ export default function NewLotteryPage() {
     }
   }
 
-  const totalProb = prizes.reduce((sum, p) => sum + p.probability, 0);
+  const totalWinners = prizes.reduce((sum, p) => sum + p.count, 0);
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -131,7 +139,7 @@ export default function NewLotteryPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">创建抽奖</h1>
           <p className="text-muted-foreground mt-1">
-            设置奖品和抽奖规则
+            设置奖品，大屏抽奖
           </p>
         </div>
       </div>
@@ -150,7 +158,7 @@ export default function NewLotteryPage() {
               <Label htmlFor="title">抽奖标题 *</Label>
               <Input
                 id="title"
-                placeholder="如：年会抽奖"
+                placeholder="如：年会幸运大抽奖"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
@@ -171,15 +179,16 @@ export default function NewLotteryPage() {
         {/* 抽奖模式 */}
         <Card>
           <CardHeader>
-            <CardTitle>抽奖模式</CardTitle>
+            <CardTitle>抽奖动画</CardTitle>
+            <CardDescription>选择大屏抽奖时的动画效果</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
                 { value: 'wheel', label: '转盘', icon: '🎡' },
                 { value: 'slot', label: '老虎机', icon: '🎰' },
-                { value: 'card', label: '翻牌', icon: '🃏', disabled: true },
-                { value: 'grid', label: '九宫格', icon: '⬜', disabled: true },
+                { value: 'card', label: '翻牌', icon: '🃏' },
+                { value: 'grid', label: '九宫格', icon: '⬜' },
               ].map((m) => (
                 <label
                   key={m.value}
@@ -212,68 +221,46 @@ export default function NewLotteryPage() {
         {/* 奖品设置 */}
         <Card>
           <CardHeader>
-            <CardTitle>奖品设置</CardTitle>
-            <CardDescription>
-              概率总和: {totalProb}%
-              {Math.abs(totalProb - 100) > 0.01 && (
-                <span className="text-destructive ml-2">
-                  (应为100%)
-                </span>
-              )}
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="h-5 w-5" />
+              奖项设置
+            </CardTitle>
+            <CardDescription className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              共 {totalWinners} 个中奖名额
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {prizes.map((prize, index) => (
-              <div key={prize.id} className="flex items-center gap-2">
-                <GripVertical className="h-5 w-5 text-muted-foreground shrink-0" />
-                <span className="w-6 text-muted-foreground text-sm shrink-0">
-                  {index + 1}.
-                </span>
+              <div key={prize.id} className="flex items-center gap-3">
+                <GripVertical className="h-5 w-5 text-muted-foreground shrink-0 cursor-move" />
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm shrink-0">
+                  {index + 1}
+                </div>
                 <Input
-                  placeholder="奖品名称"
+                  placeholder="奖项名称（如：一等奖）"
                   value={prize.name}
                   onChange={(e) => updatePrize(prize.id, { name: e.target.value })}
                   className="flex-1"
                 />
-                <Input
-                  type="number"
-                  min={1}
-                  placeholder="数量"
-                  value={prize.count}
-                  onChange={(e) => {
-                    const count = parseInt(e.target.value) || 1;
-                    updatePrize(prize.id, { count, remaining: count });
-                  }}
-                  className="w-20"
-                />
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-2 shrink-0">
                   <Input
                     type="number"
-                    min={0}
+                    min={1}
                     max={100}
-                    step={0.1}
-                    placeholder="概率"
-                    value={prize.probability}
-                    onChange={(e) => updatePrize(prize.id, { probability: parseFloat(e.target.value) || 0 })}
+                    placeholder="人数"
+                    value={prize.count}
+                    onChange={(e) => updatePrize(prize.id, { count: parseInt(e.target.value) || 1 })}
                     className="w-20"
                   />
-                  <span className="text-muted-foreground">%</span>
+                  <span className="text-muted-foreground text-sm">人</span>
                 </div>
-                <label className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
-                  <input
-                    type="checkbox"
-                    checked={prize.isDefault || false}
-                    onChange={(e) => updatePrize(prize.id, { isDefault: e.target.checked })}
-                    className="rounded"
-                  />
-                  保底
-                </label>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
                   onClick={() => removePrize(prize.id)}
-                  disabled={prizes.length <= 2}
+                  disabled={prizes.length <= 1}
                   className="text-muted-foreground hover:text-destructive shrink-0"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -287,37 +274,50 @@ export default function NewLotteryPage() {
               className="w-full"
             >
               <Plus className="h-4 w-4 mr-2" />
-              添加奖品
+              添加奖项
             </Button>
           </CardContent>
         </Card>
 
-        {/* 抽奖规则 */}
+        {/* 签到规则 */}
         <Card>
           <CardHeader>
-            <CardTitle>抽奖规则</CardTitle>
+            <CardTitle>参与方式</CardTitle>
+            <CardDescription>
+              用户扫码签到后，等待主持人在大屏上开奖
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>每人抽奖次数</Label>
-              <Input
-                type="number"
-                min={1}
-                max={10}
-                value={maxDrawsPerUser}
-                onChange={(e) => setMaxDrawsPerUser(parseInt(e.target.value) || 1)}
-                className="w-32"
-              />
+            <div className="p-4 rounded-lg bg-secondary/50 space-y-3">
+              <h4 className="font-medium">抽奖流程：</h4>
+              <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1">
+                <li>用户扫码进入抽奖页面</li>
+                <li>输入手机号/姓名完成签到</li>
+                <li>大屏实时显示已签到用户</li>
+                <li>主持人点击"开始抽奖"按钮</li>
+                <li>系统从签到用户中随机抽取中奖者</li>
+              </ol>
             </div>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={requirePhone}
-                onChange={(e) => setRequirePhone(e.target.checked)}
-                className="rounded"
-              />
-              <span>需要手机号验证</span>
-            </label>
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={requirePhone}
+                  onChange={(e) => setRequirePhone(e.target.checked)}
+                  className="rounded"
+                />
+                <span>需要手机号</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={requireName}
+                  onChange={(e) => setRequireName(e.target.checked)}
+                  className="rounded"
+                />
+                <span>需要姓名</span>
+              </label>
+            </div>
           </CardContent>
         </Card>
 
@@ -336,4 +336,3 @@ export default function NewLotteryPage() {
     </div>
   );
 }
-

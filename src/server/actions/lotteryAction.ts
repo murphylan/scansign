@@ -80,7 +80,8 @@ export async function listLotteriesAction() {
           status: l.status.toLowerCase(),
           config: {
             ...((l.config || {}) as Record<string, unknown>),
-            mode: l.lotteryType.toLowerCase(),
+            // 优先从 config.mode 读取，否则从 lotteryType 读取
+            mode: ((l.config as Record<string, unknown>)?.mode as string) || l.lotteryType.toLowerCase(),
           },
           prizes: prizes.map((p) => ({
             id: p.id,
@@ -153,7 +154,8 @@ export async function getLotteryAction(id: string) {
         status: lottery.status.toLowerCase(),
         config: {
           ...((lottery.config || {}) as Record<string, unknown>),
-          mode: lottery.lotteryType.toLowerCase(),
+          // 优先从 config.mode 读取，否则从 lotteryType 读取
+          mode: ((lottery.config as Record<string, unknown>)?.mode as string) || lottery.lotteryType.toLowerCase(),
           prizes: prizes.map((p) => ({
             id: p.id,
             name: p.name,
@@ -316,7 +318,20 @@ export async function updateLotteryAction(
     if (data.title !== undefined) updateData.title = data.title;
     if (data.description !== undefined) updateData.description = data.description;
     if (data.status !== undefined) updateData.status = data.status.toUpperCase();
-    if (data.config !== undefined) updateData.config = data.config;
+    if (data.config !== undefined) {
+      updateData.config = data.config;
+      // 如果 config 中包含 mode，同步更新 lotteryType 字段
+      const configObj = data.config as Record<string, unknown>;
+      if (configObj.mode) {
+        const modeMap: Record<string, string> = {
+          wheel: "WHEEL",
+          slot: "SLOT",
+          card: "GRID", // card 和 grid 都存为 GRID
+          grid: "GRID",
+        };
+        updateData.lotteryType = modeMap[configObj.mode as string] || "WHEEL";
+      }
+    }
     if (data.display !== undefined) updateData.display = data.display;
     if (data.startTime !== undefined) updateData.startTime = new Date(data.startTime);
     if (data.endTime !== undefined) updateData.endTime = new Date(data.endTime);
@@ -326,6 +341,25 @@ export async function updateLotteryAction(
       .set(updateData)
       .where(eq(lotteries.id, id))
       .returning();
+
+    // 更新奖品（如果提供了）
+    if (data.prizes && data.prizes.length > 0) {
+      // 删除旧奖品
+      await db.delete(lotteryPrizes).where(eq(lotteryPrizes.lotteryId, id));
+      
+      // 创建新奖品
+      await db.insert(lotteryPrizes).values(
+        data.prizes.map((p, index) => ({
+          id: randomUUID(),
+          lotteryId: id,
+          name: p.name,
+          quantity: p.quantity,
+          remaining: p.quantity,
+          probability: p.probability || 0,
+          sortOrder: index,
+        }))
+      );
+    }
 
     revalidatePath("/lotteries");
     revalidatePath(`/lotteries/${id}`);
