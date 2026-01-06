@@ -32,19 +32,19 @@ export default function LoginPage() {
 
   // 4. Render
   return (
-    <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20">
+    <div className="bg-white/95 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-primary/20">
       {/* Logo 和标题 */}
       <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-linear-to-br from-violet-500 to-purple-600 mb-4">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-linear-to-br from-primary to-amber-500 mb-4">
           <span className="text-3xl font-bold text-white">M</span>
         </div>
-        <h1 className="text-2xl font-bold text-white">欢迎回来</h1>
-        <p className="text-white/60 mt-2">登录 Murphy 互动工具集</p>
+        <h1 className="text-2xl font-bold text-foreground">欢迎回来</h1>
+        <p className="text-muted-foreground mt-2">登录 Murphy 互动工具集</p>
       </div>
 
       {/* 错误提示 */}
       {error && (
-        <div className="mb-6 p-4 rounded-lg bg-red-500/20 border border-red-500/30 text-red-200 text-sm">
+        <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
           {error}
         </div>
       )}
@@ -52,7 +52,7 @@ export default function LoginPage() {
       {/* 登录表单 */}
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="block text-sm font-medium text-white/80 mb-2">
+          <label className="block text-sm font-medium text-foreground mb-2">
             邮箱地址
           </label>
           <input
@@ -61,12 +61,12 @@ export default function LoginPage() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="your@email.com"
             required
-            className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition"
+            className="w-full px-4 py-3 rounded-lg bg-secondary border border-border text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-white/80 mb-2">
+          <label className="block text-sm font-medium text-foreground mb-2">
             密码
           </label>
           <div className="relative">
@@ -76,12 +76,12 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
-              className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition pr-12"
+              className="w-full px-4 py-3 rounded-lg bg-secondary border border-border text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition pr-12"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60 transition"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition"
             >
               {showPassword ? (
                 <EyeOff className="h-5 w-5" />
@@ -95,7 +95,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={isPending}
-          className="w-full py-3 px-4 rounded-lg bg-linear-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-medium flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full py-3 px-4 rounded-lg bg-linear-to-r from-primary to-amber-500 hover:from-primary/90 hover:to-amber-500/90 text-white font-medium flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isPending ? (
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -109,11 +109,11 @@ export default function LoginPage() {
       </form>
 
       {/* 注册链接 */}
-      <div className="mt-6 text-center text-white/60">
+      <div className="mt-6 text-center text-muted-foreground">
         还没有账户？{" "}
         <Link
           href="/register"
-          className="text-violet-400 hover:text-violet-300 font-medium transition"
+          className="text-primary hover:text-primary/80 font-medium transition"
         >
           立即注册
         </Link>

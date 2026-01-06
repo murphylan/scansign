@@ -59,7 +59,7 @@ export default function HomePage() {
           </div>
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
             Murphy{' '}
-            <span className="bg-linear-to-r from-primary to-emerald-400 bg-clip-text text-transparent">
+            <span className="bg-linear-to-r from-primary to-amber-500 bg-clip-text text-transparent">
               互动工具集
             </span>
           </h1>

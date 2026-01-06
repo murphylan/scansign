@@ -1,27 +1,28 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: oklch(0.145 0 0);
-  --color-foreground: oklch(0.985 0 0);
-  --color-card: oklch(0.178 0.005 285);
-  --color-card-foreground: oklch(0.985 0 0);
-  --color-popover: oklch(0.178 0.005 285);
-  --color-popover-foreground: oklch(0.985 0 0);
-  --color-primary: oklch(0.75 0.18 160);
-  --color-primary-foreground: oklch(0.145 0 0);
-  --color-secondary: oklch(0.269 0.02 285);
-  --color-secondary-foreground: oklch(0.985 0 0);
-  --color-muted: oklch(0.269 0.02 285);
-  --color-muted-foreground: oklch(0.708 0.02 285);
-  --color-accent: oklch(0.75 0.18 160);
-  --color-accent-foreground: oklch(0.145 0 0);
-  --color-destructive: oklch(0.704 0.191 22);
-  --color-destructive-foreground: oklch(0.985 0 0);
-  --color-border: oklch(0.35 0.02 285);
-  --color-input: oklch(0.35 0.02 285);
-  --color-ring: oklch(0.75 0.18 160);
+  /* 喜庆浅色主题 - 中国红 + 金色 */
+  --color-background: oklch(0.98 0.01 60);        /* 温暖米白背景 */
+  --color-foreground: oklch(0.25 0.02 30);        /* 深棕文字 */
+  --color-card: oklch(0.995 0.005 60);            /* 纯白卡片 */
+  --color-card-foreground: oklch(0.25 0.02 30);   /* 深棕文字 */
+  --color-popover: oklch(0.995 0.005 60);
+  --color-popover-foreground: oklch(0.25 0.02 30);
+  --color-primary: oklch(0.55 0.22 25);           /* 中国红 */
+  --color-primary-foreground: oklch(0.99 0 0);    /* 白色文字 */
+  --color-secondary: oklch(0.92 0.03 60);         /* 淡金色背景 */
+  --color-secondary-foreground: oklch(0.35 0.02 30);
+  --color-muted: oklch(0.94 0.02 60);             /* 柔和米色 */
+  --color-muted-foreground: oklch(0.5 0.02 30);
+  --color-accent: oklch(0.75 0.16 85);            /* 金色强调 */
+  --color-accent-foreground: oklch(0.25 0.02 30);
+  --color-destructive: oklch(0.55 0.22 25);
+  --color-destructive-foreground: oklch(0.99 0 0);
+  --color-border: oklch(0.88 0.03 60);            /* 柔和边框 */
+  --color-input: oklch(0.92 0.02 60);
+  --color-ring: oklch(0.55 0.22 25);              /* 中国红聚焦环 */
   
-  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   
   --radius-lg: 1rem;
@@ -52,10 +53,10 @@
 
 @keyframes pulse-glow {
   0%, 100% {
-    box-shadow: 0 0 20px oklch(0.75 0.18 160 / 0.3);
+    box-shadow: 0 0 20px oklch(0.55 0.22 25 / 0.3);
   }
   50% {
-    box-shadow: 0 0 40px oklch(0.75 0.18 160 / 0.6);
+    box-shadow: 0 0 40px oklch(0.55 0.22 25 / 0.6);
   }
 }
 
@@ -97,7 +98,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent, oklch(0.75 0.18 160), transparent);
+  background: linear-gradient(90deg, transparent, oklch(0.55 0.22 25), transparent);
   animation: scan-line 2s linear infinite;
 }
 
