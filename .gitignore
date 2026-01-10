@@ -34,3 +34,7 @@ yarn-error.log*
 next-env.d.ts
 drizzle/
 e2e/demo-videos/
+e2e/promo/
+e2e/report/
+e2e/screenshots/
+e2e/test-results/

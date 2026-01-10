@@ -160,10 +160,10 @@ export default function LotteryMobilePage({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-orange-600 to-red-700">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-b from-background to-secondary/30">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-white" />
-          <p className="text-white/80">加载中...</p>
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">加载中...</p>
         </div>
       </div>
     );
@@ -171,7 +171,7 @@ export default function LotteryMobilePage({
 
   if (error && !lottery) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-orange-600 to-red-700 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-b from-background to-secondary/30 p-4">
         <Card className="w-full max-w-sm">
           <CardContent className="pt-6 text-center">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
@@ -186,22 +186,22 @@ export default function LotteryMobilePage({
   const prizes = lottery?.config.prizes ?? [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-orange-600 via-red-600 to-red-700 px-4 py-6 overflow-x-hidden">
+    <div className="min-h-screen bg-linear-to-b from-background to-secondary/30 px-4 py-6 overflow-x-hidden">
       <div className="w-full max-w-sm mx-auto space-y-4">
         {/* Header */}
-        <div className="text-center">
-          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mx-auto mb-3 shadow-lg">
+        <div className="text-center animate-fade-in-up">
+          <div className="h-14 w-14 rounded-2xl bg-linear-to-br from-primary to-amber-500 flex items-center justify-center mx-auto mb-3 shadow-lg">
             <Gift className="h-7 w-7 text-white" />
           </div>
-          <h1 className="text-xl font-bold text-white">{lottery?.title}</h1>
+          <h1 className="text-xl font-bold text-foreground">{lottery?.title}</h1>
           {lottery?.description && (
-            <p className="text-white/80 mt-1 text-sm">{lottery.description}</p>
+            <p className="text-muted-foreground mt-1 text-sm">{lottery.description}</p>
           )}
         </div>
 
         {/* 中奖结果 */}
         {winResult && (
-          <Card className="bg-gradient-to-r from-yellow-400 to-orange-500 border-0 animate-bounce">
+          <Card className="bg-linear-to-r from-primary to-amber-500 border-0 animate-bounce">
             <CardContent className="pt-6 text-center">
               <PartyPopper className="h-12 w-12 text-white mx-auto mb-3" />
               <h3 className="text-2xl font-bold text-white">🎉 恭喜中奖！</h3>
@@ -213,17 +213,17 @@ export default function LotteryMobilePage({
 
         {/* 签到表单 */}
         {!joined && !winResult && (
-          <Card className="bg-black/20 backdrop-blur border-white/20">
+          <Card className="animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
             <CardHeader className="pb-3">
-              <CardTitle className="text-white flex items-center gap-2 text-base">
-                <Users className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Users className="h-5 w-5 text-primary" />
                 签到参与抽奖
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {lottery?.config.requireName && (
                 <div className="space-y-2">
-                  <Label className="flex items-center gap-2 text-white text-sm">
+                  <Label className="flex items-center gap-2 text-sm">
                     <User className="h-4 w-4" />
                     姓名
                   </Label>
@@ -233,14 +233,14 @@ export default function LotteryMobilePage({
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     disabled={joining}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11"
+                    className="h-11"
                   />
                 </div>
               )}
               
               {lottery?.config.requirePhone && (
                 <div className="space-y-2">
-                  <Label className="flex items-center gap-2 text-white text-sm">
+                  <Label className="flex items-center gap-2 text-sm">
                     <Phone className="h-4 w-4" />
                     手机号
                   </Label>
@@ -251,20 +251,20 @@ export default function LotteryMobilePage({
                     onChange={(e) => setPhone(e.target.value)}
                     maxLength={11}
                     disabled={joining}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11"
+                    className="h-11"
                   />
                 </div>
               )}
               
               {error && (
-                <div className="p-3 rounded-lg bg-red-500/20 text-white text-sm flex items-center gap-2">
+                <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm flex items-center gap-2">
                   <AlertCircle className="h-4 w-4 shrink-0" />
                   <span>{error}</span>
                 </div>
               )}
               
               <Button
-                className="w-full h-12 text-base font-bold bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white"
+                className="w-full h-12 text-base font-bold"
                 onClick={handleJoin}
                 disabled={joining}
               >
@@ -286,39 +286,41 @@ export default function LotteryMobilePage({
 
         {/* 已签到状态 */}
         {joined && !winResult && (
-          <Card className="bg-black/20 backdrop-blur border-white/20">
+          <Card className="animate-fade-in-up">
             <CardContent className="pt-6 text-center">
               <div className="relative inline-block">
-                <CheckCircle className="h-14 w-14 text-green-400 mx-auto" />
-                <div className="absolute -top-1 -right-1 h-4 w-4 bg-green-400 rounded-full animate-ping" />
+                <div className="h-16 w-16 rounded-full bg-linear-to-br from-emerald-500 to-green-600 flex items-center justify-center mx-auto">
+                  <CheckCircle className="h-8 w-8 text-white" />
+                </div>
+                <div className="absolute -top-1 -right-1 h-4 w-4 bg-green-500 rounded-full animate-ping" />
               </div>
-              <h3 className="text-lg font-semibold text-white mt-3 mb-2">签到成功</h3>
-              <p className="text-white/70 text-sm">请关注大屏幕</p>
-              <p className="text-white/70 text-sm">等待主持人开奖</p>
+              <h3 className="text-lg font-semibold mt-3 mb-2">签到成功</h3>
+              <p className="text-muted-foreground text-sm">请关注大屏幕</p>
+              <p className="text-muted-foreground text-sm">等待主持人开奖</p>
               
               {(name || phone) && (
-                <div className="mt-4 p-3 rounded-lg bg-white/10">
-                  <p className="text-white/80 text-sm">
+                <div className="mt-4 p-3 rounded-lg bg-secondary">
+                  <p className="text-sm">
                     {name && <span className="block">姓名：{name}</span>}
                     {phone && <span className="block">手机：{phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')}</span>}
                   </p>
                 </div>
               )}
               
-              <div className="mt-4 flex items-center justify-center gap-1 text-yellow-300">
-                <div className="w-2 h-2 rounded-full bg-yellow-300 animate-bounce" style={{ animationDelay: '0ms' }} />
-                <div className="w-2 h-2 rounded-full bg-yellow-300 animate-bounce" style={{ animationDelay: '150ms' }} />
-                <div className="w-2 h-2 rounded-full bg-yellow-300 animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="mt-4 flex items-center justify-center gap-1 text-primary">
+                <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+                <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+                <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
             </CardContent>
           </Card>
         )}
 
         {/* 奖品列表 */}
-        <Card className="bg-black/20 backdrop-blur border-white/20">
+        <Card className="animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
           <CardHeader className="pb-3">
-            <CardTitle className="text-white flex items-center gap-2 text-base">
-              <Trophy className="h-5 w-5" />
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Trophy className="h-5 w-5 text-amber-500" />
               奖项设置
             </CardTitle>
           </CardHeader>
@@ -327,15 +329,15 @@ export default function LotteryMobilePage({
               {prizes.map((prize, index) => (
                 <div
                   key={prize.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-white/10"
+                  className="flex items-center justify-between p-3 rounded-lg bg-secondary"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-yellow-500/20 text-yellow-300 flex items-center justify-center text-xs font-bold">
+                    <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
                       {index + 1}
                     </span>
-                    <span className="text-white font-medium text-sm">{prize.name}</span>
+                    <span className="font-medium text-sm">{prize.name}</span>
                   </div>
-                  <span className="text-white/60 text-sm">{prize.count} 名</span>
+                  <span className="text-muted-foreground text-sm">{prize.count} 名</span>
                 </div>
               ))}
             </div>
@@ -343,7 +345,7 @@ export default function LotteryMobilePage({
         </Card>
 
         {/* 底部提示 */}
-        <p className="text-center text-white/50 text-xs pb-2">
+        <p className="text-center text-muted-foreground text-xs pb-2">
           祝您好运 🍀
         </p>
       </div>

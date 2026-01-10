@@ -13,7 +13,8 @@
     "db:studio": "drizzle-kit studio",
     "test": "playwright test",
     "test:demo": "VIDEO_MODE=true playwright test full-demo.spec.ts --project=chromium",
-    "demo:video": "VIDEO_MODE=true playwright test full-demo.spec.ts --project=chromium && mkdir -p e2e/demo-videos && cp e2e/test-results/*/video.webm e2e/demo-videos/murphy-demo.webm && echo '✅ 视频已保存到 e2e/demo-videos/murphy-demo.webm'"
+    "demo:video": "VIDEO_MODE=true playwright test full-demo.spec.ts --project=chromium && mkdir -p e2e/demo-videos && cp e2e/test-results/*/video.webm e2e/demo-videos/murphy-demo.webm && echo '✅ 视频已保存到 e2e/demo-videos/murphy-demo.webm'",
+    "promo:screenshots": "mkdir -p e2e/promo && playwright test promo-screenshots.spec.ts --project=chromium && echo '✅ 宣传截图已保存到 e2e/promo/'"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",
