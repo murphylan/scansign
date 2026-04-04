@@ -77,128 +77,120 @@ export default function MePage() {
     fetchStats();
   }, [fetchStats]);
 
+  const appItems = stats
+    ? [
+        { icon: UserCheck, label: "签到", count: stats.breakdown.checkins, color: "text-emerald-500", bg: "bg-emerald-500/10", href: "/apps?tab=checkins" },
+        { icon: Vote, label: "投票", count: stats.breakdown.votes, color: "text-blue-500", bg: "bg-blue-500/10", href: "/apps?tab=votes" },
+        { icon: FileText, label: "表单", count: stats.breakdown.forms, color: "text-purple-500", bg: "bg-purple-500/10", href: "/apps?tab=forms" },
+        { icon: Gift, label: "抽奖", count: stats.breakdown.lotteries, color: "text-orange-500", bg: "bg-orange-500/10", href: "/apps?tab=lotteries" },
+      ]
+    : [];
+
+  const menuItems = [
+    { icon: Settings, label: "账户设置", href: "/settings" },
+    { icon: Lock, label: "修改密码", href: "/settings" },
+  ];
+
   return (
-    <div className="space-y-4 max-w-lg mx-auto">
-      {/* User Card */}
-      <div className="bg-linear-to-br from-primary/10 via-amber-500/5 to-background rounded-2xl border border-border p-5">
-        <div className="flex items-center gap-4">
-          <div className="h-16 w-16 rounded-full bg-linear-to-br from-primary/60 to-amber-500/60 flex items-center justify-center shrink-0 shadow-md">
-            <span className="text-xl font-bold text-white">
-              {user.nickname?.charAt(0) || user.email.charAt(0).toUpperCase()}
-            </span>
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-lg font-bold truncate">
-              {user.nickname || user.email.split("@")[0]}
-            </h2>
-            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-            <div className="mt-1.5">
-              {user.role === "ADMIN" ? (
-                <span className="inline-flex items-center gap-1 text-xs bg-amber-500/20 text-amber-600 px-2.5 py-0.5 rounded-full font-medium">
-                  <Crown className="h-3 w-3" />
-                  管理员
-                </span>
-              ) : user.isPaid ? (
-                <span className="inline-flex items-center text-xs bg-emerald-500/20 text-emerald-600 px-2.5 py-0.5 rounded-full font-medium">
-                  付费用户
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-xs bg-blue-500/20 text-blue-600 px-2.5 py-0.5 rounded-full font-medium">
-                  <Clock className="h-3 w-3" />
-                  免费试用 · 剩余 {user.trialDaysRemaining} 天
-                </span>
-              )}
-            </div>
-          </div>
+    <div className="space-y-3">
+      {/* User Card -- compact horizontal */}
+      <div className="bg-linear-to-br from-primary/10 via-amber-500/5 to-background rounded-2xl border border-border px-4 py-3 flex items-center gap-3">
+        <div className="h-12 w-12 rounded-full bg-linear-to-br from-primary/60 to-amber-500/60 flex items-center justify-center shrink-0 shadow-sm">
+          <span className="text-lg font-bold text-white">
+            {user.nickname?.charAt(0) || user.email.charAt(0).toUpperCase()}
+          </span>
         </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-base font-bold truncate">
+            {user.nickname || user.email.split("@")[0]}
+          </h2>
+          <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
+        </div>
+        {user.role === "ADMIN" ? (
+          <span className="inline-flex items-center gap-1 text-[10px] bg-amber-500/20 text-amber-600 px-2 py-0.5 rounded-full font-medium shrink-0">
+            <Crown className="h-3 w-3" />
+            管理员
+          </span>
+        ) : user.isPaid ? (
+          <span className="inline-flex items-center text-[10px] bg-emerald-500/20 text-emerald-600 px-2 py-0.5 rounded-full font-medium shrink-0">
+            付费用户
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-[10px] bg-blue-500/20 text-blue-600 px-2 py-0.5 rounded-full font-medium shrink-0">
+            <Clock className="h-3 w-3" />
+            试用 {user.trialDaysRemaining} 天
+          </span>
+        )}
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-card rounded-2xl border border-border p-3 text-center">
-          <div className="h-8 w-8 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto mb-1.5">
-            <Calendar className="h-4 w-4 text-blue-500" />
-          </div>
-          <p className="text-lg font-bold">{stats?.totalActivities ?? "-"}</p>
-          <p className="text-[10px] text-muted-foreground">总活动</p>
-        </div>
-        <div className="bg-card rounded-2xl border border-border p-3 text-center">
-          <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-1.5">
-            <TrendingUp className="h-4 w-4 text-emerald-500" />
-          </div>
-          <p className="text-lg font-bold">{stats?.activeActivities ?? "-"}</p>
-          <p className="text-[10px] text-muted-foreground">进行中</p>
-        </div>
-        <div className="bg-card rounded-2xl border border-border p-3 text-center">
-          <div className="h-8 w-8 rounded-full bg-purple-500/10 flex items-center justify-center mx-auto mb-1.5">
-            <Users className="h-4 w-4 text-purple-500" />
-          </div>
-          <p className="text-lg font-bold">{stats?.totalParticipants ?? "-"}</p>
-          <p className="text-[10px] text-muted-foreground">总参与</p>
-        </div>
-      </div>
-
-      {/* App Breakdown */}
-      {stats && (
-        <div className="bg-card rounded-2xl border border-border overflow-hidden">
-          <div className="px-4 py-3 border-b border-border">
-            <h3 className="text-sm font-semibold">我的应用</h3>
-          </div>
+      {/* Stats -- 3-col grid, compact */}
+      <div className="bg-card rounded-2xl border border-border p-3">
+        <div className="grid grid-cols-3 divide-x divide-border">
           {[
-            { icon: UserCheck, label: "签到", count: stats.breakdown.checkins, color: "text-emerald-500", bg: "bg-emerald-500/10", href: "/apps?tab=checkins" },
-            { icon: Vote, label: "投票", count: stats.breakdown.votes, color: "text-blue-500", bg: "bg-blue-500/10", href: "/apps?tab=votes" },
-            { icon: FileText, label: "表单", count: stats.breakdown.forms, color: "text-purple-500", bg: "bg-purple-500/10", href: "/apps?tab=forms" },
-            { icon: Gift, label: "抽奖", count: stats.breakdown.lotteries, color: "text-orange-500", bg: "bg-orange-500/10", href: "/apps?tab=lotteries" },
-          ].map((item, i, arr) => (
-            <Link key={item.label} href={item.href}>
-              <div className={`flex items-center gap-3 px-4 py-3 active:bg-secondary transition-colors ${i < arr.length - 1 ? "border-b border-border" : ""}`}>
-                <div className={`h-8 w-8 rounded-lg ${item.bg} flex items-center justify-center shrink-0`}>
-                  <item.icon className={`h-4 w-4 ${item.color}`} />
+            { icon: Calendar, value: stats?.totalActivities ?? "-", label: "总活动", color: "text-blue-500", bg: "bg-blue-500/10" },
+            { icon: TrendingUp, value: stats?.activeActivities ?? "-", label: "进行中", color: "text-emerald-500", bg: "bg-emerald-500/10" },
+            { icon: Users, value: stats?.totalParticipants ?? "-", label: "总参与", color: "text-purple-500", bg: "bg-purple-500/10" },
+          ].map((s) => (
+            <div key={s.label} className="flex flex-col items-center py-1">
+              <div className={`h-7 w-7 rounded-full ${s.bg} flex items-center justify-center mb-1`}>
+                <s.icon className={`h-3.5 w-3.5 ${s.color}`} />
+              </div>
+              <p className="text-base font-bold leading-tight">{s.value}</p>
+              <p className="text-[10px] text-muted-foreground">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* App Breakdown -- 2x2 grid */}
+      {stats && (
+        <div className="bg-card rounded-2xl border border-border p-3">
+          <h3 className="text-xs font-semibold text-muted-foreground mb-2 px-1">我的应用</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {appItems.map((item) => (
+              <Link key={item.label} href={item.href}>
+                <div className="flex items-center gap-2.5 rounded-xl border border-border px-3 py-2.5 active:bg-secondary transition-colors">
+                  <div className={`h-8 w-8 rounded-lg ${item.bg} flex items-center justify-center shrink-0`}>
+                    <item.icon className={`h-4 w-4 ${item.color}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground">{item.label}</p>
+                    <p className="text-sm font-bold leading-tight">{item.count}</p>
+                  </div>
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 </div>
-                <span className="flex-1 text-sm">{item.label}</span>
-                <span className="text-sm font-semibold text-muted-foreground">{item.count}</span>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Menu -- 2-col grid + logout full width */}
+      <div className="bg-card rounded-2xl border border-border p-3">
+        <div className="grid grid-cols-2 gap-2">
+          {menuItems.map((item) => (
+            <Link key={item.label} href={item.href}>
+              <div className="flex items-center gap-2 rounded-xl border border-border px-3 py-2.5 active:bg-secondary transition-colors">
+                <div className="h-7 w-7 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                  <item.icon className="h-3.5 w-3.5 text-muted-foreground" />
+                </div>
+                <span className="text-sm">{item.label}</span>
               </div>
             </Link>
           ))}
         </div>
-      )}
-
-      {/* Menu */}
-      <div className="bg-card rounded-2xl border border-border overflow-hidden">
-        <Link href="/settings">
-          <div className="flex items-center gap-3 px-4 py-3.5 active:bg-secondary transition-colors border-b border-border">
-            <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-              <Settings className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <span className="flex-1 text-sm">账户设置</span>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          </div>
-        </Link>
-        <Link href="/settings">
-          <div className="flex items-center gap-3 px-4 py-3.5 active:bg-secondary transition-colors border-b border-border">
-            <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-              <Lock className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <span className="flex-1 text-sm">修改密码</span>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          </div>
-        </Link>
         <button
           onClick={logout}
-          className="w-full flex items-center gap-3 px-4 py-3.5 active:bg-secondary transition-colors"
+          className="w-full flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-2.5 mt-2 active:bg-secondary transition-colors"
         >
-          <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-            <LogOut className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <span className="flex-1 text-sm text-left">退出登录</span>
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          <LogOut className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-sm">退出登录</span>
         </button>
       </div>
 
       {/* Version */}
-      <div className="text-center py-4">
-        <p className="text-[11px] text-muted-foreground">Murphy v1.0.0</p>
+      <div className="text-center py-2">
+        <p className="text-[10px] text-muted-foreground">Murphy v1.0.0</p>
       </div>
     </div>
   );

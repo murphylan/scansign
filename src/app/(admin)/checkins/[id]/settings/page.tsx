@@ -262,7 +262,7 @@ export default function CheckinSettingsPage({
               <Label htmlFor="title">签到标题 *</Label>
               <Input
                 id="title"
-                placeholder="如：2024年会签到"
+                placeholder="如：2026年会签到"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required

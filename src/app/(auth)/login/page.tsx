@@ -35,11 +35,13 @@ export default function LoginPage() {
     <div className="bg-white/95 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-primary/20">
       {/* Logo 和标题 */}
       <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-linear-to-br from-primary to-amber-500 mb-4">
-          <span className="text-3xl font-bold text-white">M</span>
+        <div className="inline-flex items-center justify-center gap-2 mb-2">
+          <div className="h-8 w-8 rounded-lg bg-linear-to-br from-primary to-amber-500 flex items-center justify-center">
+            <span className="text-sm font-bold text-white">M</span>
+          </div>
+          <h1 className="text-2xl font-bold text-foreground">欢迎回来</h1>
         </div>
-        <h1 className="text-2xl font-bold text-foreground">欢迎回来</h1>
-        <p className="text-muted-foreground mt-2">登录 Murphy 互动工具集</p>
+        <p className="text-muted-foreground mt-1">登录 Murphy 互动工具集</p>
       </div>
 
       {/* 错误提示 */}

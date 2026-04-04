@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import {
   Settings,
@@ -11,6 +11,7 @@ import {
   Crown,
   Clock,
   MoreHorizontal,
+  ChevronLeft,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -37,9 +38,8 @@ function resolvePageTitle(pathname: string): string {
   if (pathname === "/apps" || APP_ROUTE_PREFIXES.some((p) => pathname === p)) {
     return "应用";
   }
-  if (pathname === "/me") {
-    return "我的";
-  }
+  if (pathname === "/me") return "我的";
+  if (pathname === "/settings") return "设置";
 
   const sidebarMatch = navigation.find(
     (item) => pathname === item.href || pathname.startsWith(item.href + "/")
@@ -56,6 +56,7 @@ function resolvePageTitle(pathname: string): string {
 
 export function MobileHeader({ user }: MobileHeaderProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -65,12 +66,14 @@ export function MobileHeader({ user }: MobileHeaderProps) {
     <>
       <header className="fixed top-0 left-0 right-0 z-40 h-12 bg-card border-b border-border lg:hidden">
         <div className="flex items-center justify-between h-full px-4">
-          <Link href="/" className="flex items-center gap-1.5 shrink-0">
-            <div className="h-6 w-6 rounded-md bg-linear-to-br from-primary to-amber-500 flex items-center justify-center">
-              <span className="text-xs font-bold text-primary-foreground">M</span>
-            </div>
-            <span className="text-sm font-semibold text-muted-foreground">Murphy</span>
-          </Link>
+          {/* Left: back button */}
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-0.5 shrink-0 text-muted-foreground active:text-foreground transition-colors"
+          >
+            <ChevronLeft className="h-5 w-5" />
+            <span className="text-sm">返回</span>
+          </button>
 
           <h1 className="absolute left-1/2 -translate-x-1/2 text-[15px] font-semibold">
             {pageTitle}
