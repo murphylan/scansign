@@ -1,0 +1,30 @@
+.git
+.gitignore
+.next
+.env
+.env.local
+.env.*.local
+node_modules
+npm-debug.log*
+pnpm-debug.log*
+
+# IDE
+.vscode
+.cursor
+.idea
+
+# Testing
+e2e
+playwright.config.ts
+playwright-report
+
+# Prisma (legacy, not used)
+prisma
+
+# Build artifacts
+drizzle
+*.tsbuildinfo
+
+# Documentation
+README.md
+LICENSE
