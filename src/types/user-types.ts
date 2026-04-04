@@ -14,6 +14,7 @@ export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 export const SubscriptionPlan = {
   MONTHLY: "MONTHLY",
   QUARTERLY: "QUARTERLY",
+  PAY_PER_USE: "PAY_PER_USE",
   YEARLY: "YEARLY",
 } as const;
 

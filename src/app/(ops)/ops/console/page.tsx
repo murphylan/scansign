@@ -219,9 +219,9 @@ export default function OpsConsolePage() {
                           size="sm"
                           variant="secondary"
                           className="h-7 text-xs"
-                          onClick={() => onGrant(r.id, "YEARLY")}
+                          onClick={() => onGrant(r.id, "PAY_PER_USE")}
                         >
-                          +年
+                          +次(3天)
                         </Button>
                         <Button
                           size="sm"

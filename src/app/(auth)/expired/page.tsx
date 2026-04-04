@@ -18,20 +18,21 @@ export default function ExpiredPage() {
 
       <h1 className="text-2xl font-bold text-white mb-2">试用期已结束</h1>
       <p className="text-white/60 mb-4">
-        你的免费试用（最长 14 天，以账户开通日为准）已结束。
+        你的免费试用（共 3 天，自注册成功日起算）已结束。
         <br />
         续用请<span className="text-white/90">线下联系开通付费套餐</span>。
       </p>
 
       <div className="text-left rounded-xl bg-black/20 border border-white/10 p-4 mb-4 text-sm text-white/80 space-y-2">
         <p className="font-medium text-white/90">套餐参考</p>
-        <ul className="space-y-1">
+        <ul className="space-y-3">
           {PRICING_PLANS.map((p) => (
-            <li key={p.id} className="flex justify-between">
-              <span>{p.label}</span>
-              <span>
-                ¥{p.priceYuan}/{p.period}
-              </span>
+            <li key={p.id} className="border-b border-white/10 pb-2 last:border-0 last:pb-0">
+              <div className="flex justify-between gap-2">
+                <span className="font-medium text-white/90">{p.label}</span>
+                <span className="shrink-0">{p.periodHint}</span>
+              </div>
+              <p className="text-xs text-white/50 mt-1 leading-relaxed">{p.description}</p>
             </li>
           ))}
         </ul>

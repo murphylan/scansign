@@ -34,22 +34,25 @@ async function requireOps(): Promise<AuthUser> {
   return u;
 }
 
-function addMonths(from: Date, months: number): Date {
+function addDays(from: Date, days: number): Date {
   const d = new Date(from);
-  d.setMonth(d.getMonth() + months);
+  d.setDate(d.getDate() + days);
   return d;
 }
 
-function planToMonths(plan: SubscriptionPlan): number {
+/** 自开通日起向后延续的自然日数（续费时从未到期日顺延） */
+function planToExtraDays(plan: SubscriptionPlan): number {
   switch (plan) {
     case "MONTHLY":
-      return 1;
+      return 30;
     case "QUARTERLY":
+      return 90;
+    case "PAY_PER_USE":
       return 3;
     case "YEARLY":
-      return 12;
+      return 365;
     default:
-      return 1;
+      return 30;
   }
 }
 
@@ -126,7 +129,12 @@ export async function listOpsUsersAction(search?: string): Promise<{
   }
 }
 
-const planSchema = z.enum(["MONTHLY", "QUARTERLY", "YEARLY"]);
+const planSchema = z.enum([
+  "MONTHLY",
+  "QUARTERLY",
+  "PAY_PER_USE",
+  "YEARLY",
+]);
 
 export async function grantSubscriptionAction(
   userId: string,
@@ -147,12 +155,12 @@ export async function grantSubscriptionAction(
     }
 
     const now = new Date();
-    const months = planToMonths(plan);
+    const extraDays = planToExtraDays(plan);
     const base =
       target.subscriptionEndsAt && new Date(target.subscriptionEndsAt) > now
         ? new Date(target.subscriptionEndsAt)
         : now;
-    const endsAt = addMonths(base, months);
+    const endsAt = addDays(base, extraDays);
 
     await db
       .update(users)

@@ -13,6 +13,7 @@ export const activityStatusEnum = toolSchema.enum("ActivityStatus", ["DRAFT", "A
 export const subscriptionPlanEnum = toolSchema.enum("SubscriptionPlan", [
   "MONTHLY",
   "QUARTERLY",
+  "PAY_PER_USE",
   "YEARLY",
 ]);
 
@@ -25,7 +26,7 @@ export const users = toolSchema.table("User", {
   role: userRoleEnum("role").default("USER").notNull(),
   
   trialStartAt: timestamp("trialStartAt").defaultNow().notNull(),
-  trialDays: integer("trialDays").default(14).notNull(),
+  trialDays: integer("trialDays").default(3).notNull(),
   isPaid: boolean("isPaid").default(false).notNull(),
   paidAt: timestamp("paidAt"),
   subscriptionPlan: subscriptionPlanEnum("subscriptionPlan"),

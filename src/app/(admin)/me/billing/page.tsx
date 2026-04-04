@@ -13,10 +13,10 @@ import {
 } from "@/lib/pricing";
 
 const COMMITMENTS = [
-  "为你提供签到、投票、表单、抽奖等互动能力的稳定使用环境。",
-  "付费周期内持续修复影响使用的缺陷，重大变更会提前说明。",
-  "你的活动与参与数据归属你本人，我们不在未授权情况下向第三方出售数据。",
-  "线下付款确认后，在约定时间内为你开通或续期对应套餐。",
+  "提供签到、投票、表单、抽奖等互动能力的稳定运行与持续迭代。",
+  "付费有效期内优先处理影响使用的问题；重大规则调整将提前告知。",
+  "活动与参与者数据归你所有，未经授权不会向第三方出售或公开。",
+  "线下付款确认后，在约定时间内完成开通；权益以系统到期时间为准。",
 ];
 
 export default function MeBillingPage() {
@@ -34,7 +34,9 @@ export default function MeBillingPage() {
 
       <div>
         <h1 className="text-lg font-bold">订阅与付款说明</h1>
-        <p className="text-xs text-muted-foreground mt-1">线下支付 · 详见下文联系方式</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          线下支付 · 时长均自开通之时起按自然日连续计算 · 详见联系方式
+        </p>
       </div>
 
       {/* 当前权益摘要 */}
@@ -81,17 +83,21 @@ export default function MeBillingPage() {
           <span className="h-2 w-2 rounded-full bg-primary" />
           定价
         </h2>
-        <ul className="space-y-2">
+        <ul className="space-y-3">
           {PRICING_PLANS.map((p) => (
             <li
               key={p.id}
-              className="flex items-center justify-between rounded-xl border border-border px-3 py-2.5"
+              className="rounded-xl border border-border px-3 py-3 space-y-1.5"
             >
-              <span className="text-sm font-medium">{p.label}</span>
-              <span className="text-sm">
-                ¥{p.priceYuan}
-                <span className="text-muted-foreground text-xs ml-1">/{p.period}</span>
-              </span>
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-sm font-semibold">{p.label}</span>
+                <span className="text-sm font-medium text-primary shrink-0">
+                  {p.periodHint}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {p.description}
+              </p>
             </li>
           ))}
         </ul>
