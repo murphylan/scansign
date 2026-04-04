@@ -188,6 +188,23 @@ export default function MePage() {
         </button>
       </div>
 
+      {/* About */}
+      <div className="bg-card rounded-2xl border border-border p-4">
+        <h3 className="text-xs font-semibold text-muted-foreground mb-2">关于我们</h3>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Murphy Cloud 致力于为企业和个人提供高效、安全、易用的数字化解决方案。Murphy 互动工具集是旗下活动互动 SaaS 产品，提供签到、投票、抽奖、表单等全场景互动能力。
+        </p>
+        <a
+          href="https://murphylan.cloud"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-xs text-primary font-medium mt-2"
+        >
+          访问官网
+          <ChevronRight className="h-3 w-3" />
+        </a>
+      </div>
+
       {/* Version */}
       <div className="text-center py-2">
         <p className="text-[10px] text-muted-foreground">Murphy v1.0.0</p>
