@@ -458,7 +458,7 @@ export default function LotterySettingsPage({
               {qrShow && (
                 <div className="space-y-4">
                   <Label>二维码位置</Label>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
                       { value: 'top-left', label: '左上' },
                       { value: 'top-right', label: '右上' },

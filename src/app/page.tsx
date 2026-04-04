@@ -1,160 +1,224 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
 import {
   UserCheck,
   Vote,
   Gift,
   FileText,
-  ArrowRight,
+  ChevronRight,
   Sparkles,
-} from 'lucide-react';
+  Zap,
+  BarChart3,
+  QrCode,
+  Monitor,
+} from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import { bottomNavItems } from "@/components/admin/nav-config";
 
 const features = [
   {
-    name: '签到',
-    description: '扫码签到，大屏互动，实时统计',
-    href: '/dashboard',
+    name: "签到",
+    description: "扫码签到",
+    href: "/apps?tab=checkins",
     icon: UserCheck,
-    color: 'from-emerald-500 to-green-600',
-    available: true,
+    color: "bg-emerald-500",
   },
   {
-    name: '投票',
-    description: '单选多选，实时结果，数据可视化',
-    href: '/votes',
+    name: "投票",
+    description: "实时投票",
+    href: "/apps?tab=votes",
     icon: Vote,
-    color: 'from-blue-500 to-indigo-600',
-    available: true,
+    color: "bg-blue-500",
   },
   {
-    name: '抽奖',
-    description: '多种模式，精彩动画，现场互动',
-    href: '/lotteries',
+    name: "抽奖",
+    description: "现场抽奖",
+    href: "/apps?tab=lotteries",
     icon: Gift,
-    color: 'from-orange-500 to-red-600',
-    available: true,
+    color: "bg-orange-500",
   },
   {
-    name: '表单',
-    description: '信息收集，提交预览，数据导出',
-    href: '/forms',
+    name: "表单",
+    description: "信息收集",
+    href: "/apps?tab=forms",
     icon: FileText,
-    color: 'from-purple-500 to-pink-600',
-    available: true,
+    color: "bg-purple-500",
+  },
+];
+
+const highlights = [
+  { icon: QrCode, label: "扫码参与", desc: "参与者扫码即可参与" },
+  { icon: Monitor, label: "大屏展示", desc: "活动现场实时展示" },
+  { icon: BarChart3, label: "数据统计", desc: "参与数据实时汇总" },
+  { icon: Zap, label: "即时创建", desc: "3分钟创建互动活动" },
+];
+
+const featureDetails = [
+  {
+    name: "签到",
+    icon: UserCheck,
+    color: "bg-emerald-500",
+    desc: "扫码签到，大屏互动，实时统计，支持多种签到墙样式",
+    href: "/apps?tab=checkins",
+  },
+  {
+    name: "投票",
+    icon: Vote,
+    color: "bg-blue-500",
+    desc: "单选多选，实时结果展示，数据可视化，支持匿名投票",
+    href: "/apps?tab=votes",
+  },
+  {
+    name: "抽奖",
+    icon: Gift,
+    color: "bg-orange-500",
+    desc: "转盘抽奖，多轮设置，精彩动画效果，现场互动利器",
+    href: "/apps?tab=lotteries",
+  },
+  {
+    name: "表单",
+    icon: FileText,
+    color: "bg-purple-500",
+    desc: "自定义字段，信息收集，提交预览，数据导出下载",
+    href: "/apps?tab=forms",
   },
 ];
 
 export default function HomePage() {
+  const pathname = usePathname();
+
   return (
-    <div className="min-h-screen bg-linear-to-br from-background via-background to-secondary/20">
-      {/* Hero Section */}
-      <div className="container mx-auto px-4 py-16 md:py-24">
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
-            <Sparkles className="h-4 w-4" />
-            全场景互动工具
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Header */}
+      <header className="sticky top-0 z-40 h-12 bg-card border-b border-border">
+        <div className="flex items-center justify-center h-full px-4 relative">
+          <div className="absolute left-4 flex items-center gap-1.5">
+            <div className="h-6 w-6 rounded-md bg-linear-to-br from-primary to-amber-500 flex items-center justify-center">
+              <span className="text-xs font-bold text-primary-foreground">M</span>
+            </div>
           </div>
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
-            Murphy{' '}
-            <span className="bg-linear-to-r from-primary to-amber-500 bg-clip-text text-transparent">
-              互动工具集
-            </span>
-          </h1>
-          <p className="text-xl text-muted-foreground mb-8">
-            签到、投票、抽奖、表单，一站式满足各类活动互动需求
-          </p>
-          <Link href="/dashboard">
-            <Button size="lg" className="gap-2 text-lg px-8 h-14">
-              进入控制台
-              <ArrowRight className="h-5 w-5" />
-            </Button>
-          </Link>
+          <h1 className="text-[15px] font-semibold">Murphy</h1>
+        </div>
+      </header>
+
+      {/* Content */}
+      <main className="flex-1 pb-[76px]">
+        {/* Hero */}
+        <div className="bg-linear-to-br from-primary/5 via-amber-500/5 to-background px-4 pt-8 pb-6 text-center">
+          <h2 className="text-2xl font-bold tracking-tight mb-1">Murphy 互动工具集</h2>
+          <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium mt-2">
+            <Sparkles className="h-3 w-3" />
+            全场景活动互动平台
+          </div>
         </div>
 
-        {/* Features Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 max-w-6xl mx-auto">
-          {features.map((feature) => (
-            <Link
-              key={feature.name}
-              href={feature.available ? feature.href : '#'}
-              className={feature.available ? '' : 'cursor-not-allowed'}
-              onClick={(e) => !feature.available && e.preventDefault()}
-            >
-              <Card
-                className={`group h-full transition-all duration-300 ${
-                  feature.available
-                    ? 'hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1'
-                    : 'opacity-60'
-                }`}
-              >
-                <CardContent className="p-6">
-                  <div
-                    className={`h-14 w-14 rounded-2xl bg-linear-to-br ${feature.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}
-                  >
-                    <feature.icon className="h-7 w-7 text-white" />
+        {/* 金刚区 */}
+        <div className="px-4 -mt-1">
+          <div className="bg-card rounded-2xl border border-border p-5 shadow-sm">
+            <div className="grid grid-cols-4 gap-3">
+              {features.map((f) => (
+                <Link
+                  key={f.name}
+                  href={f.href}
+                  className="flex flex-col items-center gap-2 py-2 rounded-xl active:bg-secondary transition-colors"
+                >
+                  <div className={cn("h-12 w-12 rounded-xl flex items-center justify-center shadow-sm", f.color)}>
+                    <f.icon className="h-6 w-6 text-white" />
                   </div>
-                  <h3 className="text-xl font-semibold mb-2">{feature.name}</h3>
-                  <p className="text-muted-foreground text-sm">
-                    {feature.available ? feature.description : '即将推出'}
-                  </p>
-                  {feature.available && (
-                    <div className="flex items-center gap-1 text-primary text-sm font-medium mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                      立即使用 <ArrowRight className="h-4 w-4" />
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
-
-        {/* Quick Start */}
-        <div className="mt-20 text-center">
-          <h2 className="text-2xl font-bold mb-4">快速开始</h2>
-          <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
-            只需简单几步，即可创建你的第一个互动活动
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            <div className="flex items-center gap-3 px-6 py-3 rounded-xl bg-secondary/50">
-              <span className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
-                1
-              </span>
-              <span>进入控制台</span>
-            </div>
-            <ArrowRight className="h-5 w-5 text-muted-foreground hidden md:block" />
-            <div className="flex items-center gap-3 px-6 py-3 rounded-xl bg-secondary/50">
-              <span className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
-                2
-              </span>
-              <span>创建活动</span>
-            </div>
-            <ArrowRight className="h-5 w-5 text-muted-foreground hidden md:block" />
-            <div className="flex items-center gap-3 px-6 py-3 rounded-xl bg-secondary/50">
-              <span className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
-                3
-              </span>
-              <span>分享二维码</span>
-            </div>
-            <ArrowRight className="h-5 w-5 text-muted-foreground hidden md:block" />
-            <div className="flex items-center gap-3 px-6 py-3 rounded-xl bg-secondary/50">
-              <span className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
-                4
-              </span>
-              <span>开始互动</span>
+                  <div className="text-center">
+                    <p className="text-xs font-semibold">{f.name}</p>
+                    <p className="text-[10px] text-muted-foreground">{f.description}</p>
+                  </div>
+                </Link>
+              ))}
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Footer */}
-      <footer className="border-t border-border py-8 mt-16">
-        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>Murphy 互动工具集 · 让活动更精彩</p>
+        {/* Highlights */}
+        <div className="px-4 mt-4">
+          <div className="bg-card rounded-2xl border border-border p-4 shadow-sm">
+            <div className="grid grid-cols-4 gap-2">
+              {highlights.map((h) => (
+                <div key={h.label} className="flex flex-col items-center gap-1.5 py-2">
+                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
+                    <h.icon className="h-4 w-4 text-primary" />
+                  </div>
+                  <p className="text-[11px] font-medium text-center">{h.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </footer>
+
+        {/* Feature Details */}
+        <div className="px-4 mt-6">
+          <h3 className="text-base font-semibold mb-3 px-1">功能介绍</h3>
+          <div className="space-y-3">
+            {featureDetails.map((f) => (
+              <Link key={f.name} href={f.href}>
+                <div className="bg-card rounded-2xl border border-border p-4 flex items-center gap-4 active:bg-secondary transition-colors shadow-sm">
+                  <div className={cn("h-12 w-12 rounded-xl flex items-center justify-center shrink-0", f.color)}>
+                    <f.icon className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm">{f.name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{f.desc}</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-4 pt-8 pb-4 text-center">
+          <p className="text-xs text-muted-foreground">Murphy 互动工具集 · 让活动更精彩</p>
+        </div>
+      </main>
+
+      {/* Bottom Tab Bar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border">
+        <div
+          className="grid h-[60px]"
+          style={{
+            gridTemplateColumns: `repeat(${bottomNavItems.length}, 1fr)`,
+            paddingBottom: "env(safe-area-inset-bottom)",
+          }}
+        >
+          {bottomNavItems.map((item) => {
+            const active = pathname === "/" && item.href === "/";
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "relative flex flex-col items-center justify-center gap-1 transition-colors",
+                  active
+                    ? "text-primary"
+                    : "text-muted-foreground active:text-foreground"
+                )}
+              >
+                {active && (
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-b-full bg-primary" />
+                )}
+                <item.icon
+                  className={cn("h-[22px] w-[22px]", active ? "text-primary" : "text-muted-foreground")}
+                  strokeWidth={active ? 2.2 : 1.8}
+                />
+                <span className={cn("text-[11px] leading-none", active ? "font-semibold" : "font-medium")}>
+                  {item.name}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }

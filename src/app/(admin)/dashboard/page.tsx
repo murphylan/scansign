@@ -87,11 +87,11 @@ export default function DashboardPage() {
   const activeCount = recentCheckins.filter(c => c.status === 'active').length;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">控制台</h1>
-        <p className="text-muted-foreground mt-1">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">首页</h1>
+        <p className="text-muted-foreground mt-1 text-sm sm:text-base">
           欢迎使用 Murphy 互动工具集
         </p>
       </div>
@@ -210,15 +210,15 @@ export default function DashboardPage() {
               {recentCheckins.map((checkin) => (
                 <div
                   key={checkin.id}
-                  className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-secondary/50 transition-colors"
+                  className="flex items-center justify-between p-3 sm:p-4 rounded-lg border border-border hover:bg-secondary/50 transition-colors gap-2"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="h-10 w-10 rounded-lg bg-linear-to-br from-emerald-500 to-green-600 flex items-center justify-center">
-                      <UserCheck className="h-5 w-5 text-white" />
+                  <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                    <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg bg-linear-to-br from-emerald-500 to-green-600 flex items-center justify-center shrink-0">
+                      <UserCheck className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                     </div>
-                    <div>
-                      <h4 className="font-medium">{checkin.title}</h4>
-                      <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                    <div className="min-w-0">
+                      <h4 className="font-medium truncate">{checkin.title}</h4>
+                      <div className="flex items-center gap-2 sm:gap-3 mt-1 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Users className="h-3.5 w-3.5" />
                           {checkin.stats?.total ?? 0} 人
@@ -243,15 +243,12 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Link href={`/c/${checkin.code}/display`} target="_blank">
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Link href={`/c/${checkin.code}/display`} target="_blank" className="hidden sm:block">
                       <Button variant="ghost" size="icon" title="打开大屏">
                         <Monitor className="h-4 w-4" />
                       </Button>
                     </Link>
-                    <Button variant="ghost" size="icon" title="分享">
-                      <Share2 className="h-4 w-4" />
-                    </Button>
                     <Link href={`/checkins/${checkin.id}`}>
                       <Button variant="ghost" size="icon" title="详情">
                         <ArrowRight className="h-4 w-4" />

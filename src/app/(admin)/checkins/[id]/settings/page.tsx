@@ -287,8 +287,8 @@ export default function CheckinSettingsPage({
             <CardDescription>选择签到时需要收集的信息</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
-              <label className="flex items-center gap-2 p-3 rounded-lg border border-border cursor-pointer hover:bg-secondary/50 transition-colors">
+            <div className="flex flex-wrap gap-3 sm:gap-4">
+              <label className="flex items-center gap-2 p-3 rounded-lg border border-border cursor-pointer hover:bg-secondary/50 transition-colors flex-1 min-w-[100px]">
                 <input
                   type="checkbox"
                   checked={needPhone}
@@ -297,7 +297,7 @@ export default function CheckinSettingsPage({
                 />
                 <span>手机号</span>
               </label>
-              <label className="flex items-center gap-2 p-3 rounded-lg border border-border cursor-pointer hover:bg-secondary/50 transition-colors">
+              <label className="flex items-center gap-2 p-3 rounded-lg border border-border cursor-pointer hover:bg-secondary/50 transition-colors flex-1 min-w-[100px]">
                 <input
                   type="checkbox"
                   checked={needName}
@@ -306,7 +306,7 @@ export default function CheckinSettingsPage({
                 />
                 <span>姓名</span>
               </label>
-              <label className="flex items-center gap-2 p-3 rounded-lg border border-border cursor-pointer hover:bg-secondary/50 transition-colors">
+              <label className="flex items-center gap-2 p-3 rounded-lg border border-border cursor-pointer hover:bg-secondary/50 transition-colors flex-1 min-w-[100px]">
                 <input
                   type="checkbox"
                   checked={needDepartment}
@@ -363,7 +363,7 @@ export default function CheckinSettingsPage({
             <CardDescription>用户签到成功后的操作</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               <label
                 className={`flex flex-col items-center gap-2 p-4 rounded-lg border cursor-pointer transition-all ${afterType === 'message'
                     ? 'border-primary bg-primary/5'
@@ -485,7 +485,7 @@ export default function CheckinSettingsPage({
               {/* 大屏配置 */}
               <div className="space-y-4">
                 <Label>大屏签到墙样式</Label>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {[
                     { value: 'danmaku', label: '弹幕' },
                     { value: 'grid', label: '网格' },
@@ -516,7 +516,7 @@ export default function CheckinSettingsPage({
               {/* 二维码位置 */}
               <div className="space-y-4">
                 <Label>大屏二维码位置</Label>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                   {[
                     { value: 'top-left', label: '左上' },
                     { value: 'top-center', label: '中上' },

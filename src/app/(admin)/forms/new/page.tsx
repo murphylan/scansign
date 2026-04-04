@@ -213,7 +213,7 @@ export default function NewFormPage() {
             <CardDescription>选择要添加的字段类型</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
               {(Object.entries(FIELD_TYPE_CONFIG) as [FieldType, { label: string; icon: string }][]).map(
                 ([type, config]) => (
                   <button

@@ -91,15 +91,15 @@ export default function LotteriesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">抽奖管理</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">抽奖管理</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             创建和管理抽奖活动
           </p>
         </div>
         <Link href="/lotteries/new">
-          <Button className="gap-2">
+          <Button className="gap-2 w-full sm:w-auto">
             <Plus className="h-4 w-4" />
             创建抽奖
           </Button>
@@ -135,17 +135,17 @@ export default function LotteriesPage() {
               {lotteries.map((lottery) => (
                 <div
                   key={lottery.id}
-                  className="group flex items-center justify-between p-4 rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/30 transition-all duration-200"
+                  className="group rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/30 transition-all duration-200"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-xl bg-linear-to-br from-orange-500 to-red-600 flex items-center justify-center shrink-0">
-                      <Gift className="h-6 w-6 text-white" />
+                  <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4">
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-linear-to-br from-orange-500 to-red-600 flex items-center justify-center shrink-0">
+                      <Gift className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-semibold">{lottery.title}</h4>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="font-semibold truncate">{lottery.title}</h4>
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${
                             lottery.status === 'active'
                               ? 'bg-emerald-500/10 text-emerald-500'
                               : lottery.status === 'paused'
@@ -163,27 +163,33 @@ export default function LotteriesPage() {
                             ? '已结束'
                             : '草稿'}
                         </span>
-                        <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded">
+                        <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded shrink-0">
                           {lottery.config?.mode === 'wheel' ? '转盘' : lottery.config?.mode === 'slot' ? '老虎机' : lottery.config?.mode}
                         </span>
                       </div>
-                      <div className="flex items-center gap-4 mt-1.5 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2 sm:gap-4 mt-1.5 text-sm text-muted-foreground flex-wrap">
                         <span className="flex items-center gap-1">
                           <Trophy className="h-3.5 w-3.5" />
-                          {(lottery.prizes as unknown[])?.length ?? 0} 个奖品
+                          {(lottery.prizes as unknown[])?.length ?? 0} 奖品
                         </span>
                         <span className="flex items-center gap-1">
                           <Users className="h-3.5 w-3.5" />
-                          {lottery.participantCount ?? 0} 人参与
+                          {lottery.participantCount ?? 0} 人
                         </span>
-                        <span className="font-mono text-xs bg-secondary px-2 py-0.5 rounded">
+                        <span className="hidden sm:inline font-mono text-xs bg-secondary px-2 py-0.5 rounded">
                           /l/{lottery.code}
                         </span>
                       </div>
                     </div>
+                    <Link href={`/lotteries/${lottery.id}`} className="sm:hidden shrink-0">
+                      <Button variant="ghost" size="icon">
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
                   </div>
 
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 px-3 pb-3 sm:px-4 sm:pb-4 sm:pt-0 -mt-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     <Button
                       variant="ghost"
                       size="icon"
@@ -198,7 +204,7 @@ export default function LotteriesPage() {
                       </Button>
                     </Link>
                     <Link href={`/l/${lottery.code}/display`} target="_blank">
-                      <Button variant="ghost" size="icon" title="打开大屏">
+                      <Button variant="ghost" size="icon" title="大屏">
                         <Monitor className="h-4 w-4" />
                       </Button>
                     </Link>
@@ -234,7 +240,7 @@ export default function LotteriesPage() {
                       onConfirm={() => handleDelete(lottery.id)}
                     />
 
-                    <Link href={`/lotteries/${lottery.id}`}>
+                    <Link href={`/lotteries/${lottery.id}`} className="hidden sm:block ml-auto">
                       <Button variant="ghost" size="icon" title="详情">
                         <ArrowRight className="h-4 w-4" />
                       </Button>

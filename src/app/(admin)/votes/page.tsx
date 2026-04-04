@@ -89,15 +89,15 @@ export default function VotesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">投票管理</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">投票管理</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             创建和管理投票活动
           </p>
         </div>
         <Link href="/votes/new">
-          <Button className="gap-2">
+          <Button className="gap-2 w-full sm:w-auto">
             <Plus className="h-4 w-4" />
             创建投票
           </Button>
@@ -133,17 +133,17 @@ export default function VotesPage() {
               {votes.map((vote) => (
                 <div
                   key={vote.id}
-                  className="group flex items-center justify-between p-4 rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/30 transition-all duration-200"
+                  className="group rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/30 transition-all duration-200"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-xl bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0">
-                      <VoteIcon className="h-6 w-6 text-white" />
+                  <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4">
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0">
+                      <VoteIcon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-semibold">{vote.title}</h4>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="font-semibold truncate">{vote.title}</h4>
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${
                             vote.status === 'active'
                               ? 'bg-emerald-500/10 text-emerald-500'
                               : vote.status === 'paused'
@@ -161,27 +161,33 @@ export default function VotesPage() {
                             ? '已结束'
                             : '草稿'}
                         </span>
-                        <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded">
+                        <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded shrink-0">
                           {vote.voteType === 'single' ? '单选' : '多选'}
                         </span>
                       </div>
-                      <div className="flex items-center gap-4 mt-1.5 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2 sm:gap-4 mt-1.5 text-sm text-muted-foreground flex-wrap">
                         <span className="flex items-center gap-1">
                           <BarChart3 className="h-3.5 w-3.5" />
-                          {(vote.options as unknown[])?.length ?? 0} 个选项
+                          {(vote.options as unknown[])?.length ?? 0} 选项
                         </span>
                         <span className="flex items-center gap-1">
                           <Users className="h-3.5 w-3.5" />
                           {vote.totalVotes ?? 0} 票
                         </span>
-                        <span className="font-mono text-xs bg-secondary px-2 py-0.5 rounded">
+                        <span className="hidden sm:inline font-mono text-xs bg-secondary px-2 py-0.5 rounded">
                           /v/{vote.code}
                         </span>
                       </div>
                     </div>
+                    <Link href={`/votes/${vote.id}`} className="sm:hidden shrink-0">
+                      <Button variant="ghost" size="icon">
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
                   </div>
 
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 px-3 pb-3 sm:px-4 sm:pb-4 sm:pt-0 -mt-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     <Button
                       variant="ghost"
                       size="icon"
@@ -196,7 +202,7 @@ export default function VotesPage() {
                       </Button>
                     </Link>
                     <Link href={`/v/${vote.code}/display`} target="_blank">
-                      <Button variant="ghost" size="icon" title="打开大屏">
+                      <Button variant="ghost" size="icon" title="大屏">
                         <Monitor className="h-4 w-4" />
                       </Button>
                     </Link>
@@ -232,7 +238,7 @@ export default function VotesPage() {
                       onConfirm={() => handleDelete(vote.id)}
                     />
 
-                    <Link href={`/votes/${vote.id}`}>
+                    <Link href={`/votes/${vote.id}`} className="hidden sm:block ml-auto">
                       <Button variant="ghost" size="icon" title="详情">
                         <ArrowRight className="h-4 w-4" />
                       </Button>

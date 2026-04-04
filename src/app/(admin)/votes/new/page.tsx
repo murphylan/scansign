@@ -520,7 +520,7 @@ export default function NewVotePage() {
               {/* 图表类型 */}
               <div className="space-y-4">
                 <Label>大屏图表样式</Label>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {[
                     { value: 'bar', label: '柱状图', icon: '📊' },
                     { value: 'pie', label: '饼图', icon: '🥧' },
@@ -553,7 +553,7 @@ export default function NewVotePage() {
               {/* 二维码位置 */}
               <div className="space-y-4">
                 <Label>大屏二维码位置</Label>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                   {[
                     { value: 'top-left', label: '左上' },
                     { value: 'top-center', label: '中上' },

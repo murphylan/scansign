@@ -26,7 +26,6 @@ import {
 import { DeleteConfirm } from '@/components/shared';
 import { copyToClipboard } from '@/lib/utils/clipboard';
 
-// 页面内部使用的类型
 interface CheckinListItem {
   id: string;
   code: string;
@@ -91,15 +90,15 @@ export default function CheckinsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">签到管理</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">签到管理</h1>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             创建和管理扫码签到活动
           </p>
         </div>
         <Link href="/checkins/new">
-          <Button className="gap-2">
+          <Button className="gap-2 w-full sm:w-auto">
             <Plus className="h-4 w-4" />
             创建签到
           </Button>
@@ -135,17 +134,17 @@ export default function CheckinsPage() {
               {checkins.map((checkin) => (
                 <div
                   key={checkin.id}
-                  className="group flex items-center justify-between p-4 rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/30 transition-all duration-200"
+                  className="group rounded-xl border border-border hover:border-primary/30 hover:bg-secondary/30 transition-all duration-200"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-xl bg-linear-to-br from-emerald-500 to-green-600 flex items-center justify-center shrink-0">
-                      <UserCheck className="h-6 w-6 text-white" />
+                  <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4">
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-linear-to-br from-emerald-500 to-green-600 flex items-center justify-center shrink-0">
+                      <UserCheck className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-semibold">{checkin.title}</h4>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="font-semibold truncate">{checkin.title}</h4>
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${
                             checkin.status === 'active'
                               ? 'bg-emerald-500/10 text-emerald-500'
                               : checkin.status === 'paused'
@@ -164,22 +163,28 @@ export default function CheckinsPage() {
                             : '草稿'}
                         </span>
                       </div>
-                      <div className="flex items-center gap-4 mt-1.5 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2 sm:gap-4 mt-1.5 text-sm text-muted-foreground flex-wrap">
                         <span className="flex items-center gap-1">
                           <Users className="h-3.5 w-3.5" />
-                          {checkin.stats?.total ?? 0} 人签到
+                          {checkin.stats?.total ?? 0} 人
                         </span>
                         <span className="font-mono text-xs bg-secondary px-2 py-0.5 rounded">
                           /{checkin.code}
                         </span>
-                        <span>
+                        <span className="hidden sm:inline">
                           创建于 {new Date(checkin.createdAt).toLocaleDateString()}
                         </span>
                       </div>
                     </div>
+                    <Link href={`/checkins/${checkin.id}`} className="sm:hidden shrink-0">
+                      <Button variant="ghost" size="icon">
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
                   </div>
 
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 px-3 pb-3 sm:px-4 sm:pb-4 sm:pt-0 -mt-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     <Button
                       variant="ghost"
                       size="icon"
@@ -194,7 +199,7 @@ export default function CheckinsPage() {
                       </Button>
                     </Link>
                     <Link href={`/c/${checkin.code}/display`} target="_blank">
-                      <Button variant="ghost" size="icon" title="打开大屏">
+                      <Button variant="ghost" size="icon" title="大屏">
                         <Monitor className="h-4 w-4" />
                       </Button>
                     </Link>
@@ -230,7 +235,7 @@ export default function CheckinsPage() {
                       onConfirm={() => handleDelete(checkin.id)}
                     />
 
-                    <Link href={`/checkins/${checkin.id}`}>
+                    <Link href={`/checkins/${checkin.id}`} className="hidden sm:block ml-auto">
                       <Button variant="ghost" size="icon" title="详情">
                         <ArrowRight className="h-4 w-4" />
                       </Button>

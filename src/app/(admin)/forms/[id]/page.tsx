@@ -168,18 +168,18 @@ export default function FormDetailPage({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-4">
+      <div className="space-y-3">
+        <div className="flex items-center gap-3 sm:gap-4">
           <Link href="/forms">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="shrink-0">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight">{form.title}</h1>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">{form.title}</h1>
               <span
-                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${
                   form.status === 'active'
                     ? 'bg-emerald-500/10 text-emerald-500'
                     : form.status === 'paused'
@@ -194,34 +194,35 @@ export default function FormDetailPage({
                   : '已结束'}
               </span>
             </div>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
               {form.description || '无描述'}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={exportCSV}>
-            <Download className="h-4 w-4 mr-2" />
+        <div className="flex items-center gap-2 pl-0 sm:pl-14 flex-wrap">
+          <Button variant="outline" size="sm" onClick={exportCSV}>
+            <Download className="h-4 w-4 mr-1.5" />
             导出CSV
           </Button>
           {form.status === 'active' ? (
             <Button
               variant="outline"
+              size="sm"
               onClick={() => handleStatusChange('paused')}
             >
-              <Pause className="h-4 w-4 mr-2" />
+              <Pause className="h-4 w-4 mr-1.5" />
               暂停
             </Button>
           ) : form.status === 'paused' ? (
-            <Button onClick={() => handleStatusChange('active')}>
-              <Play className="h-4 w-4 mr-2" />
+            <Button size="sm" onClick={() => handleStatusChange('active')}>
+              <Play className="h-4 w-4 mr-1.5" />
               恢复
             </Button>
           ) : null}
           <Link href={`/forms/${resolvedParams.id}/settings`}>
-            <Button variant="outline">
-              <Settings className="h-4 w-4 mr-2" />
+            <Button variant="outline" size="sm">
+              <Settings className="h-4 w-4 mr-1.5" />
               设置
             </Button>
           </Link>
@@ -229,7 +230,7 @@ export default function FormDetailPage({
       </div>
 
       {/* Stats & Actions */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <Card className="bg-linear-to-br from-purple-500/10 to-pink-600/10 border-purple-500/20">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">

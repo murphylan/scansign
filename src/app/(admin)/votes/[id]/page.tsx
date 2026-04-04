@@ -167,18 +167,18 @@ export default function VoteDetailPage({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-4">
+      <div className="space-y-3">
+        <div className="flex items-center gap-3 sm:gap-4">
           <Link href="/votes">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="shrink-0">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight">{vote.title}</h1>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">{vote.title}</h1>
               <span
-                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${
                   vote.status === 'active'
                     ? 'bg-emerald-500/10 text-emerald-500'
                     : vote.status === 'paused'
@@ -192,22 +192,22 @@ export default function VoteDetailPage({
                   ? '已暂停'
                   : '已结束'}
               </span>
-              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded">
+              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded shrink-0">
                 {vote.config?.voteType === 'single' ? '单选' : '多选'}
               </span>
             </div>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
               {vote.description || '无描述'}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 pl-0 sm:pl-14 flex-wrap">
           <ConfirmDialog
             trigger={
-              <Button variant="outline" className="text-destructive hover:text-destructive">
-                <RotateCcw className="h-4 w-4 mr-2" />
-                重置结果
+              <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
+                <RotateCcw className="h-4 w-4 mr-1.5" />
+                重置
               </Button>
             }
             title="重置投票结果"
@@ -219,20 +219,21 @@ export default function VoteDetailPage({
           {vote.status === 'active' ? (
             <Button
               variant="outline"
+              size="sm"
               onClick={() => handleStatusChange('paused')}
             >
-              <Pause className="h-4 w-4 mr-2" />
+              <Pause className="h-4 w-4 mr-1.5" />
               暂停
             </Button>
           ) : vote.status === 'paused' ? (
-            <Button onClick={() => handleStatusChange('active')}>
-              <Play className="h-4 w-4 mr-2" />
+            <Button size="sm" onClick={() => handleStatusChange('active')}>
+              <Play className="h-4 w-4 mr-1.5" />
               恢复
             </Button>
           ) : null}
           <Link href={`/votes/${resolvedParams.id}/settings`}>
-            <Button variant="outline">
-              <Settings className="h-4 w-4 mr-2" />
+            <Button variant="outline" size="sm">
+              <Settings className="h-4 w-4 mr-1.5" />
               设置
             </Button>
           </Link>
@@ -240,7 +241,7 @@ export default function VoteDetailPage({
       </div>
 
       {/* Stats & Actions */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <Card className="bg-linear-to-br from-blue-500/10 to-indigo-600/10 border-blue-500/20">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">

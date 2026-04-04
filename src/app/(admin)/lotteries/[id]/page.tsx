@@ -180,18 +180,18 @@ export default function LotteryDetailPage({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-4">
+      <div className="space-y-3">
+        <div className="flex items-center gap-3 sm:gap-4">
           <Link href="/lotteries">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="shrink-0">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight">{lottery.title}</h1>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">{lottery.title}</h1>
               <span
-                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${
                   lottery.status === 'active'
                     ? 'bg-emerald-500/10 text-emerald-500'
                     : lottery.status === 'paused'
@@ -205,21 +205,21 @@ export default function LotteryDetailPage({
                   ? '已暂停'
                   : '已结束'}
               </span>
-              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded">
+              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded shrink-0">
                 {lottery.config?.mode === 'wheel' ? '转盘' : lottery.config?.mode === 'slot' ? '老虎机' : lottery.config?.mode}
               </span>
             </div>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
               {lottery.description || '无描述'}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 pl-0 sm:pl-14 flex-wrap">
           <ConfirmDialog
             trigger={
-              <Button variant="outline" className="text-destructive hover:text-destructive">
-                <RotateCcw className="h-4 w-4 mr-2" />
+              <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
+                <RotateCcw className="h-4 w-4 mr-1.5" />
                 重置
               </Button>
             }
@@ -232,20 +232,21 @@ export default function LotteryDetailPage({
           {lottery.status === 'active' ? (
             <Button
               variant="outline"
+              size="sm"
               onClick={() => handleStatusChange('paused')}
             >
-              <Pause className="h-4 w-4 mr-2" />
+              <Pause className="h-4 w-4 mr-1.5" />
               暂停
             </Button>
           ) : lottery.status === 'paused' ? (
-            <Button onClick={() => handleStatusChange('active')}>
-              <Play className="h-4 w-4 mr-2" />
+            <Button size="sm" onClick={() => handleStatusChange('active')}>
+              <Play className="h-4 w-4 mr-1.5" />
               恢复
             </Button>
           ) : null}
           <Link href={`/lotteries/${resolvedParams.id}/settings`}>
-            <Button variant="outline">
-              <Settings className="h-4 w-4 mr-2" />
+            <Button variant="outline" size="sm">
+              <Settings className="h-4 w-4 mr-1.5" />
               设置
             </Button>
           </Link>
@@ -253,7 +254,7 @@ export default function LotteryDetailPage({
       </div>
 
       {/* Stats & Actions */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <Card className="bg-linear-to-br from-orange-500/10 to-red-600/10 border-orange-500/20">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
