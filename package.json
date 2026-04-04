@@ -10,6 +10,7 @@
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:migrate": "drizzle-kit migrate",
+    "db:migrate:node": "node ./node_modules/drizzle-kit/bin.cjs migrate",
     "db:studio": "drizzle-kit studio",
     "test": "playwright test",
     "test:demo": "VIDEO_MODE=true playwright test full-demo.spec.ts --project=chromium",

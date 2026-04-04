@@ -15,6 +15,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Next 项目若无 public/ 目录，standalone 构建仍会在镜像内引用该路径，需保证目录存在
+RUN mkdir -p public
+
 ENV DATABASE_URL=postgresql://placeholder:placeholder@placeholder:5432/placeholder
 RUN pnpm build
 
