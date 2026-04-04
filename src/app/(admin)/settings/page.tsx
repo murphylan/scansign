@@ -102,7 +102,7 @@ export default function SettingsPage() {
                   <Crown className="h-4 w-4" />
                   管理员
                 </span>
-              ) : user.isPaid ? (
+              ) : user.hasActivePaidSubscription ? (
                 <span className="inline-flex items-center gap-1 text-sm bg-emerald-500/20 text-emerald-600 px-3 py-1 rounded-full">
                   付费用户
                 </span>

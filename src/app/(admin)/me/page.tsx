@@ -18,6 +18,7 @@ import {
   TrendingUp,
   Users,
   Calendar,
+  CreditCard,
 } from "lucide-react";
 
 import { useUser } from "@/components/auth/auth-guard";
@@ -26,6 +27,7 @@ import { listCheckinsAction } from "@/server/actions/checkinAction";
 import { listVotesAction } from "@/server/actions/voteAction";
 import { listFormsAction } from "@/server/actions/formAction";
 import { listLotteriesAction } from "@/server/actions/lotteryAction";
+import { subscriptionPlanLabel } from "@/lib/pricing";
 
 interface Stats {
   totalActivities: number;
@@ -87,6 +89,7 @@ export default function MePage() {
     : [];
 
   const menuItems = [
+    { icon: CreditCard, label: "订阅与付款说明", href: "/me/billing" },
     { icon: Settings, label: "账户设置", href: "/settings" },
     { icon: Lock, label: "修改密码", href: "/settings" },
   ];
@@ -111,7 +114,7 @@ export default function MePage() {
             <Crown className="h-3 w-3" />
             管理员
           </span>
-        ) : user.isPaid ? (
+        ) : user.hasActivePaidSubscription ? (
           <span className="inline-flex items-center text-[10px] bg-emerald-500/20 text-emerald-600 px-2 py-0.5 rounded-full font-medium shrink-0">
             付费用户
           </span>
@@ -121,6 +124,61 @@ export default function MePage() {
             试用 {user.trialDaysRemaining} 天
           </span>
         )}
+      </div>
+
+      {/* 权益与到期 */}
+      <div className="bg-card rounded-2xl border border-border p-3 space-y-2">
+        <h3 className="text-xs font-semibold text-muted-foreground px-1">权益与到期</h3>
+        {user.role === "ADMIN" ? (
+          <p className="text-sm text-foreground px-1">
+            你当前为<span className="font-medium text-amber-600">运营管理员</span>
+            ，不显示试用/订阅到期日。
+          </p>
+        ) : user.hasActivePaidSubscription && user.subscriptionEndsAt ? (
+          <div className="space-y-1 px-1 text-sm">
+            <p>
+              <span className="text-muted-foreground">当前套餐：</span>
+              {subscriptionPlanLabel(user.subscriptionPlan)}
+            </p>
+            <p>
+              <span className="text-muted-foreground">订阅到期日：</span>
+              <span className="font-medium">
+                {new Date(user.subscriptionEndsAt).toLocaleDateString("zh-CN", {
+                  year: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
+                })}
+              </span>
+            </p>
+          </div>
+        ) : user.hasActivePaidSubscription && !user.subscriptionEndsAt ? (
+          <p className="text-sm px-1">付费权益有效（未设置截止日期）。</p>
+        ) : (
+          <div className="space-y-1 px-1 text-sm">
+            <p>
+              <span className="text-muted-foreground">试用结束日：</span>
+              <span className="font-medium">
+                {new Date(user.trialEndsAtIso).toLocaleDateString("zh-CN", {
+                  year: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
+                })}
+              </span>
+            </p>
+            <p className="text-muted-foreground">
+              剩余试用约 <span className="font-medium text-foreground">{user.trialDaysRemaining}</span>{" "}
+              天 · 详情与付费请见「订阅与付款说明」
+            </p>
+          </div>
+        )}
+        <Link
+          href="/me/billing"
+          className="flex items-center justify-center gap-1 text-xs text-primary font-medium py-2 rounded-xl border border-dashed border-primary/30 bg-primary/5"
+        >
+          <CreditCard className="h-3.5 w-3.5" />
+          查看定价与线下付款方式
+          <ChevronRight className="h-3 w-3" />
+        </Link>
       </div>
 
       {/* Stats -- 3-col grid, compact */}

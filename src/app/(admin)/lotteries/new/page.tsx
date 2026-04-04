@@ -28,6 +28,18 @@ interface PrizeConfig {
   level: number;  // 奖项等级（1=一等奖，2=二等奖...）
 }
 
+const LOTTERY_MODE_OPTIONS: ReadonlyArray<{
+  value: string;
+  label: string;
+  icon: string;
+  disabled?: boolean;
+}> = [
+  { value: "wheel", label: "转盘", icon: "🎡" },
+  { value: "slot", label: "老虎机", icon: "🎰" },
+  { value: "card", label: "翻牌", icon: "🃏" },
+  { value: "grid", label: "九宫格", icon: "⬜" },
+];
+
 export default function NewLotteryPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -184,12 +196,7 @@ export default function NewLotteryPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[
-                { value: 'wheel', label: '转盘', icon: '🎡' },
-                { value: 'slot', label: '老虎机', icon: '🎰' },
-                { value: 'card', label: '翻牌', icon: '🃏' },
-                { value: 'grid', label: '九宫格', icon: '⬜' },
-              ].map((m) => (
+              {LOTTERY_MODE_OPTIONS.map((m) => (
                 <label
                   key={m.value}
                   className={`flex flex-col items-center gap-2 p-4 rounded-lg border cursor-pointer transition-all ${

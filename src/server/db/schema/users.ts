@@ -9,6 +9,13 @@ export const userRoleEnum = toolSchema.enum("UserRole", ["USER", "ADMIN"]);
 // 活动状态枚举
 export const activityStatusEnum = toolSchema.enum("ActivityStatus", ["DRAFT", "ACTIVE", "PAUSED", "ENDED"]);
 
+// 订阅档位（线下开通后由运营台写入）
+export const subscriptionPlanEnum = toolSchema.enum("SubscriptionPlan", [
+  "MONTHLY",
+  "QUARTERLY",
+  "YEARLY",
+]);
+
 // 用户表
 export const users = toolSchema.table("User", {
   id: text("id").primaryKey(),
@@ -18,9 +25,12 @@ export const users = toolSchema.table("User", {
   role: userRoleEnum("role").default("USER").notNull(),
   
   trialStartAt: timestamp("trialStartAt").defaultNow().notNull(),
-  trialDays: integer("trialDays").default(3).notNull(),
+  trialDays: integer("trialDays").default(14).notNull(),
   isPaid: boolean("isPaid").default(false).notNull(),
   paidAt: timestamp("paidAt"),
+  subscriptionPlan: subscriptionPlanEnum("subscriptionPlan"),
+  subscriptionEndsAt: timestamp("subscriptionEndsAt"),
+  lastSeenAt: timestamp("lastSeenAt"),
   
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),

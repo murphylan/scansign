@@ -11,6 +11,14 @@ export const UserRole = {
 
 export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 
+export const SubscriptionPlan = {
+  MONTHLY: "MONTHLY",
+  QUARTERLY: "QUARTERLY",
+  YEARLY: "YEARLY",
+} as const;
+
+export type SubscriptionPlan = (typeof SubscriptionPlan)[keyof typeof SubscriptionPlan];
+
 // ================================
 // Interface 定义
 // ================================
@@ -24,6 +32,9 @@ export interface User {
   trialDays: number;
   isPaid: boolean;
   paidAt: Date | null;
+  subscriptionPlan: SubscriptionPlan | null;
+  subscriptionEndsAt: Date | null;
+  lastSeenAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   lastLoginAt: Date | null;
@@ -38,6 +49,9 @@ export interface AuthUser {
   trialDays: number;
   isPaid: boolean;
   paidAt: Date | null;
+  subscriptionPlan: SubscriptionPlan | null;
+  subscriptionEndsAt: Date | null;
+  lastSeenAt: Date | null;
   createdAt: Date;
   trialDaysRemaining?: number;
   canUseService?: boolean;

@@ -105,6 +105,9 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       trialDays: user.trialDays,
       isPaid: user.isPaid,
       paidAt: user.paidAt,
+      subscriptionPlan: user.subscriptionPlan ?? null,
+      subscriptionEndsAt: user.subscriptionEndsAt ?? null,
+      lastSeenAt: user.lastSeenAt ?? null,
       createdAt: user.createdAt,
     };
   } catch {
@@ -343,5 +346,41 @@ export async function initAdminUser() {
       updatedAt: new Date(),
     });
     console.log("Admin user created:", ADMIN_EMAIL);
+  }
+}
+
+// ================================
+// 在线心跳（运营台展示用，节流写库）
+// ================================
+
+export async function touchPresenceAction(): Promise<{ success: boolean }> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false };
+    }
+
+    const [row] = await db
+      .select({ lastSeenAt: users.lastSeenAt })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1);
+
+    const now = new Date();
+    if (row?.lastSeenAt) {
+      const delta = now.getTime() - new Date(row.lastSeenAt).getTime();
+      if (delta < 30_000) {
+        return { success: true };
+      }
+    }
+
+    await db
+      .update(users)
+      .set({ lastSeenAt: now, updatedAt: now })
+      .where(eq(users.id, user.id));
+
+    return { success: true };
+  } catch {
+    return { success: false };
   }
 }

@@ -1,11 +1,18 @@
 import { redirect } from "next/navigation";
 
 import { getCurrentUser, initAdminUser } from "@/server/actions/authAction";
-import { getTrialDaysRemaining, canUseService } from "@/lib/auth-utils";
+import {
+  getTrialDaysRemaining,
+  canUseService,
+  hasActivePaidSubscription,
+  getTrialEndsAt,
+} from "@/lib/auth-utils";
 import { Sidebar } from "@/components/admin/sidebar";
 import { MobileHeader } from "@/components/admin/mobile-header";
 import { BottomNav } from "@/components/admin/bottom-nav";
 import { UserProvider } from "@/components/auth/auth-guard";
+import { PresenceBeacon } from "@/components/auth/presence-beacon";
+import { OPS_SUPER_USER_EMAIL } from "@/config/ops";
 
 export default async function AdminLayout({
   children,
@@ -28,6 +35,11 @@ export default async function AdminLayout({
     trialDaysRemaining: getTrialDaysRemaining(user),
     canUseService: canUseService(user),
     isPaid: user.isPaid,
+    subscriptionPlan: user.subscriptionPlan ?? null,
+    subscriptionEndsAt: user.subscriptionEndsAt?.toISOString() ?? null,
+    trialEndsAtIso: getTrialEndsAt(user).toISOString(),
+    hasActivePaidSubscription: hasActivePaidSubscription(user),
+    isOpsConsoleUser: user.email === OPS_SUPER_USER_EMAIL,
   };
 
   if (!userInfo.canUseService) {
@@ -36,6 +48,7 @@ export default async function AdminLayout({
 
   return (
     <UserProvider user={userInfo}>
+      <PresenceBeacon />
       <div className="min-h-screen bg-background flex flex-col lg:block">
         <Sidebar user={userInfo} />
         <MobileHeader user={userInfo} />

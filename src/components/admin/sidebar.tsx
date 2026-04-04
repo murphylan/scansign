@@ -3,24 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { Settings, LogOut, Crown, Clock } from "lucide-react";
+import { Settings, LogOut, Crown, Clock, MonitorCog } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
+import type { SessionUser } from "@/components/auth/auth-guard";
 import { navigation } from "./nav-config";
 
-interface User {
-  id: string;
-  email: string;
-  nickname: string | null;
-  role: "USER" | "ADMIN";
-  trialDaysRemaining: number;
-  canUseService: boolean;
-  isPaid: boolean;
-}
-
 interface SidebarProps {
-  user: User;
+  user: SessionUser;
 }
 
 export function Sidebar({ user }: SidebarProps) {
@@ -94,7 +85,7 @@ export function Sidebar({ user }: SidebarProps) {
                   <Crown className="h-3 w-3" />
                   管理员
                 </span>
-              ) : user.isPaid ? (
+              ) : user.hasActivePaidSubscription ? (
                 <span className="text-xs text-primary">付费用户</span>
               ) : (
                 <span className="inline-flex items-center gap-1 text-xs text-blue-600">
@@ -107,6 +98,21 @@ export function Sidebar({ user }: SidebarProps) {
         </div>
 
         <div className="border-t border-border my-2" />
+
+        {user.isOpsConsoleUser && (
+          <Link
+            href="/ops/console"
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+              pathname.startsWith("/ops")
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            )}
+          >
+            <MonitorCog className="h-5 w-5" />
+            用户运营台
+          </Link>
+        )}
 
         <Link
           href="/settings"

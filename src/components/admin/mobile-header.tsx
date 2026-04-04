@@ -12,24 +12,16 @@ import {
   Clock,
   MoreHorizontal,
   ChevronLeft,
+  MonitorCog,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
+import type { SessionUser } from "@/components/auth/auth-guard";
 import { navigation, bottomNavItems } from "./nav-config";
 
-interface User {
-  id: string;
-  email: string;
-  nickname: string | null;
-  role: "USER" | "ADMIN";
-  trialDaysRemaining: number;
-  canUseService: boolean;
-  isPaid: boolean;
-}
-
 interface MobileHeaderProps {
-  user: User;
+  user: SessionUser;
 }
 
 const APP_ROUTE_PREFIXES = ["/checkins", "/votes", "/forms", "/lotteries"];
@@ -111,7 +103,7 @@ export function MobileHeader({ user }: MobileHeaderProps) {
                       <Crown className="h-3 w-3" />
                       管理员
                     </span>
-                  ) : user.isPaid ? (
+                  ) : user.hasActivePaidSubscription ? (
                     <span className="text-[11px] text-primary">付费用户</span>
                   ) : (
                     <span className="inline-flex items-center gap-1 text-[11px] text-blue-600">
@@ -124,6 +116,16 @@ export function MobileHeader({ user }: MobileHeaderProps) {
             </div>
 
             <div className="p-1.5">
+              {user.isOpsConsoleUser && (
+                <Link
+                  href="/ops/console"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-foreground hover:bg-secondary transition-colors"
+                >
+                  <MonitorCog className="h-4 w-4 text-muted-foreground" />
+                  用户运营台（桌面）
+                </Link>
+              )}
               <Link
                 href="/settings"
                 onClick={() => setMenuOpen(false)}

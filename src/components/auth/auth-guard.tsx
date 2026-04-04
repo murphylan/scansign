@@ -1,22 +1,30 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { createContext, useContext, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
-interface User {
+import type { SubscriptionPlan } from "@/types/user-types";
+
+export interface SessionUser {
   id: string;
   email: string;
   nickname: string | null;
-  role: 'USER' | 'ADMIN';
+  role: "USER" | "ADMIN";
   trialDaysRemaining: number;
   canUseService: boolean;
   isPaid: boolean;
+  subscriptionPlan: SubscriptionPlan | null;
+  subscriptionEndsAt: string | null;
+  trialEndsAtIso: string;
+  hasActivePaidSubscription: boolean;
+  /** 可访问 /ops/console 的运营账号 */
+  isOpsConsoleUser: boolean;
 }
 
 interface AuthGuardProps {
   children: React.ReactNode;
-  user: User;
+  user: SessionUser;
 }
 
 export function AuthGuard({ children, user }: AuthGuardProps) {
@@ -25,10 +33,9 @@ export function AuthGuard({ children, user }: AuthGuardProps) {
 
   useEffect(() => {
     if (!user) {
-      router.push('/login');
+      router.push("/login");
     } else if (!user.canUseService) {
-      // 试用期已过且未付费
-      router.push('/expired');
+      router.push("/expired");
     } else {
       setChecked(true);
     }
@@ -45,20 +52,22 @@ export function AuthGuard({ children, user }: AuthGuardProps) {
   return <>{children}</>;
 }
 
-// 用户信息上下文
-import { createContext, useContext } from 'react';
+const UserContext = createContext<SessionUser | null>(null);
 
-const UserContext = createContext<User | null>(null);
-
-export function UserProvider({ children, user }: { children: React.ReactNode; user: User }) {
+export function UserProvider({
+  children,
+  user,
+}: {
+  children: React.ReactNode;
+  user: SessionUser;
+}) {
   return <UserContext.Provider value={user}>{children}</UserContext.Provider>;
 }
 
 export function useUser() {
   const user = useContext(UserContext);
   if (!user) {
-    throw new Error('useUser must be used within a UserProvider');
+    throw new Error("useUser must be used within a UserProvider");
   }
   return user;
 }
-
