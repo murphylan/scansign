@@ -339,7 +339,7 @@ export async function initAdminUser() {
       id: randomUUID(),
       email: ADMIN_EMAIL,
       password: hashedPassword,
-      nickname: "Murphy",
+      nickname: "Rally",
       role: "ADMIN",
       isPaid: true,
       createdAt: new Date(),

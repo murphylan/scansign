@@ -54,11 +54,11 @@ export default function RegisterPage() {
       <div className="text-center mb-8">
         <div className="inline-flex items-center justify-center gap-2 mb-2">
           <div className="h-8 w-8 rounded-lg bg-linear-to-br from-primary to-amber-500 flex items-center justify-center">
-            <span className="text-sm font-bold text-white">M</span>
+            <span className="text-sm font-bold text-white">R</span>
           </div>
           <h1 className="text-2xl font-bold text-foreground">创建账户</h1>
         </div>
-        <p className="text-muted-foreground mt-1">加入 Murphy 互动工具集</p>
+        <p className="text-muted-foreground mt-1">加入 Rally 活动互动平台</p>
       </div>
 
       {/* 免费试用提示 */}

@@ -92,7 +92,7 @@ export default function DashboardPage() {
       <div>
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight">首页</h1>
         <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-          欢迎使用 Murphy 互动工具集
+          欢迎使用 Rally 活动互动平台
         </p>
       </div>
 

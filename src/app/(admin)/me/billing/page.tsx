@@ -136,7 +136,7 @@ export default function MeBillingPage() {
           </a>
           <p className="flex items-start gap-2 text-muted-foreground">
             <MessageCircle className="h-4 w-4 shrink-0 mt-0.5" />
-            微信与手机同号：{BILLING_CONTACT_PHONE}，添加时请备注「Murphy 互动」。
+            微信与手机同号：{BILLING_CONTACT_PHONE}，添加时请备注「Rally 互动」。
           </p>
         </div>
       </div>

@@ -1,4 +1,4 @@
-// Prisma Schema - Murphy 互动工具集
+// Prisma Schema - Rally 活动互动平台
 // 使用 PostgreSQL 数据库，tool schema
 
 generator client {

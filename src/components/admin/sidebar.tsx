@@ -24,9 +24,9 @@ export function Sidebar({ user }: SidebarProps) {
       <div className="flex h-16 items-center px-6 border-b border-border">
         <Link href="/dashboard" className="flex items-center gap-2">
           <div className="h-8 w-8 rounded-lg bg-linear-to-br from-primary to-amber-500 flex items-center justify-center">
-            <span className="text-lg font-bold text-primary-foreground">M</span>
+            <span className="text-lg font-bold text-primary-foreground">R</span>
           </div>
-          <span className="text-lg font-semibold">Murphy</span>
+          <span className="text-lg font-semibold">Rally</span>
         </Link>
       </div>
 

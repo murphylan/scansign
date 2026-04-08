@@ -16,7 +16,7 @@ test.describe('投票功能完整流程测试', () => {
   
   test('1. 访问首页', async ({ page }) => {
     await page.goto(BASE_URL);
-    await expect(page).toHaveTitle(/Murphy/);
+    await expect(page).toHaveTitle(/Rally/);
     console.log('✅ 首页访问成功');
   });
 

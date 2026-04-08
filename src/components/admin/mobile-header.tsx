@@ -43,7 +43,7 @@ function resolvePageTitle(pathname: string): string {
   );
   if (bottomMatch) return bottomMatch.name;
 
-  return "Murphy";
+  return "Rally";
 }
 
 export function MobileHeader({ user }: MobileHeaderProps) {

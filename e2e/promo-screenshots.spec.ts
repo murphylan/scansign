@@ -1,7 +1,7 @@
 import { test, type Page } from "@playwright/test";
 
 /**
- * Murphy 互动工具集 - 产品宣传截图脚本
+ * Rally 活动互动平台 - 产品宣传截图脚本
  *
  * 用于生成产品宣传文档所需的高质量截图
  * 运行命令: pnpm test promo-screenshots.spec.ts
