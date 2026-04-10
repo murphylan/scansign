@@ -10,6 +10,7 @@ interface ChartProps {
   showCount?: boolean;
   animation?: boolean;
   className?: string;
+  lightMode?: boolean;
 }
 
 // 预设颜色
@@ -34,8 +35,13 @@ export function BarChart({
   showCount = true,
   animation = true,
   className,
+  lightMode = false,
 }: ChartProps) {
   const maxCount = Math.max(...options.map((o) => o.count), 1);
+
+  const textClass = lightMode ? 'text-foreground' : 'text-white';
+  const subTextClass = lightMode ? 'text-muted-foreground' : 'text-white/80';
+  const barBgClass = lightMode ? 'bg-secondary' : 'bg-white/10';
 
   return (
     <div className={cn('space-y-4', className)}>
@@ -47,10 +53,10 @@ export function BarChart({
         return (
           <div key={option.id} className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="font-medium text-white truncate max-w-[60%]">
+              <span className={cn('font-medium truncate max-w-[60%]', textClass)}>
                 {option.title}
               </span>
-              <div className="flex items-center gap-3 text-white/80">
+              <div className={cn('flex items-center gap-3', subTextClass)}>
                 {showCount && (
                   <span className="text-lg font-bold">{option.count} 票</span>
                 )}
@@ -64,7 +70,7 @@ export function BarChart({
                 )}
               </div>
             </div>
-            <div className="h-8 bg-white/10 rounded-full overflow-hidden">
+            <div className={cn('h-8 rounded-full overflow-hidden', barBgClass)}>
               <div
                 className={cn(
                   'h-full rounded-full',

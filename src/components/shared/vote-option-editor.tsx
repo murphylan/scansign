@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { cn } from '@/lib/utils';
+import { generateId } from '@/lib/utils/code-generator';
 import { VoteOption, VoteTemplate } from '@/types/vote';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,7 +41,7 @@ export function VoteOptionEditor({
     onChange([
       ...options,
       {
-        id: crypto.randomUUID(),
+        id: generateId(),
         title: '',
         count: 0,
       },

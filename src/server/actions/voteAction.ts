@@ -341,6 +341,23 @@ export async function updateVoteAction(
       .where(eq(votes.id, id))
       .returning();
 
+    // 如果提供了新选项，替换现有选项
+    if (data.options && data.options.length > 0) {
+      await db.delete(voteOptions).where(eq(voteOptions.voteId, id));
+
+      await db.insert(voteOptions).values(
+        data.options.map((o, index) => ({
+          id: randomUUID(),
+          voteId: id,
+          title: o.title,
+          description: o.description || null,
+          imageUrl: o.imageUrl || null,
+          sortOrder: index,
+          voteCount: 0,
+        }))
+      );
+    }
+
     revalidatePath("/votes");
     revalidatePath(`/votes/${id}`);
 

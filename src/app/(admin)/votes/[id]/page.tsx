@@ -322,9 +322,6 @@ export default function VoteDetailPage({
                 <div className="p-4 bg-white rounded-xl">
                   <img src={qrCodeUrl} alt="投票二维码" className="w-48 h-48" />
                 </div>
-                <p className="text-sm text-muted-foreground mt-3">
-                  扫码或访问 <code className="bg-secondary px-1 rounded">/v/{vote.code}</code>
-                </p>
                 <a href={qrCodeUrl} download={`vote-${vote.code}.png`}>
                   <Button variant="outline" size="sm" className="mt-3 gap-2">
                     <Download className="h-4 w-4" />
@@ -367,6 +364,7 @@ export default function VoteDetailPage({
                   showPercentage
                   showCount
                   animation
+                  lightMode
                 />
               </div>
             )}

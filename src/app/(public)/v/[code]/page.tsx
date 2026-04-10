@@ -239,6 +239,7 @@ export default function VoteMobilePage({
                   totalVotes={resultStats?.totalVotes || 0}
                   showPercentage
                   showCount
+                  lightMode
                 />
               </CardContent>
             </Card>
