@@ -12,7 +12,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:migrate:node": "node ./node_modules/drizzle-kit/bin.cjs migrate",
     "db:studio": "drizzle-kit studio",
-    "test": "playwright test",
+    "test": "playwright test --grep-invert @promo",
+    "test:e2e:all": "playwright test",
     "promo:screenshots": "mkdir -p e2e/promo && playwright test promo-screenshots.spec.ts --project=chromium && echo '✅ 宣传截图已保存到 e2e/promo/'"
   },
   "dependencies": {

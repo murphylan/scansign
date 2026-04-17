@@ -1,40 +1,22 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+
+import { loginAsAdmin } from './helpers/auth';
 
 /**
  * 表单信息收集功能端到端测试
  * 测试完整流程：创建表单 -> 添加字段 -> 公开填写 -> 数据收集
  */
 
-const BASE_URL = 'http://localhost:3000';
-const ADMIN_EMAIL = 'murphylan@hotmail.com';
-const ADMIN_PASSWORD = '15871352105abc';
-
-// 登录辅助函数
-async function login(page: Page) {
-  await page.goto(`${BASE_URL}/login`);
-  await page.waitForLoadState('networkidle');
-  
-  const emailInput = page.locator('input[type="email"], input[name="email"], input[placeholder*="邮箱"]');
-  if (await emailInput.isVisible()) {
-    await emailInput.fill(ADMIN_EMAIL);
-    await page.locator('input[type="password"]').fill(ADMIN_PASSWORD);
-    await page.locator('button[type="submit"]').click();
-    await page.waitForTimeout(3000);
-  }
-  
-  await page.waitForURL(/\/(dashboard|forms)/);
-}
-
 test.describe('表单功能完整流程测试', () => {
   
-  test.beforeEach(async ({ page }) => {
-    await login(page);
+  test.beforeEach(async ({ page, baseURL }) => {
+    await loginAsAdmin(page, baseURL!);
   });
 
-  test('1. 访问表单列表页面', async ({ page }) => {
+  test('1. 访问表单列表页面', async ({ page, baseURL }) => {
     console.log('\n🧪 测试表单列表页面...');
     
-    await page.goto(`${BASE_URL}/forms`);
+    await page.goto(`${baseURL}/forms`);
     await page.waitForLoadState('networkidle');
     
     // 截图
@@ -51,10 +33,10 @@ test.describe('表单功能完整流程测试', () => {
     console.log('✅ 创建表单按钮可见');
   });
 
-  test('2. 创建基础表单', async ({ page }) => {
+  test('2. 创建基础表单', async ({ page, baseURL }) => {
     console.log('\n🧪 测试创建基础表单...');
     
-    await page.goto(`${BASE_URL}/forms/new`);
+    await page.goto(`${baseURL}/forms/new`);
     await page.waitForLoadState('networkidle');
     
     // 截图：创建页面
@@ -105,10 +87,10 @@ test.describe('表单功能完整流程测试', () => {
     }
   });
 
-  test('3. 创建完整表单 - 多种字段类型', async ({ page }) => {
+  test('3. 创建完整表单 - 多种字段类型', async ({ page, baseURL }) => {
     console.log('\n🧪 测试创建完整表单（多种字段）...');
     
-    await page.goto(`${BASE_URL}/forms/new`);
+    await page.goto(`${baseURL}/forms/new`);
     await page.waitForLoadState('networkidle');
     
     // 填写标题
@@ -147,11 +129,11 @@ test.describe('表单功能完整流程测试', () => {
     await page.screenshot({ path: 'e2e/screenshots/form-07-multi-result.png' });
   });
 
-  test('4. 表单详情页面功能', async ({ page }) => {
+  test('4. 表单详情页面功能', async ({ page, baseURL }) => {
     console.log('\n🧪 测试表单详情页面...');
     
     // 先创建一个表单
-    await page.goto(`${BASE_URL}/forms/new`);
+    await page.goto(`${baseURL}/forms/new`);
     await page.waitForLoadState('networkidle');
     
     await page.locator('input#title').fill('详情测试表单 - ' + Date.now());
@@ -195,11 +177,11 @@ test.describe('表单功能完整流程测试', () => {
     console.log('✅ 表单详情页面功能正常');
   });
 
-  test('5. 公开表单填写页面', async ({ page }) => {
+  test('5. 公开表单填写页面', async ({ page, baseURL }) => {
     console.log('\n🧪 测试公开表单填写页面...');
     
     // 先创建一个表单
-    await page.goto(`${BASE_URL}/forms/new`);
+    await page.goto(`${baseURL}/forms/new`);
     await page.waitForLoadState('networkidle');
     
     await page.locator('input#title').fill('公开填写测试 - ' + Date.now());
@@ -229,7 +211,7 @@ test.describe('表单功能完整流程测试', () => {
       console.log(`📍 表单码: ${formCode}`);
       
       // 访问公开表单页面
-      const publicUrl = `${BASE_URL}/f/${formCode}`;
+      const publicUrl = `${baseURL}/f/${formCode}`;
       console.log(`🔗 访问公开表单: ${publicUrl}`);
       
       // 创建新页面模拟未登录用户
@@ -284,11 +266,11 @@ test.describe('表单功能完整流程测试', () => {
     }
   });
 
-  test('6. 大屏展示页面', async ({ page }) => {
+  test('6. 大屏展示页面', async ({ page, baseURL }) => {
     console.log('\n🧪 测试表单大屏展示页面...');
     
     // 先创建一个表单
-    await page.goto(`${BASE_URL}/forms/new`);
+    await page.goto(`${baseURL}/forms/new`);
     await page.waitForLoadState('networkidle');
     
     await page.locator('input#title').fill('大屏测试表单 - ' + Date.now());
@@ -314,7 +296,7 @@ test.describe('表单功能完整流程测试', () => {
     
     if (codeMatch) {
       const formCode = codeMatch[1];
-      const displayUrl = `${BASE_URL}/f/${formCode}/display`;
+      const displayUrl = `${baseURL}/f/${formCode}/display`;
       console.log(`🖥️ 大屏URL: ${displayUrl}`);
       
       await page.goto(displayUrl);
@@ -335,14 +317,14 @@ test.describe('表单功能完整流程测试', () => {
 
 test.describe('表单字段类型测试', () => {
   
-  test.beforeEach(async ({ page }) => {
-    await login(page);
+  test.beforeEach(async ({ page, baseURL }) => {
+    await loginAsAdmin(page, baseURL!);
   });
 
-  test('检查所有字段类型', async ({ page }) => {
+  test('检查所有字段类型', async ({ page, baseURL }) => {
     console.log('\n🧪 检查所有可用字段类型...');
     
-    await page.goto(`${BASE_URL}/forms/new`);
+    await page.goto(`${baseURL}/forms/new`);
     await page.waitForLoadState('networkidle');
     
     // 检查各种字段类型
@@ -378,10 +360,10 @@ test.describe('表单字段类型测试', () => {
     await page.screenshot({ path: 'e2e/screenshots/form-field-types.png', fullPage: true });
   });
 
-  test('添加单选字段并配置选项', async ({ page }) => {
+  test('添加单选字段并配置选项', async ({ page, baseURL }) => {
     console.log('\n🧪 测试单选字段配置...');
     
-    await page.goto(`${BASE_URL}/forms/new`);
+    await page.goto(`${baseURL}/forms/new`);
     await page.waitForLoadState('networkidle');
     
     await page.locator('input#title').fill('单选测试表单');
@@ -411,10 +393,10 @@ test.describe('表单字段类型测试', () => {
     }
   });
 
-  test('添加评分字段', async ({ page }) => {
+  test('添加评分字段', async ({ page, baseURL }) => {
     console.log('\n🧪 测试评分字段...');
     
-    await page.goto(`${BASE_URL}/forms/new`);
+    await page.goto(`${baseURL}/forms/new`);
     await page.waitForLoadState('networkidle');
     
     await page.locator('input#title').fill('评分测试表单');
@@ -435,10 +417,10 @@ test.describe('表单字段类型测试', () => {
     }
   });
 
-  test('添加多选字段', async ({ page }) => {
+  test('添加多选字段', async ({ page, baseURL }) => {
     console.log('\n🧪 测试多选字段...');
     
-    await page.goto(`${BASE_URL}/forms/new`);
+    await page.goto(`${baseURL}/forms/new`);
     await page.waitForLoadState('networkidle');
     
     await page.locator('input#title').fill('多选测试表单');
@@ -458,14 +440,14 @@ test.describe('表单字段类型测试', () => {
 
 test.describe('表单配置选项测试', () => {
   
-  test.beforeEach(async ({ page }) => {
-    await login(page);
+  test.beforeEach(async ({ page, baseURL }) => {
+    await loginAsAdmin(page, baseURL!);
   });
 
-  test('提交配置选项', async ({ page }) => {
+  test('提交配置选项', async ({ page, baseURL }) => {
     console.log('\n🧪 测试提交配置选项...');
     
-    await page.goto(`${BASE_URL}/forms/new`);
+    await page.goto(`${baseURL}/forms/new`);
     await page.waitForLoadState('networkidle');
     
     // 展开高级设置
@@ -491,10 +473,10 @@ test.describe('表单配置选项测试', () => {
     await page.screenshot({ path: 'e2e/screenshots/form-submit-config.png', fullPage: true });
   });
 
-  test('规则配置选项', async ({ page }) => {
+  test('规则配置选项', async ({ page, baseURL }) => {
     console.log('\n🧪 测试规则配置选项...');
     
-    await page.goto(`${BASE_URL}/forms/new`);
+    await page.goto(`${baseURL}/forms/new`);
     await page.waitForLoadState('networkidle');
     
     // 检查手机号必填选项
@@ -516,14 +498,14 @@ test.describe('表单配置选项测试', () => {
 
 test.describe('表单数据验证', () => {
   
-  test.beforeEach(async ({ page }) => {
-    await login(page);
+  test.beforeEach(async ({ page, baseURL }) => {
+    await loginAsAdmin(page, baseURL!);
   });
 
-  test('必填字段验证', async ({ page }) => {
+  test('必填字段验证', async ({ page, baseURL }) => {
     console.log('\n🧪 测试必填字段验证...');
     
-    await page.goto(`${BASE_URL}/forms/new`);
+    await page.goto(`${baseURL}/forms/new`);
     await page.waitForLoadState('networkidle');
     
     // 不填写标题直接提交
@@ -541,10 +523,10 @@ test.describe('表单数据验证', () => {
     await page.screenshot({ path: 'e2e/screenshots/form-validation-title.png' });
   });
 
-  test('无字段验证', async ({ page }) => {
+  test('无字段验证', async ({ page, baseURL }) => {
     console.log('\n🧪 测试无字段验证...');
     
-    await page.goto(`${BASE_URL}/forms/new`);
+    await page.goto(`${baseURL}/forms/new`);
     await page.waitForLoadState('networkidle');
     
     // 只填写标题，不添加字段
@@ -569,11 +551,11 @@ test.describe('表单数据验证', () => {
     await page.screenshot({ path: 'e2e/screenshots/form-validation-fields.png' });
   });
 
-  test('表单数据统计', async ({ page }) => {
+  test('表单数据统计', async ({ page, baseURL }) => {
     console.log('\n🧪 测试表单数据统计...');
     
     // 访问表单列表
-    await page.goto(`${BASE_URL}/forms`);
+    await page.goto(`${baseURL}/forms`);
     await page.waitForLoadState('networkidle');
     
     // 检查是否有表单

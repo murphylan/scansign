@@ -1,40 +1,22 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+
+import { loginAsAdmin } from './helpers/auth';
 
 /**
  * 抽奖功能端到端测试
  * 测试完整流程：创建抽奖 -> 配置奖品 -> 公开抽奖 -> 大屏展示
  */
 
-const BASE_URL = 'http://localhost:3000';
-const ADMIN_EMAIL = 'murphylan@hotmail.com';
-const ADMIN_PASSWORD = '15871352105abc';
-
-// 登录辅助函数
-async function login(page: Page) {
-  await page.goto(`${BASE_URL}/login`);
-  await page.waitForLoadState('networkidle');
-  
-  const emailInput = page.locator('input[type="email"], input[name="email"], input[placeholder*="邮箱"]');
-  if (await emailInput.isVisible()) {
-    await emailInput.fill(ADMIN_EMAIL);
-    await page.locator('input[type="password"]').fill(ADMIN_PASSWORD);
-    await page.locator('button[type="submit"]').click();
-    await page.waitForTimeout(3000);
-  }
-  
-  await page.waitForURL(/\/(dashboard|lotteries)/);
-}
-
 test.describe('抽奖功能完整流程测试', () => {
   
-  test.beforeEach(async ({ page }) => {
-    await login(page);
+  test.beforeEach(async ({ page, baseURL }) => {
+    await loginAsAdmin(page, baseURL!);
   });
 
-  test('1. 访问抽奖列表页面', async ({ page }) => {
+  test('1. 访问抽奖列表页面', async ({ page, baseURL }) => {
     console.log('\n🧪 测试抽奖列表页面...');
     
-    await page.goto(`${BASE_URL}/lotteries`);
+    await page.goto(`${baseURL}/lotteries`);
     await page.waitForLoadState('networkidle');
     
     // 截图
@@ -51,10 +33,10 @@ test.describe('抽奖功能完整流程测试', () => {
     console.log('✅ 创建抽奖按钮可见');
   });
 
-  test('2. 创建抽奖 - 完整流程', async ({ page }) => {
+  test('2. 创建抽奖 - 完整流程', async ({ page, baseURL }) => {
     console.log('\n🧪 测试创建抽奖...');
     
-    await page.goto(`${BASE_URL}/lotteries/new`);
+    await page.goto(`${baseURL}/lotteries/new`);
     await page.waitForLoadState('networkidle');
     
     // 截图：创建页面
@@ -100,11 +82,11 @@ test.describe('抽奖功能完整流程测试', () => {
     }
   });
 
-  test('3. 抽奖详情页面功能', async ({ page }) => {
+  test('3. 抽奖详情页面功能', async ({ page, baseURL }) => {
     console.log('\n🧪 测试抽奖详情页面...');
     
     // 先创建一个抽奖
-    await page.goto(`${BASE_URL}/lotteries/new`);
+    await page.goto(`${baseURL}/lotteries/new`);
     await page.waitForLoadState('networkidle');
     
     await page.locator('input#title').fill('详情测试抽奖 - ' + Date.now());
@@ -146,11 +128,11 @@ test.describe('抽奖功能完整流程测试', () => {
     console.log('✅ 抽奖详情页面功能正常');
   });
 
-  test('4. 公开抽奖页面', async ({ page }) => {
+  test('4. 公开抽奖页面', async ({ page, baseURL }) => {
     console.log('\n🧪 测试公开抽奖页面...');
     
     // 先创建一个抽奖
-    await page.goto(`${BASE_URL}/lotteries/new`);
+    await page.goto(`${baseURL}/lotteries/new`);
     await page.waitForLoadState('networkidle');
     
     await page.locator('input#title').fill('公开页面测试 - ' + Date.now());
@@ -172,7 +154,7 @@ test.describe('抽奖功能完整流程测试', () => {
       console.log(`📍 抽奖码: ${lotteryCode}`);
       
       // 访问公开抽奖页面
-      const publicUrl = `${BASE_URL}/l/${lotteryCode}`;
+      const publicUrl = `${baseURL}/l/${lotteryCode}`;
       console.log(`🔗 访问公开抽奖: ${publicUrl}`);
       
       // 创建新页面模拟未登录用户
@@ -223,11 +205,11 @@ test.describe('抽奖功能完整流程测试', () => {
     }
   });
 
-  test('5. 大屏展示页面', async ({ page }) => {
+  test('5. 大屏展示页面', async ({ page, baseURL }) => {
     console.log('\n🧪 测试抽奖大屏展示页面...');
     
     // 先创建一个抽奖
-    await page.goto(`${BASE_URL}/lotteries/new`);
+    await page.goto(`${baseURL}/lotteries/new`);
     await page.waitForLoadState('networkidle');
     
     await page.locator('input#title').fill('大屏测试抽奖 - ' + Date.now());
@@ -246,7 +228,7 @@ test.describe('抽奖功能完整流程测试', () => {
     
     if (codeMatch) {
       const lotteryCode = codeMatch[1];
-      const displayUrl = `${BASE_URL}/l/${lotteryCode}/display`;
+      const displayUrl = `${baseURL}/l/${lotteryCode}/display`;
       console.log(`🖥️ 大屏URL: ${displayUrl}`);
       
       await page.goto(displayUrl);
@@ -267,14 +249,14 @@ test.describe('抽奖功能完整流程测试', () => {
 
 test.describe('抽奖模式测试', () => {
   
-  test.beforeEach(async ({ page }) => {
-    await login(page);
+  test.beforeEach(async ({ page, baseURL }) => {
+    await loginAsAdmin(page, baseURL!);
   });
 
-  test('检查所有抽奖模式', async ({ page }) => {
+  test('检查所有抽奖模式', async ({ page, baseURL }) => {
     console.log('\n🧪 检查所有可用抽奖模式...');
     
-    await page.goto(`${BASE_URL}/lotteries/new`);
+    await page.goto(`${baseURL}/lotteries/new`);
     await page.waitForLoadState('networkidle');
     
     // 检查抽奖模式
@@ -302,10 +284,10 @@ test.describe('抽奖模式测试', () => {
     await page.screenshot({ path: 'e2e/screenshots/lottery-modes.png', fullPage: true });
   });
 
-  test('转盘模式配置', async ({ page }) => {
+  test('转盘模式配置', async ({ page, baseURL }) => {
     console.log('\n🧪 测试转盘模式配置...');
     
-    await page.goto(`${BASE_URL}/lotteries/new`);
+    await page.goto(`${baseURL}/lotteries/new`);
     await page.waitForLoadState('networkidle');
     
     // 选择转盘模式
@@ -320,10 +302,10 @@ test.describe('抽奖模式测试', () => {
     await page.screenshot({ path: 'e2e/screenshots/lottery-wheel-mode.png' });
   });
 
-  test('老虎机模式配置', async ({ page }) => {
+  test('老虎机模式配置', async ({ page, baseURL }) => {
     console.log('\n🧪 测试老虎机模式配置...');
     
-    await page.goto(`${BASE_URL}/lotteries/new`);
+    await page.goto(`${baseURL}/lotteries/new`);
     await page.waitForLoadState('networkidle');
     
     // 选择老虎机模式
@@ -341,14 +323,14 @@ test.describe('抽奖模式测试', () => {
 
 test.describe('奖品配置测试', () => {
   
-  test.beforeEach(async ({ page }) => {
-    await login(page);
+  test.beforeEach(async ({ page, baseURL }) => {
+    await loginAsAdmin(page, baseURL!);
   });
 
-  test('默认奖品设置', async ({ page }) => {
+  test('默认奖品设置', async ({ page, baseURL }) => {
     console.log('\n🧪 测试默认奖品设置...');
     
-    await page.goto(`${BASE_URL}/lotteries/new`);
+    await page.goto(`${baseURL}/lotteries/new`);
     await page.waitForLoadState('networkidle');
     
     // 检查默认奖品
@@ -367,10 +349,10 @@ test.describe('奖品配置测试', () => {
     await page.screenshot({ path: 'e2e/screenshots/lottery-default-prizes.png', fullPage: true });
   });
 
-  test('添加自定义奖品', async ({ page }) => {
+  test('添加自定义奖品', async ({ page, baseURL }) => {
     console.log('\n🧪 测试添加自定义奖品...');
     
-    await page.goto(`${BASE_URL}/lotteries/new`);
+    await page.goto(`${baseURL}/lotteries/new`);
     await page.waitForLoadState('networkidle');
     
     // 添加奖品
@@ -385,10 +367,10 @@ test.describe('奖品配置测试', () => {
     }
   });
 
-  test('概率配置验证', async ({ page }) => {
+  test('概率配置验证', async ({ page, baseURL }) => {
     console.log('\n🧪 测试概率配置验证...');
     
-    await page.goto(`${BASE_URL}/lotteries/new`);
+    await page.goto(`${baseURL}/lotteries/new`);
     await page.waitForLoadState('networkidle');
     
     // 检查概率总和显示
@@ -406,10 +388,10 @@ test.describe('奖品配置测试', () => {
     await page.screenshot({ path: 'e2e/screenshots/lottery-probability.png' });
   });
 
-  test('删除奖品', async ({ page }) => {
+  test('删除奖品', async ({ page, baseURL }) => {
     console.log('\n🧪 测试删除奖品...');
     
-    await page.goto(`${BASE_URL}/lotteries/new`);
+    await page.goto(`${baseURL}/lotteries/new`);
     await page.waitForLoadState('networkidle');
     
     // 先计数奖品数量
@@ -430,14 +412,14 @@ test.describe('奖品配置测试', () => {
 
 test.describe('抽奖规则测试', () => {
   
-  test.beforeEach(async ({ page }) => {
-    await login(page);
+  test.beforeEach(async ({ page, baseURL }) => {
+    await loginAsAdmin(page, baseURL!);
   });
 
-  test('每人抽奖次数配置', async ({ page }) => {
+  test('每人抽奖次数配置', async ({ page, baseURL }) => {
     console.log('\n🧪 测试每人抽奖次数配置...');
     
-    await page.goto(`${BASE_URL}/lotteries/new`);
+    await page.goto(`${baseURL}/lotteries/new`);
     await page.waitForLoadState('networkidle');
     
     // 检查抽奖次数配置
@@ -452,10 +434,10 @@ test.describe('抽奖规则测试', () => {
     await page.screenshot({ path: 'e2e/screenshots/lottery-draws-config.png' });
   });
 
-  test('手机号必填配置', async ({ page }) => {
+  test('手机号必填配置', async ({ page, baseURL }) => {
     console.log('\n🧪 测试手机号必填配置...');
     
-    await page.goto(`${BASE_URL}/lotteries/new`);
+    await page.goto(`${baseURL}/lotteries/new`);
     await page.waitForLoadState('networkidle');
     
     // 检查手机号配置
@@ -473,14 +455,14 @@ test.describe('抽奖规则测试', () => {
 
 test.describe('抽奖数据验证', () => {
   
-  test.beforeEach(async ({ page }) => {
-    await login(page);
+  test.beforeEach(async ({ page, baseURL }) => {
+    await loginAsAdmin(page, baseURL!);
   });
 
-  test('必填字段验证', async ({ page }) => {
+  test('必填字段验证', async ({ page, baseURL }) => {
     console.log('\n🧪 测试必填字段验证...');
     
-    await page.goto(`${BASE_URL}/lotteries/new`);
+    await page.goto(`${baseURL}/lotteries/new`);
     await page.waitForLoadState('networkidle');
     
     // 不填写标题直接提交
@@ -498,10 +480,10 @@ test.describe('抽奖数据验证', () => {
     await page.screenshot({ path: 'e2e/screenshots/lottery-validation-title.png' });
   });
 
-  test('概率总和验证', async ({ page }) => {
+  test('概率总和验证', async ({ page, baseURL }) => {
     console.log('\n🧪 测试概率总和验证...');
     
-    await page.goto(`${BASE_URL}/lotteries/new`);
+    await page.goto(`${baseURL}/lotteries/new`);
     await page.waitForLoadState('networkidle');
     
     await page.locator('input#title').fill('概率测试');
@@ -530,11 +512,11 @@ test.describe('抽奖数据验证', () => {
     await page.screenshot({ path: 'e2e/screenshots/lottery-validation-prob.png' });
   });
 
-  test('抽奖数据统计', async ({ page }) => {
+  test('抽奖数据统计', async ({ page, baseURL }) => {
     console.log('\n🧪 测试抽奖数据统计...');
     
     // 访问抽奖列表
-    await page.goto(`${BASE_URL}/lotteries`);
+    await page.goto(`${baseURL}/lotteries`);
     await page.waitForLoadState('networkidle');
     
     // 检查是否有抽奖活动

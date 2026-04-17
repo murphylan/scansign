@@ -1,43 +1,23 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+
+import { loginAsAdmin } from './helpers/auth';
 
 /**
  * 投票模板功能测试
  * 测试4种不同的投票模板：简单投票、图文投票、选手投票、PK对决
  */
 
-const BASE_URL = 'http://localhost:3000';
-const ADMIN_EMAIL = 'murphylan@hotmail.com';
-const ADMIN_PASSWORD = '15871352105abc';
-
-// 登录辅助函数
-async function login(page: Page) {
-  await page.goto(`${BASE_URL}/login`);
-  await page.waitForLoadState('networkidle');
-  
-  const emailInput = page.locator('input[type="email"], input[name="email"], input[placeholder*="邮箱"]');
-  if (await emailInput.isVisible()) {
-    await emailInput.fill(ADMIN_EMAIL);
-    await page.locator('input[type="password"]').fill(ADMIN_PASSWORD);
-    await page.locator('button[type="submit"]').click();
-    await page.waitForTimeout(3000);
-  }
-  
-  // 确认登录成功
-  await page.waitForURL(/\/(dashboard|votes)/);
-}
-
 test.describe('投票模板功能测试', () => {
   
-  test.beforeEach(async ({ page }) => {
-    // 每个测试前先登录
-    await login(page);
+  test.beforeEach(async ({ page, baseURL }) => {
+    await loginAsAdmin(page, baseURL!);
   });
 
-  test('1. 简单投票模板 - 完整流程', async ({ page }) => {
+  test('1. 简单投票模板 - 完整流程', async ({ page, baseURL }) => {
     console.log('\n🧪 测试简单投票模板...');
     
     // 进入创建投票页面
-    await page.goto(`${BASE_URL}/votes/new`);
+    await page.goto(`${baseURL}/votes/new`);
     await page.waitForLoadState('networkidle');
     
     // 截图：模板选择页面
@@ -114,10 +94,10 @@ test.describe('投票模板功能测试', () => {
     }
   });
 
-  test('2. 图文投票模板 - 完整流程', async ({ page }) => {
+  test('2. 图文投票模板 - 完整流程', async ({ page, baseURL }) => {
     console.log('\n🧪 测试图文投票模板...');
     
-    await page.goto(`${BASE_URL}/votes/new`);
+    await page.goto(`${baseURL}/votes/new`);
     await page.waitForLoadState('networkidle');
     
     // 选择图文投票模板
@@ -174,10 +154,10 @@ test.describe('投票模板功能测试', () => {
     }
   });
 
-  test('3. 选手投票模板 - 完整流程', async ({ page }) => {
+  test('3. 选手投票模板 - 完整流程', async ({ page, baseURL }) => {
     console.log('\n🧪 测试选手投票模板...');
     
-    await page.goto(`${BASE_URL}/votes/new`);
+    await page.goto(`${baseURL}/votes/new`);
     await page.waitForLoadState('networkidle');
     
     // 选择选手投票模板
@@ -236,10 +216,10 @@ test.describe('投票模板功能测试', () => {
     }
   });
 
-  test('4. PK对决模板 - 完整流程', async ({ page }) => {
+  test('4. PK对决模板 - 完整流程', async ({ page, baseURL }) => {
     console.log('\n🧪 测试PK对决模板...');
     
-    await page.goto(`${BASE_URL}/votes/new`);
+    await page.goto(`${baseURL}/votes/new`);
     await page.waitForLoadState('networkidle');
     
     // 选择PK对决模板
@@ -300,10 +280,10 @@ test.describe('投票模板功能测试', () => {
     }
   });
 
-  test('5. 模板切换功能测试', async ({ page }) => {
+  test('5. 模板切换功能测试', async ({ page, baseURL }) => {
     console.log('\n🧪 测试模板切换功能...');
     
-    await page.goto(`${BASE_URL}/votes/new`);
+    await page.goto(`${baseURL}/votes/new`);
     await page.waitForLoadState('networkidle');
     
     const templates = ['简单投票', '图文投票', '选手投票', 'PK对决'];
@@ -331,10 +311,10 @@ test.describe('投票模板功能测试', () => {
     console.log('✅ 模板切换测试完成');
   });
 
-  test('6. 进入表单后返回更换模板', async ({ page }) => {
+  test('6. 进入表单后返回更换模板', async ({ page, baseURL }) => {
     console.log('\n🧪 测试返回更换模板功能...');
     
-    await page.goto(`${BASE_URL}/votes/new`);
+    await page.goto(`${baseURL}/votes/new`);
     await page.waitForLoadState('networkidle');
     
     // 选择简单投票
@@ -375,10 +355,10 @@ test.describe('投票模板功能测试', () => {
     }
   });
 
-  test('7. 多选投票配置测试', async ({ page }) => {
+  test('7. 多选投票配置测试', async ({ page, baseURL }) => {
     console.log('\n🧪 测试多选投票配置...');
     
-    await page.goto(`${BASE_URL}/votes/new`);
+    await page.goto(`${baseURL}/votes/new`);
     await page.waitForLoadState('networkidle');
     
     // 选择简单投票（支持多选）
@@ -412,12 +392,12 @@ test.describe('投票模板功能测试', () => {
 
 test.describe('投票模板UI检查', () => {
   
-  test.beforeEach(async ({ page }) => {
-    await login(page);
+  test.beforeEach(async ({ page, baseURL }) => {
+    await loginAsAdmin(page, baseURL!);
   });
 
-  test('模板卡片样式检查', async ({ page }) => {
-    await page.goto(`${BASE_URL}/votes/new`);
+  test('模板卡片样式检查', async ({ page, baseURL }) => {
+    await page.goto(`${baseURL}/votes/new`);
     await page.waitForLoadState('networkidle');
     
     // 检查模板卡片元素

@@ -1,40 +1,22 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+
+import { loginAsAdmin } from './helpers/auth';
 
 /**
  * 签到功能端到端测试
  * 测试完整流程：创建签到 -> 配置 -> 公开页面签到 -> 大屏展示
  */
 
-const BASE_URL = 'http://localhost:3000';
-const ADMIN_EMAIL = 'murphylan@hotmail.com';
-const ADMIN_PASSWORD = '15871352105abc';
-
-// 登录辅助函数
-async function login(page: Page) {
-  await page.goto(`${BASE_URL}/login`);
-  await page.waitForLoadState('networkidle');
-  
-  const emailInput = page.locator('input[type="email"], input[name="email"], input[placeholder*="邮箱"]');
-  if (await emailInput.isVisible()) {
-    await emailInput.fill(ADMIN_EMAIL);
-    await page.locator('input[type="password"]').fill(ADMIN_PASSWORD);
-    await page.locator('button[type="submit"]').click();
-    await page.waitForTimeout(3000);
-  }
-  
-  await page.waitForURL(/\/(dashboard|checkins)/);
-}
-
 test.describe('签到功能完整流程测试', () => {
   
-  test.beforeEach(async ({ page }) => {
-    await login(page);
+  test.beforeEach(async ({ page, baseURL }) => {
+    await loginAsAdmin(page, baseURL!);
   });
 
-  test('1. 访问签到列表页面', async ({ page }) => {
+  test('1. 访问签到列表页面', async ({ page, baseURL }) => {
     console.log('\n🧪 测试签到列表页面...');
     
-    await page.goto(`${BASE_URL}/checkins`);
+    await page.goto(`${baseURL}/checkins`);
     await page.waitForLoadState('networkidle');
     
     // 截图
@@ -51,10 +33,10 @@ test.describe('签到功能完整流程测试', () => {
     console.log('✅ 创建签到按钮可见');
   });
 
-  test('2. 创建签到 - 完整流程', async ({ page }) => {
+  test('2. 创建签到 - 完整流程', async ({ page, baseURL }) => {
     console.log('\n🧪 测试创建签到...');
     
-    await page.goto(`${BASE_URL}/checkins/new`);
+    await page.goto(`${baseURL}/checkins/new`);
     await page.waitForLoadState('networkidle');
     
     // 截图：创建页面
@@ -95,11 +77,11 @@ test.describe('签到功能完整流程测试', () => {
     }
   });
 
-  test('3. 签到详情页面功能', async ({ page }) => {
+  test('3. 签到详情页面功能', async ({ page, baseURL }) => {
     console.log('\n🧪 测试签到详情页面...');
     
     // 先创建一个签到
-    await page.goto(`${BASE_URL}/checkins/new`);
+    await page.goto(`${baseURL}/checkins/new`);
     await page.waitForLoadState('networkidle');
     
     await page.locator('input#title').fill('详情测试签到 - ' + Date.now());
@@ -141,11 +123,11 @@ test.describe('签到功能完整流程测试', () => {
     console.log('✅ 签到详情页面功能正常');
   });
 
-  test('4. 签到配置页面', async ({ page }) => {
+  test('4. 签到配置页面', async ({ page, baseURL }) => {
     console.log('\n🧪 测试签到配置页面...');
     
     // 先创建一个签到
-    await page.goto(`${BASE_URL}/checkins/new`);
+    await page.goto(`${baseURL}/checkins/new`);
     await page.waitForLoadState('networkidle');
     
     await page.locator('input#title').fill('配置测试签到 - ' + Date.now());
@@ -167,7 +149,7 @@ test.describe('签到功能完整流程测试', () => {
       // 直接构造设置URL
       const checkinId = detailUrl.split('/checkins/')[1]?.split('/')[0];
       if (checkinId) {
-        await page.goto(`${BASE_URL}/checkins/${checkinId}/settings`);
+        await page.goto(`${baseURL}/checkins/${checkinId}/settings`);
         await page.waitForLoadState('networkidle');
       }
     }
@@ -186,11 +168,11 @@ test.describe('签到功能完整流程测试', () => {
     console.log('✅ 签到配置页面加载成功');
   });
 
-  test('5. 公开签到页面', async ({ page }) => {
+  test('5. 公开签到页面', async ({ page, baseURL }) => {
     console.log('\n🧪 测试公开签到页面...');
     
     // 先创建一个签到
-    await page.goto(`${BASE_URL}/checkins/new`);
+    await page.goto(`${baseURL}/checkins/new`);
     await page.waitForLoadState('networkidle');
     
     await page.locator('input#title').fill('公开页面测试 - ' + Date.now());
@@ -235,7 +217,7 @@ test.describe('签到功能完整流程测试', () => {
     
     if (checkinCode) {
       // 访问公开签到页面（新的浏览器上下文，无登录状态）
-      const publicUrl = `${BASE_URL}/c/${checkinCode}`;
+      const publicUrl = `${baseURL}/c/${checkinCode}`;
       console.log(`🔗 访问公开签到页面: ${publicUrl}`);
       
       // 创建新页面来模拟未登录用户
@@ -289,11 +271,11 @@ test.describe('签到功能完整流程测试', () => {
     }
   });
 
-  test('6. 大屏展示页面', async ({ page }) => {
+  test('6. 大屏展示页面', async ({ page, baseURL }) => {
     console.log('\n🧪 测试大屏展示页面...');
     
     // 先创建一个签到
-    await page.goto(`${BASE_URL}/checkins/new`);
+    await page.goto(`${baseURL}/checkins/new`);
     await page.waitForLoadState('networkidle');
     
     await page.locator('input#title').fill('大屏测试签到 - ' + Date.now());
@@ -312,7 +294,7 @@ test.describe('签到功能完整流程测试', () => {
     
     if (codeMatch) {
       const checkinCode = codeMatch[1];
-      const displayUrl = `${BASE_URL}/c/${checkinCode}/display`;
+      const displayUrl = `${baseURL}/c/${checkinCode}/display`;
       console.log(`🖥️ 大屏URL: ${displayUrl}`);
       
       await page.goto(displayUrl);
@@ -336,14 +318,14 @@ test.describe('签到功能完整流程测试', () => {
 
 test.describe('签到配置选项测试', () => {
   
-  test.beforeEach(async ({ page }) => {
-    await login(page);
+  test.beforeEach(async ({ page, baseURL }) => {
+    await loginAsAdmin(page, baseURL!);
   });
 
-  test('墙面样式选项', async ({ page }) => {
+  test('墙面样式选项', async ({ page, baseURL }) => {
     console.log('\n🧪 测试墙面样式选项...');
     
-    await page.goto(`${BASE_URL}/checkins/new`);
+    await page.goto(`${baseURL}/checkins/new`);
     await page.waitForLoadState('networkidle');
     
     // 展开高级设置
@@ -368,10 +350,10 @@ test.describe('签到配置选项测试', () => {
     }
   });
 
-  test('部门配置功能', async ({ page }) => {
+  test('部门配置功能', async ({ page, baseURL }) => {
     console.log('\n🧪 测试部门配置功能...');
     
-    await page.goto(`${BASE_URL}/checkins/new`);
+    await page.goto(`${baseURL}/checkins/new`);
     await page.waitForLoadState('networkidle');
     
     // 找到并勾选部门选项
@@ -402,10 +384,10 @@ test.describe('签到配置选项测试', () => {
     }
   });
 
-  test('签到后行为配置', async ({ page }) => {
+  test('签到后行为配置', async ({ page, baseURL }) => {
     console.log('\n🧪 测试签到后行为配置...');
     
-    await page.goto(`${BASE_URL}/checkins/new`);
+    await page.goto(`${baseURL}/checkins/new`);
     await page.waitForLoadState('networkidle');
     
     // 检查签到后行为选项
@@ -431,14 +413,14 @@ test.describe('签到配置选项测试', () => {
 
 test.describe('签到数据验证', () => {
   
-  test.beforeEach(async ({ page }) => {
-    await login(page);
+  test.beforeEach(async ({ page, baseURL }) => {
+    await loginAsAdmin(page, baseURL!);
   });
 
-  test('必填字段验证', async ({ page }) => {
+  test('必填字段验证', async ({ page, baseURL }) => {
     console.log('\n🧪 测试必填字段验证...');
     
-    await page.goto(`${BASE_URL}/checkins/new`);
+    await page.goto(`${baseURL}/checkins/new`);
     await page.waitForLoadState('networkidle');
     
     // 不填写标题直接提交
@@ -456,11 +438,11 @@ test.describe('签到数据验证', () => {
     await page.screenshot({ path: 'e2e/screenshots/checkin-validation.png' });
   });
 
-  test('签到记录统计', async ({ page }) => {
+  test('签到记录统计', async ({ page, baseURL }) => {
     console.log('\n🧪 测试签到记录统计...');
     
     // 访问签到列表
-    await page.goto(`${BASE_URL}/checkins`);
+    await page.goto(`${baseURL}/checkins`);
     await page.waitForLoadState('networkidle');
     
     // 检查是否有签到记录

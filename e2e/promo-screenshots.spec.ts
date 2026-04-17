@@ -1,5 +1,7 @@
 import { test, type Page } from "@playwright/test";
 
+import { loginAsAdmin } from "./helpers/auth";
+
 /**
  * Rally 活动互动平台 - 产品宣传截图脚本
  *
@@ -16,8 +18,6 @@ test.setTimeout(300000);
 // 配置
 // ==========================================
 const BASE_URL = "http://localhost:3000";
-const ADMIN_EMAIL = "murphylan@hotmail.com";
-const ADMIN_PASSWORD = "15871352105abc";
 
 // 截图输出目录
 const PROMO_DIR = "e2e/promo";
@@ -44,16 +44,7 @@ async function screenshot(page: Page, name: string, fullPage = false) {
 }
 
 async function login(page: Page) {
-  await page.goto(`${BASE_URL}/login`);
-  await page.waitForLoadState("networkidle");
-
-  const emailInput = page.locator('input[type="email"], input[name="email"]');
-  if (await emailInput.isVisible()) {
-    await emailInput.fill(ADMIN_EMAIL);
-    await page.locator('input[type="password"]').fill(ADMIN_PASSWORD);
-    await page.locator('button[type="submit"]').click();
-    await wait(2500);
-  }
+  await loginAsAdmin(page, BASE_URL);
 }
 
 async function extractCode(page: Page, pattern: RegExp): Promise<string | null> {
@@ -66,7 +57,7 @@ async function extractCode(page: Page, pattern: RegExp): Promise<string | null> 
 // 主测试 - 宣传截图
 // ==========================================
 
-test.describe("📸 产品宣传截图", () => {
+test.describe("📸 产品宣传截图", { tag: "@promo" }, () => {
   test.beforeAll(async () => {
     console.log("\n🚀 开始生成产品宣传截图...\n");
     console.log(`📁 截图输出目录: ${PROMO_DIR}/\n`);
