@@ -111,20 +111,22 @@ export function VoteOptionEditor({
     );
   }
 
-  // 图文模式 - 列表布局
+  // 图文模式 - 卡片网格布局
   if (hasImage) {
     return (
       <div className="space-y-4">
-        {options.map((option, index) => (
-          <ImageOptionCard
-            key={option.id}
-            option={option}
-            index={index}
-            onChange={(updates) => updateOption(option.id, updates)}
-            onRemove={() => removeOption(option.id)}
-            canRemove={options.length > minOptions}
-          />
-        ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {options.map((option, index) => (
+            <ImageOptionCard
+              key={option.id}
+              option={option}
+              index={index}
+              onChange={(updates) => updateOption(option.id, updates)}
+              onRemove={() => removeOption(option.id)}
+              canRemove={options.length > minOptions}
+            />
+          ))}
+        </div>
         {options.length < maxOptions && (
           <Button
             type="button"
@@ -305,30 +307,41 @@ function ImageOptionCard({
   canRemove,
 }: ImageOptionCardProps) {
   return (
-    <div className="flex gap-4 p-4 rounded-xl border bg-card group">
-      {/* 序号和拖拽 */}
-      <div className="flex flex-col items-center gap-2">
-        <div className="text-muted-foreground cursor-grab">
-          <GripVertical className="h-5 w-5" />
-        </div>
-        <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
-          {index + 1}
-        </span>
+    <div className="relative rounded-xl border bg-card overflow-hidden group">
+      {/* 序号 */}
+      <div className="absolute top-3 left-3 z-10 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center text-sm font-semibold backdrop-blur-sm">
+        {index + 1}
       </div>
 
-      {/* 图片上传 */}
-      <div className="w-24 h-24 flex-shrink-0">
-        <ImageUploader
-          value={option.image}
-          onChange={(image) => onChange({ image })}
-          placeholder="图片"
-          aspectRatio="square"
-          size="sm"
-        />
+      {/* 拖拽手柄 */}
+      <div className="absolute top-3 left-12 z-10 text-white/70 cursor-grab hover:text-white transition-colors">
+        <GripVertical className="h-5 w-5 drop-shadow" />
       </div>
 
-      {/* 信息输入 */}
-      <div className="flex-1 space-y-2">
+      {/* 删除按钮 */}
+      {canRemove && (
+        <Button
+          type="button"
+          variant="destructive"
+          size="icon"
+          onClick={onRemove}
+          className="absolute top-2 right-2 z-10 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      )}
+
+      {/* 图片区域 */}
+      <ImageUploader
+        value={option.image}
+        onChange={(image) => onChange({ image })}
+        placeholder="点击上传图片"
+        aspectRatio="16:9"
+        size="sm"
+      />
+
+      {/* 文本输入区域 */}
+      <div className="p-3 space-y-2">
         <Input
           placeholder={`选项 ${index + 1} 标题`}
           value={option.title}
@@ -342,19 +355,6 @@ function ImageOptionCard({
           className="text-sm"
         />
       </div>
-
-      {/* 删除按钮 */}
-      {canRemove && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={onRemove}
-          className="self-start text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      )}
     </div>
   );
 }
