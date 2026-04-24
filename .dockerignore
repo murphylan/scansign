@@ -28,3 +28,10 @@ drizzle
 # Documentation
 README.md
 LICENSE
+
+# Deployment scripts and backups (运行时不需要进镜像)
+scripts
+backups
+docs
+compose.yml
+.env.example

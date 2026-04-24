@@ -1,6 +1,6 @@
 services:
   db:
-    image: mirror.ccs.tencentyun.com/library/postgres:17-alpine
+    image: zot.murphylan.cloud/library/postgres:17-alpine-amd64
     restart: unless-stopped
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -15,9 +15,7 @@ services:
       retries: 10
 
   app:
-    build:
-      context: .
-      dockerfile: Containerfile
+    image: zot.murphylan.cloud/murphy/scansign:latest
     restart: unless-stopped
     depends_on:
       db:
@@ -31,6 +29,7 @@ services:
       SESSION_EXPIRY_DAYS: ${SESSION_EXPIRY_DAYS:-7}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      OPS_SUPER_USER_EMAIL: ${OPS_SUPER_USER_EMAIL:-}
 
 volumes:
   pgdata:
