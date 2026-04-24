@@ -1,6 +1,8 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
+import bcrypt from "bcryptjs";
 import { desc, eq, or, ilike, type SQL } from "drizzle-orm";
 import { z } from "zod";
 
@@ -217,6 +219,183 @@ export async function extendTrialAction(
     return {
       success: false,
       error: e instanceof Error ? e.message : "操作失败",
+    };
+  }
+}
+
+/**
+ * 直接设置用户的试用天数（不是追加），范围 0~365。
+ * 与 extendTrialAction 区别：这是覆盖式设置，运营时更直观。
+ */
+export async function setTrialDaysAction(
+  userId: string,
+  trialDays: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireOps();
+    if (!Number.isFinite(trialDays) || trialDays < 0 || trialDays > 365) {
+      return { success: false, error: "试用天数需在 0～365 之间" };
+    }
+
+    const [target] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (!target) {
+      return { success: false, error: "用户不存在" };
+    }
+
+    await db
+      .update(users)
+      .set({ trialDays, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+
+    revalidatePath("/ops/console");
+    return { success: true };
+  } catch (e) {
+    return {
+      success: false,
+      error: e instanceof Error ? e.message : "操作失败",
+    };
+  }
+}
+
+const createUserSchema = z.object({
+  email: z.string().email("请输入有效的邮箱地址"),
+  password: z.string().min(6, "密码至少 6 个字符"),
+  nickname: z.string().trim().max(50).optional(),
+  trialDays: z.number().int().min(0).max(365).default(3),
+  role: z.enum(["USER", "ADMIN"]).default("USER"),
+});
+
+export type CreateUserInput = z.infer<typeof createUserSchema>;
+
+/**
+ * 运营台直接创建用户（无需该用户自己注册）。
+ * 默认角色 USER；可指定试用天数。
+ */
+export async function createUserAction(
+  input: CreateUserInput
+): Promise<{ success: boolean; error?: string; data?: { id: string } }> {
+  try {
+    await requireOps();
+    const validated = createUserSchema.parse(input);
+
+    const [existing] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, validated.email))
+      .limit(1);
+
+    if (existing) {
+      return { success: false, error: "该邮箱已被注册" };
+    }
+
+    const hashedPassword = await bcrypt.hash(validated.password, 12);
+    const now = new Date();
+
+    const [created] = await db
+      .insert(users)
+      .values({
+        id: randomUUID(),
+        email: validated.email,
+        password: hashedPassword,
+        nickname: validated.nickname || validated.email.split("@")[0],
+        role: validated.role,
+        trialStartAt: now,
+        trialDays: validated.trialDays,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning({ id: users.id });
+
+    revalidatePath("/ops/console");
+    return { success: true, data: { id: created.id } };
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { success: false, error: e.issues[0]?.message ?? "参数错误" };
+    }
+    return {
+      success: false,
+      error: e instanceof Error ? e.message : "创建失败",
+    };
+  }
+}
+
+const updateUserSchema = z.object({
+  userId: z.string().min(1),
+  nickname: z.string().trim().max(50).optional(),
+  trialDays: z.number().int().min(0).max(365).optional(),
+  role: z.enum(["USER", "ADMIN"]).optional(),
+  password: z
+    .string()
+    .min(6, "密码至少 6 个字符")
+    .max(128)
+    .optional()
+    .or(z.literal("")),
+});
+
+export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+
+/**
+ * 运营台编辑用户：可修改昵称 / 试用天数 / 角色，可选重置密码。
+ * 不允许把自己的角色从 ADMIN 改成 USER（避免误操作丢失权限）。
+ */
+export async function updateUserAction(
+  input: UpdateUserInput
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const me = await requireOps();
+    const validated = updateUserSchema.parse(input);
+
+    const [target] = await db
+      .select({ id: users.id, role: users.role })
+      .from(users)
+      .where(eq(users.id, validated.userId))
+      .limit(1);
+
+    if (!target) {
+      return { success: false, error: "用户不存在" };
+    }
+
+    if (
+      target.id === me.id &&
+      validated.role &&
+      validated.role !== "ADMIN"
+    ) {
+      return { success: false, error: "不能降级自己的管理员角色" };
+    }
+
+    const patch: Partial<typeof users.$inferInsert> = {
+      updatedAt: new Date(),
+    };
+
+    if (validated.nickname !== undefined) {
+      patch.nickname = validated.nickname || null;
+    }
+    if (validated.trialDays !== undefined) {
+      patch.trialDays = validated.trialDays;
+    }
+    if (validated.role !== undefined) {
+      patch.role = validated.role;
+    }
+    if (validated.password) {
+      patch.password = await bcrypt.hash(validated.password, 12);
+    }
+
+    await db.update(users).set(patch).where(eq(users.id, validated.userId));
+
+    revalidatePath("/ops/console");
+    return { success: true };
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { success: false, error: e.issues[0]?.message ?? "参数错误" };
+    }
+    return {
+      success: false,
+      error: e instanceof Error ? e.message : "保存失败",
     };
   }
 }
