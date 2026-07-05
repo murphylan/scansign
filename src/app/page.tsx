@@ -98,10 +98,10 @@ export default function HomePage() {
         <div className="flex items-center justify-center h-full px-4 relative">
           <div className="absolute left-4 flex items-center gap-1.5">
             <div className="h-6 w-6 rounded-md bg-linear-to-br from-primary to-amber-500 flex items-center justify-center">
-              <span className="text-xs font-bold text-primary-foreground">M</span>
+              <span className="text-xs font-bold text-primary-foreground">S</span>
             </div>
           </div>
-          <h1 className="text-[15px] font-semibold">Murphy</h1>
+          <h1 className="text-[15px] font-semibold">Sign</h1>
         </div>
       </header>
 
@@ -109,7 +109,7 @@ export default function HomePage() {
       <main className="flex-1 pb-[76px]">
         {/* Hero */}
         <div className="bg-linear-to-br from-primary/5 via-amber-500/5 to-background px-4 pt-8 pb-6 text-center">
-          <h2 className="text-2xl font-bold tracking-tight mb-1">Murphy 互动工具集</h2>
+          <h2 className="text-2xl font-bold tracking-tight mb-1">Sign</h2>
           <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium mt-2">
             <Sparkles className="h-3 w-3" />
             全场景活动互动平台
@@ -178,7 +178,7 @@ export default function HomePage() {
 
         {/* Footer */}
         <div className="px-4 pt-8 pb-4 text-center">
-          <p className="text-xs text-muted-foreground">Murphy 互动工具集 · 让活动更精彩</p>
+          <p className="text-xs text-muted-foreground">Sign · 让活动更精彩</p>
         </div>
       </main>
 

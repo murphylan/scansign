@@ -4,7 +4,7 @@ import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Murphy - 互动工具集",
+  title: "Sign - 活动互动工具集",
   description: "签到、投票、抽奖、表单，一站式满足各类活动互动需求",
 };
 
