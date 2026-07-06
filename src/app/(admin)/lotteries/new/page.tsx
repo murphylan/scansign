@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +19,7 @@ import {
 import { LotteryMode } from '@/types/lottery';
 import { generateId } from '@/lib/utils/code-generator';
 import { createLotteryAction } from '@/server/actions/lotteryAction';
+import { cn } from '@/lib/utils';
 
 interface PrizeConfig {
   id: string;
@@ -66,7 +66,7 @@ export default function NewLotteryPage() {
     const nextLevel = prizes.length + 1;
     const levelNames = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
     const levelName = nextLevel <= 10 ? `${levelNames[nextLevel - 1]}等奖` : `${nextLevel}等奖`;
-    
+
     setPrizes([
       ...prizes,
       { id: generateId(), name: levelName, count: 1, level: nextLevel },
@@ -87,7 +87,7 @@ export default function NewLotteryPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    
+
     if (!title.trim()) {
       toast.error('请输入抽奖标题');
       return;
@@ -140,34 +140,32 @@ export default function NewLotteryPage() {
   const totalWinners = prizes.reduce((sum, p) => sum + p.count, 0);
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <Link href="/lotteries">
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" className="-ml-1">
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50">
+          <Gift className="h-5 w-5 text-amber-600" strokeWidth={1.9} />
+        </div>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">创建抽奖</h1>
-          <p className="text-muted-foreground mt-1">
-            设置奖品，大屏抽奖
-          </p>
+          <h1 className="text-xl font-bold tracking-tight">创建抽奖</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">设置奖品，大屏抽奖</p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
         {/* 基本信息 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Gift className="h-5 w-5" />
-              基本信息
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <div className="rounded-2xl bg-cell p-5 shadow-sm">
+          <h2 className="mb-4 text-[15px] font-semibold text-foreground">基本信息</h2>
+          <div className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="title">抽奖标题 *</Label>
+              <Label htmlFor="title">
+                抽奖标题 <span className="text-primary">*</span>
+              </Label>
               <Input
                 id="title"
                 placeholder="如：年会幸运大抽奖"
@@ -185,63 +183,63 @@ export default function NewLotteryPage() {
                 onChange={(e) => setDescription(e.target.value)}
               />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        {/* 抽奖模式 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>抽奖动画</CardTitle>
-            <CardDescription>选择大屏抽奖时的动画效果</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {LOTTERY_MODE_OPTIONS.map((m) => (
-                <label
-                  key={m.value}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-lg border cursor-pointer transition-all ${
-                    mode === m.value
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:bg-secondary/50'
-                  } ${m.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <input
-                    type="radio"
-                    name="mode"
-                    value={m.value}
-                    checked={mode === m.value}
-                    onChange={() => !m.disabled && setMode(m.value as LotteryMode)}
-                    disabled={m.disabled}
-                    className="sr-only"
-                  />
-                  <span className="text-3xl">{m.icon}</span>
-                  <span className="font-medium">{m.label}</span>
-                  {m.disabled && (
-                    <span className="text-xs text-muted-foreground">即将推出</span>
-                  )}
-                </label>
-              ))}
+        {/* 抽奖动画 */}
+        <div className="rounded-2xl bg-cell p-5 shadow-sm">
+          <h2 className="mb-1 text-[15px] font-semibold text-foreground">抽奖动画</h2>
+          <p className="mb-4 text-sm text-muted-foreground">选择大屏抽奖时的动画效果</p>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {LOTTERY_MODE_OPTIONS.map((m) => (
+              <label
+                key={m.value}
+                className={cn(
+                  'flex cursor-pointer flex-col items-center gap-2 rounded-xl border p-4 transition-colors',
+                  mode === m.value
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border active:bg-muted',
+                  m.disabled ? 'cursor-not-allowed opacity-50' : ''
+                )}
+              >
+                <input
+                  type="radio"
+                  name="mode"
+                  value={m.value}
+                  checked={mode === m.value}
+                  onChange={() => !m.disabled && setMode(m.value as LotteryMode)}
+                  disabled={m.disabled}
+                  className="sr-only"
+                />
+                <span className="text-3xl">{m.icon}</span>
+                <span className="text-sm font-semibold">{m.label}</span>
+                {m.disabled && (
+                  <span className="text-xs text-muted-foreground">即将推出</span>
+                )}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* 奖项设置 */}
+        <div className="rounded-2xl bg-cell p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50">
+                <Trophy className="h-4 w-4 text-amber-600" strokeWidth={1.9} />
+              </div>
+              <h2 className="text-[15px] font-semibold text-foreground">奖项设置</h2>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* 奖品设置 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Trophy className="h-5 w-5" />
-              奖项设置
-            </CardTitle>
-            <CardDescription className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Users className="h-3.5 w-3.5" />
               共 {totalWinners} 个中奖名额
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+            </span>
+          </div>
+          <div className="space-y-3">
             {prizes.map((prize, index) => (
               <div key={prize.id} className="flex items-center gap-3">
-                <GripVertical className="h-5 w-5 text-muted-foreground shrink-0 cursor-move" />
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm shrink-0">
+                <GripVertical className="h-5 w-5 shrink-0 cursor-move text-muted-foreground" />
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
                   {index + 1}
                 </div>
                 <Input
@@ -250,7 +248,7 @@ export default function NewLotteryPage() {
                   onChange={(e) => updatePrize(prize.id, { name: e.target.value })}
                   className="flex-1"
                 />
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex shrink-0 items-center gap-2">
                   <Input
                     type="number"
                     min={1}
@@ -260,7 +258,7 @@ export default function NewLotteryPage() {
                     onChange={(e) => updatePrize(prize.id, { count: parseInt(e.target.value) || 1 })}
                     className="w-20"
                   />
-                  <span className="text-muted-foreground text-sm">人</span>
+                  <span className="text-sm text-muted-foreground">人</span>
                 </div>
                 <Button
                   type="button"
@@ -268,74 +266,70 @@ export default function NewLotteryPage() {
                   size="icon"
                   onClick={() => removePrize(prize.id)}
                   disabled={prizes.length <= 1}
-                  className="text-muted-foreground hover:text-destructive shrink-0"
+                  className="shrink-0 text-muted-foreground hover:text-destructive"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             ))}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={addPrize}
-              className="w-full"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              添加奖项
-            </Button>
-          </CardContent>
-        </Card>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={addPrize}
+            className="mt-4 w-full"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            添加奖项
+          </Button>
+        </div>
 
-        {/* 签到规则 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>参与方式</CardTitle>
-            <CardDescription>
-              用户扫码签到后，等待主持人在大屏上开奖
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="p-4 rounded-lg bg-secondary/50 space-y-3">
-              <h4 className="font-medium">抽奖流程：</h4>
-              <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1">
-                <li>用户扫码进入抽奖页面</li>
-                <li>输入手机号/姓名完成签到</li>
-                <li>大屏实时显示已签到用户</li>
-                <li>主持人点击"开始抽奖"按钮</li>
-                <li>系统从签到用户中随机抽取中奖者</li>
-              </ol>
-            </div>
-            <div className="space-y-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={requirePhone}
-                  onChange={(e) => setRequirePhone(e.target.checked)}
-                  className="rounded"
-                />
-                <span>需要手机号</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={requireName}
-                  onChange={(e) => setRequireName(e.target.checked)}
-                  className="rounded"
-                />
-                <span>需要姓名</span>
-              </label>
-            </div>
-          </CardContent>
-        </Card>
+        {/* 参与方式 */}
+        <div className="rounded-2xl bg-cell p-5 shadow-sm">
+          <h2 className="mb-1 text-[15px] font-semibold text-foreground">参与方式</h2>
+          <p className="mb-4 text-sm text-muted-foreground">
+            用户扫码签到后，等待主持人在大屏上开奖
+          </p>
+          <div className="rounded-xl bg-muted p-4">
+            <h4 className="mb-2 text-sm font-semibold text-foreground">抽奖流程</h4>
+            <ol className="space-y-1.5 text-sm text-muted-foreground">
+              <li className="flex gap-2"><span className="shrink-0 font-medium text-foreground">1.</span>用户扫码进入抽奖页面</li>
+              <li className="flex gap-2"><span className="shrink-0 font-medium text-foreground">2.</span>输入手机号/姓名完成签到</li>
+              <li className="flex gap-2"><span className="shrink-0 font-medium text-foreground">3.</span>大屏实时显示已签到用户</li>
+              <li className="flex gap-2"><span className="shrink-0 font-medium text-foreground">4.</span>主持人点击「开始抽奖」按钮</li>
+              <li className="flex gap-2"><span className="shrink-0 font-medium text-foreground">5.</span>系统从签到用户中随机抽取中奖者</li>
+            </ol>
+          </div>
+          <div className="mt-4 space-y-3">
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                checked={requirePhone}
+                onChange={(e) => setRequirePhone(e.target.checked)}
+                className="rounded"
+              />
+              <span className="text-sm">需要手机号</span>
+            </label>
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                checked={requireName}
+                onChange={(e) => setRequireName(e.target.checked)}
+                className="rounded"
+              />
+              <span className="text-sm">需要姓名</span>
+            </label>
+          </div>
+        </div>
 
-        {/* 提交按钮 */}
-        <div className="flex justify-end gap-3">
-          <Link href="/lotteries">
-            <Button type="button" variant="outline">
+        {/* 底部操作 */}
+        <div className="flex items-center gap-3 pt-1">
+          <Link href="/lotteries" className="flex-1">
+            <Button type="button" variant="outline" className="h-12 w-full">
               取消
             </Button>
           </Link>
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading} className="h-12 flex-1 text-base font-medium">
             {loading ? '创建中...' : '创建抽奖'}
           </Button>
         </div>

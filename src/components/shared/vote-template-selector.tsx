@@ -36,11 +36,10 @@ function TemplateCard({ template, selected, onSelect }: TemplateCardProps) {
       type="button"
       onClick={onSelect}
       className={cn(
-        'relative flex flex-col items-center p-6 rounded-xl border-2 transition-all duration-200',
-        'hover:shadow-lg hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-primary/50',
+        'relative flex flex-col items-center p-5 rounded-xl border-2 transition-colors',
         selected
-          ? 'border-primary bg-primary/5 shadow-md'
-          : 'border-border bg-card hover:border-primary/50 hover:bg-secondary/30'
+          ? 'border-primary bg-primary/5'
+          : 'border-border active:bg-muted'
       )}
     >
       {/* 选中标记 */}

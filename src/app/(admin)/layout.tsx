@@ -49,7 +49,7 @@ export default async function AdminLayout({
   return (
     <UserProvider user={userInfo}>
       <PresenceBeacon />
-      <div className="min-h-screen bg-background flex flex-col lg:block">
+      <div className="min-h-screen bg-page flex flex-col lg:block">
         <Sidebar user={userInfo} />
         <MobileHeader user={userInfo} />
 

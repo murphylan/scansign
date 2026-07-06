@@ -28,6 +28,7 @@ import { listVotesAction } from "@/server/actions/voteAction";
 import { listFormsAction } from "@/server/actions/formAction";
 import { listLotteriesAction } from "@/server/actions/lotteryAction";
 import { subscriptionPlanLabel } from "@/lib/pricing";
+import { cn } from "@/lib/utils";
 
 interface Stats {
   totalActivities: number;
@@ -81,10 +82,10 @@ export default function MePage() {
 
   const appItems = stats
     ? [
-        { icon: UserCheck, label: "签到", count: stats.breakdown.checkins, color: "text-emerald-500", bg: "bg-emerald-500/10", href: "/apps?tab=checkins" },
-        { icon: Vote, label: "投票", count: stats.breakdown.votes, color: "text-blue-500", bg: "bg-blue-500/10", href: "/apps?tab=votes" },
-        { icon: FileText, label: "表单", count: stats.breakdown.forms, color: "text-purple-500", bg: "bg-purple-500/10", href: "/apps?tab=forms" },
-        { icon: Gift, label: "抽奖", count: stats.breakdown.lotteries, color: "text-orange-500", bg: "bg-orange-500/10", href: "/apps?tab=lotteries" },
+        { icon: UserCheck, label: "签到", count: stats.breakdown.checkins, tint: "bg-emerald-50", fg: "text-emerald-600", href: "/apps?tab=checkins" },
+        { icon: Vote, label: "投票", count: stats.breakdown.votes, tint: "bg-blue-50", fg: "text-blue-600", href: "/apps?tab=votes" },
+        { icon: FileText, label: "表单", count: stats.breakdown.forms, tint: "bg-violet-50", fg: "text-violet-600", href: "/apps?tab=forms" },
+        { icon: Gift, label: "抽奖", count: stats.breakdown.lotteries, tint: "bg-amber-50", fg: "text-amber-600", href: "/apps?tab=lotteries" },
       ]
     : [];
 
@@ -95,177 +96,164 @@ export default function MePage() {
   ];
 
   return (
-    <div className="space-y-3">
-      {/* User Card -- compact horizontal */}
-      <div className="bg-linear-to-br from-primary/10 via-amber-500/5 to-background rounded-2xl border border-border px-4 py-3 flex items-center gap-3">
-        <div className="h-12 w-12 rounded-full bg-linear-to-br from-primary/60 to-amber-500/60 flex items-center justify-center shrink-0 shadow-sm">
-          <span className="text-lg font-bold text-white">
+    <div className="-mx-4 -my-4 space-y-3 lg:-m-6">
+      {/* 资料头 —— 企业级红色 */}
+      <div className="bg-gradient-to-br from-primary to-[oklch(0.44_0.19_25)] px-4 pb-5 pt-5 text-white">
+        <div className="flex items-center gap-3">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white/15 text-xl font-bold ring-1 ring-white/25">
             {user.nickname?.charAt(0) || user.email.charAt(0).toUpperCase()}
-          </span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-lg font-bold">{user.nickname || user.email.split("@")[0]}</h2>
+            <p className="truncate text-xs text-white/70">{user.email}</p>
+          </div>
+          {user.role === "ADMIN" ? (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-medium ring-1 ring-white/20">
+              <Crown className="h-3.5 w-3.5" />
+              管理员
+            </span>
+          ) : user.hasActivePaidSubscription ? (
+            <span className="inline-flex shrink-0 items-center rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-medium ring-1 ring-white/20">
+              付费用户
+            </span>
+          ) : (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-medium ring-1 ring-white/20">
+              <Clock className="h-3.5 w-3.5" />
+              试用 {user.trialDaysRemaining} 天
+            </span>
+          )}
         </div>
-        <div className="flex-1 min-w-0">
-          <h2 className="text-base font-bold truncate">
-            {user.nickname || user.email.split("@")[0]}
-          </h2>
-          <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
-        </div>
-        {user.role === "ADMIN" ? (
-          <span className="inline-flex items-center gap-1 text-[10px] bg-amber-500/20 text-amber-600 px-2 py-0.5 rounded-full font-medium shrink-0">
-            <Crown className="h-3 w-3" />
-            管理员
-          </span>
-        ) : user.hasActivePaidSubscription ? (
-          <span className="inline-flex items-center text-[10px] bg-emerald-500/20 text-emerald-600 px-2 py-0.5 rounded-full font-medium shrink-0">
-            付费用户
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 text-[10px] bg-blue-500/20 text-blue-600 px-2 py-0.5 rounded-full font-medium shrink-0">
-            <Clock className="h-3 w-3" />
-            试用 {user.trialDaysRemaining} 天
-          </span>
-        )}
       </div>
 
-      {/* 权益与到期 */}
-      <div className="bg-card rounded-2xl border border-border p-3 space-y-2">
-        <h3 className="text-xs font-semibold text-muted-foreground px-1">权益与到期</h3>
-        {user.role === "ADMIN" ? (
-          <p className="text-sm text-foreground px-1">
-            你当前为<span className="font-medium text-amber-600">运营管理员</span>
-            ，不显示试用/订阅到期日。
-          </p>
-        ) : user.hasActivePaidSubscription && user.subscriptionEndsAt ? (
-          <div className="space-y-1 px-1 text-sm">
-            <p>
-              <span className="text-muted-foreground">当前套餐：</span>
-              {subscriptionPlanLabel(user.subscriptionPlan)}
-            </p>
-            <p>
-              <span className="text-muted-foreground">订阅到期日：</span>
-              <span className="font-medium">
-                {new Date(user.subscriptionEndsAt).toLocaleDateString("zh-CN", {
-                  year: "numeric",
-                  month: "2-digit",
-                  day: "2-digit",
-                })}
-              </span>
-            </p>
-          </div>
-        ) : user.hasActivePaidSubscription && !user.subscriptionEndsAt ? (
-          <p className="text-sm px-1">付费权益有效（未设置截止日期）。</p>
-        ) : (
-          <div className="space-y-1 px-1 text-sm">
-            <p>
-              <span className="text-muted-foreground">试用结束日：</span>
-              <span className="font-medium">
-                {new Date(user.trialEndsAtIso).toLocaleDateString("zh-CN", {
-                  year: "numeric",
-                  month: "2-digit",
-                  day: "2-digit",
-                })}
-              </span>
-            </p>
-            <p className="text-muted-foreground">
-              剩余试用约 <span className="font-medium text-foreground">{user.trialDaysRemaining}</span>{" "}
-              天 · 详情与付费请见「订阅与付款说明」
-            </p>
-          </div>
-        )}
-        <Link
-          href="/me/billing"
-          className="flex items-center justify-center gap-1 text-xs text-primary font-medium py-2 rounded-xl border border-dashed border-primary/30 bg-primary/5"
-        >
-          <CreditCard className="h-3.5 w-3.5" />
-          查看定价与线下付款方式
-          <ChevronRight className="h-3 w-3" />
-        </Link>
-      </div>
-
-      {/* Stats -- 3-col grid, compact */}
-      <div className="bg-card rounded-2xl border border-border p-3">
-        <div className="grid grid-cols-3 divide-x divide-border">
-          {[
-            { icon: Calendar, value: stats?.totalActivities ?? "-", label: "总活动", color: "text-blue-500", bg: "bg-blue-500/10" },
-            { icon: TrendingUp, value: stats?.activeActivities ?? "-", label: "进行中", color: "text-emerald-500", bg: "bg-emerald-500/10" },
-            { icon: Users, value: stats?.totalParticipants ?? "-", label: "总参与", color: "text-purple-500", bg: "bg-purple-500/10" },
-          ].map((s) => (
-            <div key={s.label} className="flex flex-col items-center py-1">
-              <div className={`h-7 w-7 rounded-full ${s.bg} flex items-center justify-center mb-1`}>
-                <s.icon className={`h-3.5 w-3.5 ${s.color}`} />
+      <div className="space-y-3 px-4">
+        {/* 数据概览 —— 上浮覆盖资料头 */}
+        <div className="-mt-8 rounded-2xl bg-cell p-4 shadow-md">
+          <div className="grid grid-cols-3 divide-x divide-border">
+            {[
+              { icon: Calendar, value: stats?.totalActivities ?? "-", label: "总活动" },
+              { icon: TrendingUp, value: stats?.activeActivities ?? "-", label: "进行中" },
+              { icon: Users, value: stats?.totalParticipants ?? "-", label: "总参与" },
+            ].map((s) => (
+              <div key={s.label} className="flex flex-col items-center px-1">
+                <p className="text-2xl font-bold leading-tight text-foreground tabular-nums">{s.value}</p>
+                <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                  <s.icon className="h-3.5 w-3.5" />
+                  {s.label}
+                </p>
               </div>
-              <p className="text-base font-bold leading-tight">{s.value}</p>
-              <p className="text-[10px] text-muted-foreground">{s.label}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* App Breakdown -- 2x2 grid */}
-      {stats && (
-        <div className="bg-card rounded-2xl border border-border p-3">
-          <h3 className="text-xs font-semibold text-muted-foreground mb-2 px-1">我的应用</h3>
-          <div className="grid grid-cols-2 gap-2">
-            {appItems.map((item) => (
-              <Link key={item.label} href={item.href}>
-                <div className="flex items-center gap-2.5 rounded-xl border border-border px-3 py-2.5 active:bg-secondary transition-colors">
-                  <div className={`h-8 w-8 rounded-lg ${item.bg} flex items-center justify-center shrink-0`}>
-                    <item.icon className={`h-4 w-4 ${item.color}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground">{item.label}</p>
-                    <p className="text-sm font-bold leading-tight">{item.count}</p>
-                  </div>
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                </div>
-              </Link>
             ))}
           </div>
         </div>
-      )}
 
-      {/* Menu -- 2-col grid + logout full width */}
-      <div className="bg-card rounded-2xl border border-border p-3">
-        <div className="grid grid-cols-2 gap-2">
+        {/* 权益与到期 */}
+        <div className="rounded-2xl bg-cell p-4 shadow-sm">
+          <h3 className="mb-2 text-[13px] font-semibold text-muted-foreground">权益与到期</h3>
+          {user.role === "ADMIN" ? (
+            <p className="text-sm text-foreground">
+              你当前为<span className="font-medium text-primary">运营管理员</span>，不显示试用/订阅到期日。
+            </p>
+          ) : user.hasActivePaidSubscription && user.subscriptionEndsAt ? (
+            <div className="space-y-1 text-sm">
+              <p>
+                <span className="text-muted-foreground">当前套餐：</span>
+                {subscriptionPlanLabel(user.subscriptionPlan)}
+              </p>
+              <p>
+                <span className="text-muted-foreground">订阅到期日：</span>
+                <span className="font-medium">
+                  {new Date(user.subscriptionEndsAt).toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" })}
+                </span>
+              </p>
+            </div>
+          ) : user.hasActivePaidSubscription && !user.subscriptionEndsAt ? (
+            <p className="text-sm">付费权益有效（未设置截止日期）。</p>
+          ) : (
+            <div className="space-y-1 text-sm">
+              <p>
+                <span className="text-muted-foreground">试用结束日：</span>
+                <span className="font-medium">
+                  {new Date(user.trialEndsAtIso).toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" })}
+                </span>
+              </p>
+              <p className="text-muted-foreground">
+                剩余试用约 <span className="font-medium text-foreground">{user.trialDaysRemaining}</span> 天 · 详情与付费请见「订阅与付款说明」
+              </p>
+            </div>
+          )}
+          <Link
+            href="/me/billing"
+            className="mt-3 flex items-center justify-center gap-1 rounded-xl bg-primary/5 py-2.5 text-[13px] font-medium text-primary ring-1 ring-primary/15"
+          >
+            <CreditCard className="h-4 w-4" />
+            查看定价与线下付款方式
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        {/* 我的应用 */}
+        {stats && (
+          <div>
+            <h3 className="mb-2 px-1 text-[13px] font-semibold text-muted-foreground">我的应用</h3>
+            <div className="grid grid-cols-2 gap-2.5">
+              {appItems.map((item) => (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className="flex items-center gap-3 rounded-2xl bg-cell px-3.5 py-3 shadow-sm transition-colors active:bg-muted"
+                >
+                  <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", item.tint)}>
+                    <item.icon className={cn("h-5 w-5", item.fg)} strokeWidth={1.9} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs text-muted-foreground">{item.label}</p>
+                    <p className="text-lg font-bold leading-tight text-foreground tabular-nums">{item.count}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 菜单 */}
+        <div className="overflow-hidden rounded-2xl bg-cell shadow-sm [&>*:last-child]:after:hidden">
           {menuItems.map((item) => (
-            <Link key={item.label} href={item.href}>
-              <div className="flex items-center gap-2 rounded-xl border border-border px-3 py-2.5 active:bg-secondary transition-colors">
-                <div className="h-7 w-7 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-                  <item.icon className="h-3.5 w-3.5 text-muted-foreground" />
-                </div>
-                <span className="text-sm">{item.label}</span>
-              </div>
+            <Link
+              key={item.label}
+              href={item.href}
+              className="weui-hairline-bottom weui-hairline-inset relative flex items-center gap-3 px-4 py-3.5 transition-colors active:bg-muted"
+            >
+              <item.icon className="h-[18px] w-[18px] shrink-0 text-muted-foreground" strokeWidth={1.9} />
+              <span className="flex-1 text-[15px] text-foreground">{item.label}</span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" />
             </Link>
           ))}
+          <button
+            onClick={logout}
+            className="flex w-full items-center gap-3 px-4 py-3.5 transition-colors active:bg-muted"
+          >
+            <LogOut className="h-[18px] w-[18px] shrink-0 text-destructive" strokeWidth={1.9} />
+            <span className="flex-1 text-left text-[15px] text-destructive">退出登录</span>
+          </button>
         </div>
-        <button
-          onClick={logout}
-          className="w-full flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-2.5 mt-2 active:bg-secondary transition-colors"
-        >
-          <LogOut className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-sm">退出登录</span>
-        </button>
-      </div>
 
-      {/* About */}
-      <div className="bg-card rounded-2xl border border-border p-4">
-        <h3 className="text-xs font-semibold text-muted-foreground mb-2">关于我们</h3>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          Murphy Cloud 致力于为企业和个人提供高效、安全、易用的数字化解决方案。Sign 是 Murphy Cloud 旗下的活动互动 SaaS 产品，提供签到、投票、抽奖、表单等全场景互动能力。
-        </p>
-        <a
-          href="https://murphylan.cloud"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs text-primary font-medium mt-2"
-        >
-          访问官网
-          <ChevronRight className="h-3 w-3" />
-        </a>
-      </div>
+        {/* 关于 */}
+        <div className="rounded-2xl bg-cell p-4 shadow-sm">
+          <h3 className="mb-2 text-[13px] font-semibold text-muted-foreground">关于我们</h3>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Murphy Cloud 致力于为企业和个人提供高效、安全、易用的数字化解决方案。Sign 是 Murphy Cloud 旗下的活动互动 SaaS 产品，提供签到、投票、抽奖、表单等全场景互动能力。
+          </p>
+          <a
+            href="https://murphylan.cloud"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary"
+          >
+            访问官网
+            <ChevronRight className="h-3 w-3" />
+          </a>
+        </div>
 
-      {/* Version */}
-      <div className="text-center py-2">
-        <p className="text-[10px] text-muted-foreground">Murphy v1.0.0</p>
+        <p className="pb-2 text-center text-[11px] text-muted-foreground">Murphy v1.0.0</p>
       </div>
     </div>
   );

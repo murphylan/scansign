@@ -21,7 +21,15 @@
   --color-border: oklch(0.88 0.03 60);            /* 柔和边框 */
   --color-input: oklch(0.92 0.02 60);
   --color-ring: oklch(0.55 0.22 25);              /* 中国红聚焦环 */
-  
+
+  /* WeUI 微信风格中性色（参与者 H5 移动端外壳专用） */
+  --color-page: #ededed;                          /* WeUI 页面灰底 */
+  --color-hairline: #e5e5e5;                      /* WeUI 发丝线分隔 */
+  --color-cell: #ffffff;                          /* WeUI 白色 cell */
+  --color-weui-text: rgba(0, 0, 0, 0.9);          /* WeUI 正文 */
+  --color-weui-desc: rgba(0, 0, 0, 0.5);          /* WeUI 次要说明 */
+  --color-weui-placeholder: rgba(0, 0, 0, 0.3);   /* WeUI 占位符 */
+
   --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   
@@ -34,11 +42,59 @@
   * {
     @apply border-border;
   }
-  
+
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
   }
+}
+
+/* ============================================================
+ * WeUI 微信风格基础件（纯 Tailwind/CSS，无第三方库）
+ * 只服务参与者 H5，管理端不受影响。
+ * ============================================================ */
+@layer components {
+  /* 0.5px 视网膜发丝线：底部 / 顶部 / 全框 */
+  .weui-hairline-bottom {
+    position: relative;
+  }
+  .weui-hairline-bottom::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 1px;
+    background: var(--color-hairline);
+    transform: scaleY(0.5);
+    transform-origin: 0 100%;
+    pointer-events: none;
+  }
+  .weui-hairline-top {
+    position: relative;
+  }
+  .weui-hairline-top::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 1px;
+    background: var(--color-hairline);
+    transform: scaleY(0.5);
+    transform-origin: 0 0;
+    pointer-events: none;
+  }
+  /* cell 行内左侧留出的发丝线（与 WeUI 一致，从内容左缘起） */
+  .weui-hairline-inset::after {
+    left: 1rem;
+  }
+}
+
+/* 安全区变量（iOS 刘海 / 底部小黑条） */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* Custom animations */

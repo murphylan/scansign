@@ -4,7 +4,6 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +13,6 @@ import {
   ChevronDown,
   ChevronUp,
   ArrowRight,
-  Sparkles,
 } from 'lucide-react';
 import { VoteType, ChartType, VoteOption, VoteTemplate, VOTE_TEMPLATES } from '@/types/vote';
 import { QRPosition } from '@/types/common';
@@ -24,6 +22,13 @@ import { VoteTemplateSelector } from '@/components/shared/vote-template-selector
 import { VoteOptionEditor } from '@/components/shared/vote-option-editor';
 
 type Step = 'template' | 'form';
+
+const CHART_LABELS: Record<string, string> = {
+  bar: '柱状图',
+  pie: '饼图',
+  versus: '对决图',
+  progress: '进度条',
+};
 
 export default function NewVotePage() {
   const router = useRouter();
@@ -98,7 +103,7 @@ export default function NewVotePage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    
+
     if (!title.trim()) {
       toast.error('请输入投票标题');
       return;
@@ -175,123 +180,126 @@ export default function NewVotePage() {
   // 步骤1：模板选择
   if (step === 'template') {
     return (
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="space-y-5">
         {/* Header */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <Link href="/votes">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <Sparkles className="h-6 w-6 text-primary" />
-              选择投票模板
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              选择一个适合您需求的模板开始创建
-            </p>
+          <div className="flex-1">
+            <h1 className="text-xl font-bold tracking-tight">新建投票</h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">选择模板开始创建</p>
+          </div>
+        </div>
+
+        {/* 步骤指示器 */}
+        <div className="flex items-center gap-2 px-1">
+          <div className="flex items-center gap-1.5">
+            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
+              1
+            </div>
+            <span className="text-sm font-medium text-foreground">选择模板</span>
+          </div>
+          <div className="h-px flex-1 bg-border" />
+          <div className="flex items-center gap-1.5">
+            <div className="flex h-6 w-6 items-center justify-center rounded-full border border-border text-[11px] text-muted-foreground">
+              2
+            </div>
+            <span className="text-sm text-muted-foreground">配置投票</span>
           </div>
         </div>
 
         {/* 模板选择器 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>投票模板</CardTitle>
-            <CardDescription>
-              不同的模板适用于不同的投票场景，选择后可以自定义详细配置
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <VoteTemplateSelector
-              value={template}
-              onChange={handleTemplateChange}
-            />
-          </CardContent>
-        </Card>
+        <div className="rounded-2xl bg-cell p-4 shadow-sm sm:p-5">
+          <h2 className="mb-4 text-[15px] font-semibold text-foreground">投票模板</h2>
+          <VoteTemplateSelector value={template} onChange={handleTemplateChange} />
+        </div>
 
-        {/* 模板预览说明 */}
-        <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-          <CardContent className="py-6">
-            <div className="flex items-start gap-4">
-              <div className="text-5xl">{templateConfig.icon}</div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold">{templateConfig.name}</h3>
-                <p className="text-muted-foreground mt-1">
-                  {templateConfig.description}
-                </p>
-                <div className="flex gap-4 mt-3 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">选项数量：</span>
-                    <span className="font-medium">
-                      {templateConfig.minOptions} - {templateConfig.maxOptions}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">图表样式：</span>
-                    <span className="font-medium">
-                      {templateConfig.defaultChartType === 'bar' && '柱状图'}
-                      {templateConfig.defaultChartType === 'pie' && '饼图'}
-                      {templateConfig.defaultChartType === 'versus' && '对决图'}
-                      {templateConfig.defaultChartType === 'progress' && '进度条'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">支持图片：</span>
-                    <span className="font-medium">
-                      {templateConfig.hasImage ? '是' : '否'}
-                    </span>
-                  </div>
-                </div>
+        {/* 模板预览 */}
+        <div className="rounded-2xl bg-cell p-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-2xl">
+              {templateConfig.icon}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold text-foreground">{templateConfig.name}</h3>
+              <p className="mt-0.5 text-sm text-muted-foreground">{templateConfig.description}</p>
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                <span>
+                  <span className="text-muted-foreground">选项数量：</span>
+                  <span className="font-medium">{templateConfig.minOptions}–{templateConfig.maxOptions}</span>
+                </span>
+                <span>
+                  <span className="text-muted-foreground">图表样式：</span>
+                  <span className="font-medium">{CHART_LABELS[templateConfig.defaultChartType] ?? templateConfig.defaultChartType}</span>
+                </span>
+                <span>
+                  <span className="text-muted-foreground">支持图片：</span>
+                  <span className="font-medium">{templateConfig.hasImage ? '是' : '否'}</span>
+                </span>
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* 下一步按钮 */}
-        <div className="flex justify-end">
-          <Button onClick={handleNext} size="lg" className="gap-2">
-            下一步：配置投票
-            <ArrowRight className="h-4 w-4" />
-          </Button>
+          </div>
         </div>
+
+        {/* 下一步 */}
+        <Button onClick={handleNext} className="h-12 w-full text-base font-medium">
+          下一步：配置投票
+          <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
       </div>
     );
   }
 
   // 步骤2：表单配置
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={handleBack}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <span className="text-2xl">{templateConfig.icon}</span>
+          <h1 className="text-xl font-bold tracking-tight">
             创建{templateConfig.name}
           </h1>
-          <p className="text-muted-foreground mt-1">
-            配置投票选项和规则
-          </p>
+          <p className="mt-0.5 text-sm text-muted-foreground">配置投票选项和规则</p>
         </div>
         <Button variant="outline" size="sm" onClick={handleBack}>
           更换模板
         </Button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      {/* 步骤指示器 */}
+      <div className="flex items-center gap-2 px-1">
+        <div className="flex items-center gap-1.5">
+          <div className="flex h-6 w-6 items-center justify-center rounded-full border border-border text-[11px] text-muted-foreground">
+            1
+          </div>
+          <span className="text-sm text-muted-foreground">选择模板</span>
+        </div>
+        <div className="h-px flex-1 bg-border" />
+        <div className="flex items-center gap-1.5">
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
+            2
+          </div>
+          <span className="text-sm font-medium text-foreground">配置投票</span>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-5">
         {/* 基本信息 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Vote className="h-5 w-5" />
-              基本信息
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
+        <div className="rounded-2xl bg-cell p-4 shadow-sm sm:p-5">
+          <h2 className="mb-4 flex items-center gap-2 text-[15px] font-semibold text-foreground">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50">
+              <Vote className="h-4 w-4 text-blue-600" strokeWidth={1.9} />
+            </div>
+            基本信息
+          </h2>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
               <Label htmlFor="title">投票标题 *</Label>
               <Input
                 id="title"
@@ -307,7 +315,7 @@ export default function NewVotePage() {
                 required
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="description">描述（可选）</Label>
               <Input
                 id="description"
@@ -316,119 +324,109 @@ export default function NewVotePage() {
                 onChange={(e) => setDescription(e.target.value)}
               />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* 投票选项 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {template === 'candidate' ? '参赛选手' : template === 'versus' ? 'PK选手' : '投票选项'}
-            </CardTitle>
-            <CardDescription>
-              {template === 'candidate'
-                ? '添加参与评选的选手信息'
-                : template === 'versus'
-                ? '设置两位对决选手'
-                : template === 'image'
-                ? '添加带图片的选项'
-                : `添加至少${templateConfig.minOptions}个选项`}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <VoteOptionEditor
-              options={options}
-              onChange={setOptions}
-              template={template}
-              minOptions={templateConfig.minOptions}
-              maxOptions={templateConfig.maxOptions}
-            />
-          </CardContent>
-        </Card>
+        <div className="rounded-2xl bg-cell p-4 shadow-sm sm:p-5">
+          <h2 className="mb-1 text-[15px] font-semibold text-foreground">
+            {template === 'candidate' ? '参赛选手' : template === 'versus' ? 'PK选手' : '投票选项'}
+          </h2>
+          <p className="mb-4 text-xs text-muted-foreground">
+            {template === 'candidate'
+              ? '添加参与评选的选手信息'
+              : template === 'versus'
+              ? '设置两位对决选手'
+              : template === 'image'
+              ? '添加带图片的选项'
+              : `添加至少${templateConfig.minOptions}个选项`}
+          </p>
+          <VoteOptionEditor
+            options={options}
+            onChange={setOptions}
+            template={template}
+            minOptions={templateConfig.minOptions}
+            maxOptions={templateConfig.maxOptions}
+          />
+        </div>
 
         {/* 投票类型 - 非对决模式显示 */}
         {template !== 'versus' && templateConfig.supportMultiple && (
-          <Card>
-            <CardHeader>
-              <CardTitle>投票类型</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <label
-                  className={`flex flex-col items-center gap-2 p-4 rounded-lg border cursor-pointer transition-all ${
-                    voteType === 'single'
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:bg-secondary/50'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="voteType"
-                    value="single"
-                    checked={voteType === 'single'}
-                    onChange={() => setVoteType('single')}
-                    className="sr-only"
-                  />
-                  <span className="text-2xl">☝️</span>
-                  <span className="font-medium">单选</span>
-                  <span className="text-xs text-muted-foreground">只能选择一个选项</span>
-                </label>
-                <label
-                  className={`flex flex-col items-center gap-2 p-4 rounded-lg border cursor-pointer transition-all ${
-                    voteType === 'multiple'
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:bg-secondary/50'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="voteType"
-                    value="multiple"
-                    checked={voteType === 'multiple'}
-                    onChange={() => setVoteType('multiple')}
-                    className="sr-only"
-                  />
-                  <span className="text-2xl">✌️</span>
-                  <span className="font-medium">多选</span>
-                  <span className="text-xs text-muted-foreground">可选择多个选项</span>
-                </label>
-              </div>
+          <div className="rounded-2xl bg-cell p-4 shadow-sm sm:p-5">
+            <h2 className="mb-4 text-[15px] font-semibold text-foreground">投票类型</h2>
+            <div className="grid grid-cols-2 gap-3">
+              <label
+                className={`flex cursor-pointer flex-col items-center gap-2 rounded-xl border p-4 transition-colors ${
+                  voteType === 'single'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border active:bg-muted'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="voteType"
+                  value="single"
+                  checked={voteType === 'single'}
+                  onChange={() => setVoteType('single')}
+                  className="sr-only"
+                />
+                <span className="text-2xl">☝️</span>
+                <span className="text-sm font-medium">单选</span>
+                <span className="text-xs text-muted-foreground">只能选择一个选项</span>
+              </label>
+              <label
+                className={`flex cursor-pointer flex-col items-center gap-2 rounded-xl border p-4 transition-colors ${
+                  voteType === 'multiple'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border active:bg-muted'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="voteType"
+                  value="multiple"
+                  checked={voteType === 'multiple'}
+                  onChange={() => setVoteType('multiple')}
+                  className="sr-only"
+                />
+                <span className="text-2xl">✌️</span>
+                <span className="text-sm font-medium">多选</span>
+                <span className="text-xs text-muted-foreground">可选择多个选项</span>
+              </label>
+            </div>
 
-              {voteType === 'multiple' && (
-                <div className="grid grid-cols-2 gap-4 pt-2">
-                  <div className="space-y-2">
-                    <Label>最少选择</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={options.length}
-                      value={minSelect}
-                      onChange={(e) => setMinSelect(parseInt(e.target.value) || 1)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>最多选择</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={options.length}
-                      value={maxSelect}
-                      onChange={(e) => setMaxSelect(parseInt(e.target.value) || 3)}
-                    />
-                  </div>
+            {voteType === 'multiple' && (
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>最少选择</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={options.length}
+                    value={minSelect}
+                    onChange={(e) => setMinSelect(parseInt(e.target.value) || 1)}
+                  />
                 </div>
-              )}
-            </CardContent>
-          </Card>
+                <div className="space-y-1.5">
+                  <Label>最多选择</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={options.length}
+                    value={maxSelect}
+                    onChange={(e) => setMaxSelect(parseInt(e.target.value) || 3)}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {/* 投票规则 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>投票规则</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <label className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-secondary/50">
+        <div className="rounded-2xl bg-cell p-4 shadow-sm sm:p-5">
+          <h2 className="mb-3 text-[15px] font-semibold text-foreground">投票规则</h2>
+          <div className="space-y-1">
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl p-3 transition-colors active:bg-muted">
               <input
                 type="checkbox"
                 checked={requirePhone}
@@ -436,11 +434,11 @@ export default function NewVotePage() {
                 className="rounded"
               />
               <div>
-                <span className="font-medium">需要手机号验证</span>
+                <p className="text-sm font-medium">需要手机号验证</p>
                 <p className="text-xs text-muted-foreground">参与者需输入手机号</p>
               </div>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-secondary/50">
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl p-3 transition-colors active:bg-muted">
               <input
                 type="checkbox"
                 checked={allowChange}
@@ -448,11 +446,11 @@ export default function NewVotePage() {
                 className="rounded"
               />
               <div>
-                <span className="font-medium">允许修改投票</span>
+                <p className="text-sm font-medium">允许修改投票</p>
                 <p className="text-xs text-muted-foreground">用户可以修改已提交的投票</p>
               </div>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-secondary/50">
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl p-3 transition-colors active:bg-muted">
               <input
                 type="checkbox"
                 checked={anonymous}
@@ -460,20 +458,18 @@ export default function NewVotePage() {
                 className="rounded"
               />
               <div>
-                <span className="font-medium">匿名投票</span>
+                <p className="text-sm font-medium">匿名投票</p>
                 <p className="text-xs text-muted-foreground">不显示投票者信息</p>
               </div>
             </label>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* 结果展示 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>结果展示</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <label className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-secondary/50">
+        <div className="rounded-2xl bg-cell p-4 shadow-sm sm:p-5">
+          <h2 className="mb-3 text-[15px] font-semibold text-foreground">结果展示</h2>
+          <div className="space-y-1">
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl p-3 transition-colors active:bg-muted">
               <input
                 type="checkbox"
                 checked={showRealtime}
@@ -481,11 +477,11 @@ export default function NewVotePage() {
                 className="rounded"
               />
               <div>
-                <span className="font-medium">实时显示结果</span>
+                <p className="text-sm font-medium">实时显示结果</p>
                 <p className="text-xs text-muted-foreground">投票进行中显示实时结果</p>
               </div>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-secondary/50">
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl p-3 transition-colors active:bg-muted">
               <input
                 type="checkbox"
                 checked={showAfterVote}
@@ -493,34 +489,33 @@ export default function NewVotePage() {
                 className="rounded"
               />
               <div>
-                <span className="font-medium">投票后显示结果</span>
+                <p className="text-sm font-medium">投票后显示结果</p>
                 <p className="text-xs text-muted-foreground">用户投票后可查看结果</p>
               </div>
             </label>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* 高级设置 */}
-        <Card>
-          <CardHeader
-            className="cursor-pointer"
+        <div className="overflow-hidden rounded-2xl bg-cell shadow-sm">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between px-4 py-4 transition-colors active:bg-muted"
             onClick={() => setShowAdvanced(!showAdvanced)}
           >
-            <CardTitle className="flex items-center justify-between">
-              高级设置
-              {showAdvanced ? (
-                <ChevronUp className="h-5 w-5" />
-              ) : (
-                <ChevronDown className="h-5 w-5" />
-              )}
-            </CardTitle>
-          </CardHeader>
+            <span className="text-[15px] font-semibold text-foreground">高级设置</span>
+            {showAdvanced ? (
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            )}
+          </button>
           {showAdvanced && (
-            <CardContent className="space-y-6">
+            <div className="space-y-5 border-t border-border px-4 pb-5 pt-4">
               {/* 图表类型 */}
-              <div className="space-y-4">
-                <Label>大屏图表样式</Label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-foreground">大屏图表样式</p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {[
                     { value: 'bar', label: '柱状图', icon: '📊' },
                     { value: 'pie', label: '饼图', icon: '🥧' },
@@ -529,10 +524,10 @@ export default function NewVotePage() {
                   ].map((chart) => (
                     <label
                       key={chart.value}
-                      className={`flex flex-col items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${
+                      className={`flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border p-3 transition-colors ${
                         chartType === chart.value
                           ? 'border-primary bg-primary/5'
-                          : 'border-border hover:bg-secondary/50'
+                          : 'border-border active:bg-muted'
                       }`}
                     >
                       <input
@@ -543,7 +538,7 @@ export default function NewVotePage() {
                         onChange={() => setChartType(chart.value as ChartType)}
                         className="sr-only"
                       />
-                      <span className="text-2xl">{chart.icon}</span>
+                      <span className="text-xl">{chart.icon}</span>
                       <span className="text-sm">{chart.label}</span>
                     </label>
                   ))}
@@ -551,9 +546,9 @@ export default function NewVotePage() {
               </div>
 
               {/* 二维码位置 */}
-              <div className="space-y-4">
-                <Label>大屏二维码位置</Label>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-foreground">大屏二维码位置</p>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                   {[
                     { value: 'top-left', label: '左上' },
                     { value: 'top-center', label: '中上' },
@@ -568,10 +563,10 @@ export default function NewVotePage() {
                   ].map((pos) => (
                     <label
                       key={pos.value}
-                      className={`flex items-center justify-center p-2 rounded-lg border cursor-pointer transition-all text-sm ${
+                      className={`flex cursor-pointer items-center justify-center rounded-xl border p-2 text-sm transition-colors ${
                         qrPosition === pos.value
                           ? 'border-primary bg-primary/5'
-                          : 'border-border hover:bg-secondary/50'
+                          : 'border-border active:bg-muted'
                       }`}
                     >
                       <input
@@ -587,23 +582,25 @@ export default function NewVotePage() {
                   ))}
                 </div>
               </div>
-            </CardContent>
+            </div>
           )}
-        </Card>
+        </div>
 
         {/* 提交按钮 */}
-        <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={handleBack}>
-            返回
-          </Button>
-          <Link href="/votes">
-            <Button type="button" variant="outline">
-              取消
-            </Button>
-          </Link>
-          <Button type="submit" disabled={loading}>
+        <div className="space-y-2 pb-2">
+          <Button type="submit" disabled={loading} className="h-12 w-full text-base font-medium">
             {loading ? '创建中...' : '创建投票'}
           </Button>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" className="flex-1" onClick={handleBack}>
+              返回
+            </Button>
+            <Link href="/votes" className="flex-1">
+              <Button type="button" variant="outline" className="w-full">
+                取消
+              </Button>
+            </Link>
+          </div>
         </div>
       </form>
     </div>

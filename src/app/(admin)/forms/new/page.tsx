@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,9 +16,9 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
-import { 
-  FormField, 
-  FieldType, 
+import {
+  FormField,
+  FieldType,
   FieldOption,
   FIELD_TYPE_CONFIG,
 } from '@/types/form';
@@ -55,7 +54,7 @@ export default function NewFormPage() {
       type,
       label: FIELD_TYPE_CONFIG[type].label,
       required: true,
-      options: ['radio', 'checkbox', 'select'].includes(type) 
+      options: ['radio', 'checkbox', 'select'].includes(type)
         ? [{ value: '1', label: '选项1' }, { value: '2', label: '选项2' }]
         : undefined,
       ratingConfig: type === 'rating' ? { max: 5, icon: 'star' } : undefined,
@@ -103,7 +102,7 @@ export default function NewFormPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    
+
     if (!title.trim()) {
       toast.error('请输入表单标题');
       return;
@@ -158,33 +157,31 @@ export default function NewFormPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <Link href="/forms">
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">创建表单</h1>
-          <p className="text-muted-foreground mt-1">
-            设计信息收集表单
-          </p>
+        <div className="flex-1">
+          <h1 className="text-xl font-bold tracking-tight">创建表单</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">设计信息收集表单</p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-5">
         {/* 基本信息 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              基本信息
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
+        <div className="rounded-2xl bg-cell p-4 shadow-sm sm:p-5">
+          <h2 className="mb-4 flex items-center gap-2 text-[15px] font-semibold text-foreground">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-50">
+              <FileText className="h-4 w-4 text-violet-600" strokeWidth={1.9} />
+            </div>
+            基本信息
+          </h2>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
               <Label htmlFor="title">表单标题 *</Label>
               <Input
                 id="title"
@@ -194,7 +191,7 @@ export default function NewFormPage() {
                 required
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="description">描述（可选）</Label>
               <Input
                 id="description"
@@ -203,45 +200,42 @@ export default function NewFormPage() {
                 onChange={(e) => setDescription(e.target.value)}
               />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* 添加字段 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>添加字段</CardTitle>
-            <CardDescription>选择要添加的字段类型</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-              {(Object.entries(FIELD_TYPE_CONFIG) as [FieldType, { label: string; icon: string }][]).map(
-                ([type, config]) => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => addField(type)}
-                    className="flex flex-col items-center gap-1 p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-secondary/50 transition-colors"
-                  >
-                    <span className="text-xl">{config.icon}</span>
-                    <span className="text-xs">{config.label}</span>
-                  </button>
-                )
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="rounded-2xl bg-cell p-4 shadow-sm sm:p-5">
+          <h2 className="mb-1 text-[15px] font-semibold text-foreground">添加字段</h2>
+          <p className="mb-4 text-xs text-muted-foreground">选择要添加的字段类型</p>
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+            {(Object.entries(FIELD_TYPE_CONFIG) as [FieldType, { label: string; icon: string }][]).map(
+              ([type, config]) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => addField(type)}
+                  className="flex flex-col items-center gap-1 rounded-xl border border-border bg-muted/40 p-3 transition-colors active:bg-muted"
+                >
+                  <span className="text-xl">{config.icon}</span>
+                  <span className="text-xs text-foreground">{config.label}</span>
+                </button>
+              )
+            )}
+          </div>
+        </div>
 
         {/* 字段列表 */}
         {fields.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>表单字段 ({fields.length})</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {fields.map((field, index) => (
+          <div className="rounded-2xl bg-cell p-4 shadow-sm sm:p-5">
+            <h2 className="mb-4 text-[15px] font-semibold text-foreground">
+              表单字段
+              <span className="ml-1.5 text-sm font-normal text-muted-foreground">({fields.length})</span>
+            </h2>
+            <div className="space-y-3">
+              {fields.map((field) => (
                 <div
                   key={field.id}
-                  className={`border rounded-lg transition-colors ${
+                  className={`overflow-hidden rounded-xl border transition-colors ${
                     editingFieldId === field.id
                       ? 'border-primary bg-primary/5'
                       : 'border-border'
@@ -249,18 +243,18 @@ export default function NewFormPage() {
                 >
                   {/* 字段头部 */}
                   <div
-                    className="flex items-center gap-3 p-3 cursor-pointer"
+                    className="flex cursor-pointer items-center gap-3 p-3"
                     onClick={() => setEditingFieldId(editingFieldId === field.id ? null : field.id)}
                   >
-                    <GripVertical className="h-5 w-5 text-muted-foreground" />
+                    <GripVertical className="h-5 w-5 shrink-0 text-muted-foreground" />
                     <span className="text-lg">{FIELD_TYPE_CONFIG[field.type].icon}</span>
-                    <div className="flex-1">
-                      <span className="font-medium">{field.label}</span>
+                    <div className="min-w-0 flex-1">
+                      <span className="text-sm font-medium">{field.label}</span>
                       {field.required && (
-                        <span className="text-destructive ml-1">*</span>
+                        <span className="ml-1 text-destructive">*</span>
                       )}
                     </div>
-                    <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded">
+                    <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                       {FIELD_TYPE_CONFIG[field.type].label}
                     </span>
                     <Button
@@ -271,7 +265,7 @@ export default function NewFormPage() {
                         e.stopPropagation();
                         removeField(field.id);
                       }}
-                      className="text-muted-foreground hover:text-destructive"
+                      className="shrink-0 text-muted-foreground hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -279,9 +273,9 @@ export default function NewFormPage() {
 
                   {/* 字段编辑 */}
                   {editingFieldId === field.id && (
-                    <div className="p-4 pt-0 space-y-4 border-t">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
+                    <div className="space-y-4 border-t border-border p-4">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
                           <Label>字段标题</Label>
                           <Input
                             value={field.label}
@@ -289,7 +283,7 @@ export default function NewFormPage() {
                             placeholder="字段标题"
                           />
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                           <Label>占位提示</Label>
                           <Input
                             value={field.placeholder || ''}
@@ -299,14 +293,14 @@ export default function NewFormPage() {
                         </div>
                       </div>
 
-                      <label className="flex items-center gap-2 cursor-pointer">
+                      <label className="flex cursor-pointer items-center gap-2">
                         <input
                           type="checkbox"
                           checked={field.required}
                           onChange={(e) => updateField(field.id, { required: e.target.checked })}
                           className="rounded"
                         />
-                        <span>必填</span>
+                        <span className="text-sm">必填</span>
                       </label>
 
                       {/* 选项编辑（单选/多选/下拉） */}
@@ -318,7 +312,7 @@ export default function NewFormPage() {
                               <Input
                                 value={option.label}
                                 onChange={(e) =>
-                                  updateOption(field.id, optIndex, { 
+                                  updateOption(field.id, optIndex, {
                                     label: e.target.value,
                                     value: e.target.value,
                                   })
@@ -331,7 +325,7 @@ export default function NewFormPage() {
                                 size="icon"
                                 onClick={() => removeOption(field.id, optIndex)}
                                 disabled={(field.options?.length || 0) <= 2}
-                                className="text-muted-foreground hover:text-destructive"
+                                className="shrink-0 text-muted-foreground hover:text-destructive"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -343,7 +337,7 @@ export default function NewFormPage() {
                             size="sm"
                             onClick={() => addOption(field.id)}
                           >
-                            <Plus className="h-4 w-4 mr-1" />
+                            <Plus className="mr-1 h-4 w-4" />
                             添加选项
                           </Button>
                         </div>
@@ -351,7 +345,7 @@ export default function NewFormPage() {
 
                       {/* 评分配置 */}
                       {field.type === 'rating' && (
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                           <Label>最高分</Label>
                           <Input
                             type="number"
@@ -374,18 +368,16 @@ export default function NewFormPage() {
                   )}
                 </div>
               ))}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
-        {/* 提交配置 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>提交设置</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+        {/* 提交设置 */}
+        <div className="rounded-2xl bg-cell p-4 shadow-sm sm:p-5">
+          <h2 className="mb-4 text-[15px] font-semibold text-foreground">提交设置</h2>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
                 <Label>提交按钮文字</Label>
                 <Input
                   value={buttonText}
@@ -393,7 +385,7 @@ export default function NewFormPage() {
                   placeholder="提交"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label>成功提示语</Label>
                 <Input
                   value={successMessage}
@@ -403,18 +395,18 @@ export default function NewFormPage() {
               </div>
             </div>
 
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label className="flex cursor-pointer items-center gap-2">
               <input
                 type="checkbox"
                 checked={showPreview}
                 onChange={(e) => setShowPreview(e.target.checked)}
                 className="rounded"
               />
-              <span>提交前显示预览确认</span>
+              <span className="text-sm">提交前显示预览确认</span>
             </label>
 
-            <div className="space-y-2">
-              <Label>提交后跳转URL（可选）</Label>
+            <div className="space-y-1.5">
+              <Label>提交后跳转 URL（可选）</Label>
               <Input
                 type="url"
                 value={redirectUrl}
@@ -422,27 +414,26 @@ export default function NewFormPage() {
                 placeholder="https://example.com/thank-you"
               />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* 高级设置 */}
-        <Card>
-          <CardHeader
-            className="cursor-pointer"
+        <div className="overflow-hidden rounded-2xl bg-cell shadow-sm">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between px-4 py-4 transition-colors active:bg-muted"
             onClick={() => setShowAdvanced(!showAdvanced)}
           >
-            <CardTitle className="flex items-center justify-between">
-              高级设置
-              {showAdvanced ? (
-                <ChevronUp className="h-5 w-5" />
-              ) : (
-                <ChevronDown className="h-5 w-5" />
-              )}
-            </CardTitle>
-          </CardHeader>
+            <span className="text-[15px] font-semibold text-foreground">高级设置</span>
+            {showAdvanced ? (
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            )}
+          </button>
           {showAdvanced && (
-            <CardContent className="space-y-3">
-              <label className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-secondary/50">
+            <div className="space-y-1 border-t border-border px-4 pb-4 pt-3">
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl p-3 transition-colors active:bg-muted">
                 <input
                   type="checkbox"
                   checked={requirePhone}
@@ -450,11 +441,11 @@ export default function NewFormPage() {
                   className="rounded"
                 />
                 <div>
-                  <span className="font-medium">需要手机号</span>
+                  <p className="text-sm font-medium">需要手机号</p>
                   <p className="text-xs text-muted-foreground">用户需输入手机号才能提交</p>
                 </div>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-secondary/50">
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl p-3 transition-colors active:bg-muted">
                 <input
                   type="checkbox"
                   checked={limitOne}
@@ -462,27 +453,26 @@ export default function NewFormPage() {
                   className="rounded"
                 />
                 <div>
-                  <span className="font-medium">每人限提交一次</span>
+                  <p className="text-sm font-medium">每人限提交一次</p>
                   <p className="text-xs text-muted-foreground">同一手机号只能提交一次</p>
                 </div>
               </label>
-            </CardContent>
+            </div>
           )}
-        </Card>
+        </div>
 
         {/* 提交按钮 */}
-        <div className="flex justify-end gap-3">
-          <Link href="/forms">
-            <Button type="button" variant="outline">
+        <div className="space-y-2 pb-2">
+          <Button type="submit" disabled={loading} className="h-12 w-full text-base font-medium">
+            {loading ? '创建中...' : '创建表单'}
+          </Button>
+          <Link href="/forms" className="block">
+            <Button type="button" variant="outline" className="w-full">
               取消
             </Button>
           </Link>
-          <Button type="submit" disabled={loading}>
-            {loading ? '创建中...' : '创建表单'}
-          </Button>
         </div>
       </form>
     </div>
   );
 }
-

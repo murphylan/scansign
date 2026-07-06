@@ -3,8 +3,8 @@
 import { useEffect, useState, use, useCallback } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import {
   ArrowLeft,
   Gift,
@@ -105,7 +105,7 @@ export default function LotteryDetailPage({
     if (!lottery) return;
 
     const eventSource = new EventSource(`/api/lotteries/${resolvedParams.id}/stream`);
-    
+
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
@@ -157,7 +157,7 @@ export default function LotteryDetailPage({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
+      <div className="flex min-h-[50vh] items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
       </div>
     );
@@ -165,8 +165,8 @@ export default function LotteryDetailPage({
 
   if (!lottery) {
     return (
-      <div className="text-center py-12">
-        <h2 className="text-xl font-semibold mb-2">抽奖不存在</h2>
+      <div className="py-12 text-center">
+        <h2 className="mb-2 text-xl font-semibold">抽奖不存在</h2>
         <Link href="/lotteries">
           <Button>返回列表</Button>
         </Link>
@@ -178,26 +178,27 @@ export default function LotteryDetailPage({
   const displayUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/l/${lottery.code}/display`;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
       <div className="space-y-3">
-        <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex items-center gap-3">
           <Link href="/lotteries">
             <Button variant="ghost" size="icon" className="shrink-0">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">{lottery.title}</h1>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="truncate text-xl font-bold tracking-tight sm:text-2xl">{lottery.title}</h1>
               <span
-                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${
+                className={cn(
+                  'inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
                   lottery.status === 'active'
-                    ? 'bg-emerald-500/10 text-emerald-500'
+                    ? 'bg-emerald-500/10 text-emerald-600'
                     : lottery.status === 'paused'
-                    ? 'bg-yellow-500/10 text-yellow-500'
+                    ? 'bg-amber-500/10 text-amber-600'
                     : 'bg-muted text-muted-foreground'
-                }`}
+                )}
               >
                 {lottery.status === 'active'
                   ? '进行中'
@@ -205,21 +206,21 @@ export default function LotteryDetailPage({
                   ? '已暂停'
                   : '已结束'}
               </span>
-              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded shrink-0">
+              <span className="shrink-0 rounded bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
                 {lottery.config?.mode === 'wheel' ? '转盘' : lottery.config?.mode === 'slot' ? '老虎机' : lottery.config?.mode}
               </span>
             </div>
-            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+            <p className="mt-1 text-sm text-muted-foreground">
               {lottery.description || '无描述'}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 pl-0 sm:pl-14 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2 pl-0 sm:pl-14">
           <ConfirmDialog
             trigger={
               <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
-                <RotateCcw className="h-4 w-4 mr-1.5" />
+                <RotateCcw className="mr-1.5 h-4 w-4" />
                 重置
               </Button>
             }
@@ -230,113 +231,100 @@ export default function LotteryDetailPage({
             onConfirm={handleReset}
           />
           {lottery.status === 'active' ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleStatusChange('paused')}
-            >
-              <Pause className="h-4 w-4 mr-1.5" />
+            <Button variant="outline" size="sm" onClick={() => handleStatusChange('paused')}>
+              <Pause className="mr-1.5 h-4 w-4" />
               暂停
             </Button>
           ) : lottery.status === 'paused' ? (
             <Button size="sm" onClick={() => handleStatusChange('active')}>
-              <Play className="h-4 w-4 mr-1.5" />
+              <Play className="mr-1.5 h-4 w-4" />
               恢复
             </Button>
           ) : null}
           <Link href={`/lotteries/${resolvedParams.id}/settings`}>
             <Button variant="outline" size="sm">
-              <Settings className="h-4 w-4 mr-1.5" />
+              <Settings className="mr-1.5 h-4 w-4" />
               设置
             </Button>
           </Link>
         </div>
       </div>
 
-      {/* Stats & Actions */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
-        <Card className="bg-linear-to-br from-orange-500/10 to-red-600/10 border-orange-500/20">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">中奖人数</p>
-                <p className="text-3xl font-bold mt-1">{lottery.stats?.winnersCount ?? 0}</p>
-              </div>
-              <div className="h-12 w-12 rounded-xl bg-orange-500/20 flex items-center justify-center">
-                <Trophy className="h-6 w-6 text-orange-500" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Stats & Links */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {/* 中奖人数 */}
+        <div className="flex items-center justify-between rounded-2xl bg-cell p-4 shadow-sm">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">中奖人数</p>
+            <p className="mt-1 text-3xl font-bold tabular-nums">{lottery.stats?.winnersCount ?? 0}</p>
+          </div>
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-50">
+            <Trophy className="h-6 w-6 text-amber-600" strokeWidth={1.9} />
+          </div>
+        </div>
 
-        <Card className="bg-linear-to-br from-blue-500/10 to-indigo-600/10 border-blue-500/20">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">参与人数</p>
-                <p className="text-3xl font-bold mt-1">{lottery.stats?.participantCount ?? 0}</p>
-              </div>
-              <div className="h-12 w-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                <Users className="h-6 w-6 text-blue-500" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* 参与人数 */}
+        <div className="flex items-center justify-between rounded-2xl bg-cell p-4 shadow-sm">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">参与人数</p>
+            <p className="mt-1 text-3xl font-bold tabular-nums">{lottery.stats?.participantCount ?? 0}</p>
+          </div>
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50">
+            <Users className="h-6 w-6 text-blue-600" strokeWidth={1.9} />
+          </div>
+        </div>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-muted-foreground">手机端链接</p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 text-xs bg-secondary px-2 py-1 rounded truncate">
-                  /l/{lottery.code}
-                </code>
-                <Button variant="ghost" size="icon" onClick={copyLink}>
-                  <Copy className="h-4 w-4" />
-                </Button>
-                <Link href={mobileUrl} target="_blank">
-                  <Button variant="ghost" size="icon">
-                    <ExternalLink className="h-4 w-4" />
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* 手机端链接 */}
+        <div className="rounded-2xl bg-cell p-4 shadow-sm">
+          <p className="mb-2 text-sm font-medium text-muted-foreground">手机端链接</p>
+          <div className="flex items-center gap-1.5">
+            <code className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1 text-xs">
+              /l/{lottery.code}
+            </code>
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={copyLink}>
+              <Copy className="h-4 w-4" />
+            </Button>
+            <Link href={mobileUrl} target="_blank">
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+        </div>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-muted-foreground">大屏展示</p>
-              <Link href={displayUrl} target="_blank">
-                <Button className="w-full gap-2">
-                  <Monitor className="h-4 w-4" />
-                  打开大屏
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+        {/* 大屏展示 */}
+        <div className="rounded-2xl bg-cell p-4 shadow-sm">
+          <p className="mb-2 text-sm font-medium text-muted-foreground">大屏展示</p>
+          <Link href={displayUrl} target="_blank">
+            <Button className="w-full gap-2">
+              <Monitor className="h-4 w-4" />
+              打开大屏
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      {/* Bottom grid */}
+      <div className="grid gap-4 lg:grid-cols-3">
         {/* 二维码 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <QrCode className="h-5 w-5" />
-              抽奖二维码
-            </CardTitle>
-            <CardDescription>扫码参与抽奖</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center">
+        <div className="rounded-2xl bg-cell p-4 shadow-sm">
+          <div className="mb-4 flex items-center gap-2.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50">
+              <QrCode className="h-[18px] w-[18px] text-amber-600" strokeWidth={1.9} />
+            </div>
+            <div>
+              <h2 className="text-[15px] font-semibold text-foreground">抽奖二维码</h2>
+              <p className="text-xs text-muted-foreground">扫码参与抽奖</p>
+            </div>
+          </div>
+          <div className="flex flex-col items-center">
             {qrCodeUrl ? (
               <>
-                <div className="p-4 bg-white rounded-xl">
-                  <img src={qrCodeUrl} alt="抽奖二维码" className="w-48 h-48" />
+                <div className="rounded-xl bg-white p-4">
+                  <img src={qrCodeUrl} alt="抽奖二维码" className="h-48 w-48" />
                 </div>
-                <p className="text-sm text-muted-foreground mt-3">
-                  扫码或访问 <code className="bg-secondary px-1 rounded">/l/{lottery.code}</code>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  扫码或访问 <code className="rounded bg-muted px-1">/l/{lottery.code}</code>
                 </p>
                 <a href={qrCodeUrl} download={`lottery-${lottery.code}.png`}>
                   <Button variant="outline" size="sm" className="mt-3 gap-2">
@@ -346,91 +334,87 @@ export default function LotteryDetailPage({
                 </a>
               </>
             ) : (
-              <div className="h-48 w-48 bg-secondary rounded-xl flex items-center justify-center">
+              <div className="flex h-48 w-48 items-center justify-center rounded-xl bg-muted">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* 奖品列表 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Gift className="h-5 w-5" />
-              奖品列表
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {(lottery.config?.prizes ?? []).map((prize) => (
+        <div className="overflow-hidden rounded-2xl bg-cell shadow-sm [&>*:last-child]:after:hidden">
+          <div className="flex items-center gap-2.5 px-4 pb-3 pt-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50">
+              <Gift className="h-[18px] w-[18px] text-amber-600" strokeWidth={1.9} />
+            </div>
+            <h2 className="text-[15px] font-semibold text-foreground">奖品列表</h2>
+          </div>
+          {(lottery.config?.prizes ?? []).length === 0 ? (
+            <p className="px-4 pb-4 text-sm text-muted-foreground">暂无奖品</p>
+          ) : (
+            (lottery.config?.prizes ?? []).map((prize) => (
+              <div
+                key={prize.id}
+                className="weui-hairline-bottom weui-hairline-inset relative flex items-center justify-between gap-2 px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">{prize.name}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">概率 {prize.probability}%</p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-sm font-bold tabular-nums text-foreground">
+                    {prize.remaining}/{prize.count}
+                  </p>
+                  <p className="text-xs text-muted-foreground">剩余</p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* 中奖记录 */}
+        <div className="overflow-hidden rounded-2xl bg-cell shadow-sm">
+          <div className="flex items-center justify-between px-4 pb-3 pt-4">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50">
+                <Trophy className="h-[18px] w-[18px] text-amber-600" strokeWidth={1.9} />
+              </div>
+              <div>
+                <h2 className="text-[15px] font-semibold text-foreground">中奖记录</h2>
+                <p className="text-xs text-muted-foreground">最近中奖用户</p>
+              </div>
+            </div>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={fetchRecords}>
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
+          {records.length === 0 ? (
+            <div className="px-4 pb-4 text-center">
+              <p className="text-sm text-muted-foreground">暂无中奖记录</p>
+            </div>
+          ) : (
+            <div className="max-h-[300px] overflow-y-auto [&>*:last-child]:after:hidden">
+              {records.map((record) => (
                 <div
-                  key={prize.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-secondary/50"
+                  key={record.id}
+                  className="weui-hairline-bottom weui-hairline-inset relative flex items-center justify-between gap-2 px-4 py-3"
                 >
-                  <div>
-                    <p className="font-medium">{prize.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      概率: {prize.probability}%
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground">
+                      {record.phone || '匿名用户'}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {new Date(record.drawnAt).toLocaleString()}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold">
-                      {prize.remaining}/{prize.count}
-                    </p>
-                    <p className="text-xs text-muted-foreground">剩余</p>
-                  </div>
+                  <span className="inline-flex shrink-0 items-center rounded-full bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-600">
+                    {record.prizeName}
+                  </span>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-
-        {/* 中奖记录 */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Trophy className="h-5 w-5" />
-                中奖记录
-              </CardTitle>
-              <CardDescription>最近中奖用户</CardDescription>
-            </div>
-            <Button variant="ghost" size="sm" onClick={fetchRecords}>
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {records.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                暂无中奖记录
-              </div>
-            ) : (
-              <div className="space-y-3 max-h-[300px] overflow-y-auto">
-                {records.map((record) => (
-                  <div
-                    key={record.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-secondary/50"
-                  >
-                    <div>
-                      <p className="font-medium">
-                        {record.phone || '匿名用户'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(record.drawnAt).toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-500/10 text-orange-500">
-                        🎉 {record.prizeName}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          )}
+        </div>
       </div>
     </div>
   );

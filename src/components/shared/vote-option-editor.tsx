@@ -190,16 +190,15 @@ interface VersusOptionCardProps {
 
 function VersusOptionCard({ option, index, onChange }: VersusOptionCardProps) {
   const colors = [
-    'from-red-500 to-orange-500',
-    'from-blue-500 to-cyan-500',
+    'border-red-300',
+    'border-blue-300',
   ];
 
   return (
     <div className={cn(
-      'relative rounded-xl overflow-hidden bg-gradient-to-br p-1',
+      'rounded-xl border-2 p-4 space-y-4',
       colors[index] || colors[0]
     )}>
-      <div className="bg-card rounded-lg p-4 space-y-4">
         <ImageUploader
           value={option.image}
           onChange={(image) => onChange({ image })}
@@ -218,7 +217,6 @@ function VersusOptionCard({ option, index, onChange }: VersusOptionCardProps) {
           onChange={(e) => onChange({ description: e.target.value })}
           className="text-sm"
         />
-      </div>
     </div>
   );
 }
@@ -240,7 +238,7 @@ function CandidateOptionCard({
   canRemove,
 }: CandidateOptionCardProps) {
   return (
-    <div className="relative group rounded-xl border bg-card overflow-hidden">
+    <div className="relative group overflow-hidden rounded-xl border border-border bg-cell">
       {/* 删除按钮 */}
       {canRemove && (
         <Button
@@ -304,7 +302,7 @@ function ImageOptionCard({
   canRemove,
 }: ImageOptionCardProps) {
   return (
-    <div className="flex gap-4 p-4 rounded-xl border bg-card group">
+    <div className="flex gap-4 rounded-xl border border-border bg-muted/40 p-4 group">
       {/* 序号和拖拽 */}
       <div className="flex flex-col items-center gap-2">
         <div className="text-muted-foreground cursor-grab">

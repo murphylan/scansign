@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,6 +24,7 @@ import {
 import { QRPosition } from '@/types/common';
 import { createCheckinAction } from '@/server/actions/checkinAction';
 import { BackgroundPicker, BackgroundConfig } from '@/components/shared/background-picker';
+import { cn } from '@/lib/utils';
 
 export default function NewCheckinPage() {
   const router = useRouter();
@@ -130,34 +130,32 @@ export default function NewCheckinPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <Link href="/checkins">
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" className="-ml-1">
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50">
+          <UserCheck className="h-5 w-5 text-emerald-600" strokeWidth={1.9} />
+        </div>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">创建签到</h1>
-          <p className="text-muted-foreground mt-1">
-            配置签到信息和展示方式
-          </p>
+          <h1 className="text-xl font-bold tracking-tight">创建签到</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">配置签到信息和展示方式</p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
         {/* 基本信息 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserCheck className="h-5 w-5" />
-              基本信息
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <div className="rounded-2xl bg-cell p-5 shadow-sm">
+          <h2 className="mb-4 text-[15px] font-semibold text-foreground">基本信息</h2>
+          <div className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="title">签到标题 *</Label>
+              <Label htmlFor="title">
+                签到标题 <span className="text-primary">*</span>
+              </Label>
               <Input
                 id="title"
                 placeholder="如：2026年会签到"
@@ -175,214 +173,263 @@ export default function NewCheckinPage() {
                 onChange={(e) => setDescription(e.target.value)}
               />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* 收集信息 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>收集信息</CardTitle>
-            <CardDescription>选择签到时需要收集的信息</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-3 sm:gap-4">
-              <label className="flex items-center gap-2 p-3 rounded-lg border border-border cursor-pointer hover:bg-secondary/50 transition-colors flex-1 min-w-[100px]">
-                <input
-                  type="checkbox"
-                  checked={needPhone}
-                  onChange={(e) => setNeedPhone(e.target.checked)}
-                  className="rounded"
-                />
-                <span>手机号</span>
-              </label>
-              <label className="flex items-center gap-2 p-3 rounded-lg border border-border cursor-pointer hover:bg-secondary/50 transition-colors flex-1 min-w-[100px]">
-                <input
-                  type="checkbox"
-                  checked={needName}
-                  onChange={(e) => setNeedName(e.target.checked)}
-                  className="rounded"
-                />
-                <span>姓名</span>
-              </label>
-              <label className="flex items-center gap-2 p-3 rounded-lg border border-border cursor-pointer hover:bg-secondary/50 transition-colors flex-1 min-w-[100px]">
-                <input
-                  type="checkbox"
-                  checked={needDepartment}
-                  onChange={(e) => setNeedDepartment(e.target.checked)}
-                  className="rounded"
-                />
-                <span>部门</span>
-              </label>
-            </div>
-
-            {/* 部门列表 */}
-            {needDepartment && (
-              <div className="space-y-3 pt-2">
-                <Label>部门列表</Label>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="输入部门名称"
-                    value={newDeptName}
-                    onChange={(e) => setNewDeptName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addDepartment())}
-                  />
-                  <Button type="button" variant="secondary" onClick={addDepartment}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-                {departments.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {departments.map((dept) => (
-                      <span
-                        key={dept.id}
-                        className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-secondary text-sm"
-                      >
-                        {dept.name}
-                        <button
-                          type="button"
-                          onClick={() => removeDepartment(dept.id)}
-                          className="text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* 签到后行为 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>签到后行为</CardTitle>
-            <CardDescription>用户签到成功后的操作</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-              <label
-                className={`flex flex-col items-center gap-2 p-4 rounded-lg border cursor-pointer transition-all ${afterType === 'message'
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:bg-secondary/50'
-                  }`}
-              >
-                <input
-                  type="radio"
-                  name="afterType"
-                  value="message"
-                  checked={afterType === 'message'}
-                  onChange={() => setAfterType('message')}
-                  className="sr-only"
-                />
-                <span className="font-medium">显示成功</span>
-                <span className="text-xs text-muted-foreground">显示签到成功消息</span>
-              </label>
-              <label
-                className={`flex flex-col items-center gap-2 p-4 rounded-lg border cursor-pointer transition-all ${afterType === 'redirect'
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:bg-secondary/50'
-                  }`}
-              >
-                <input
-                  type="radio"
-                  name="afterType"
-                  value="redirect"
-                  checked={afterType === 'redirect'}
-                  onChange={() => setAfterType('redirect')}
-                  className="sr-only"
-                />
-                <span className="font-medium">跳转页面</span>
-                <span className="text-xs text-muted-foreground">跳转到指定 URL</span>
-              </label>
-              <label
-                className={`flex flex-col items-center gap-2 p-4 rounded-lg border cursor-pointer transition-all ${afterType === 'none'
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:bg-secondary/50'
-                  }`}
-              >
-                <input
-                  type="radio"
-                  name="afterType"
-                  value="none"
-                  checked={afterType === 'none'}
-                  onChange={() => setAfterType('none')}
-                  className="sr-only"
-                />
-                <span className="font-medium">无操作</span>
-                <span className="text-xs text-muted-foreground">直接停留在当前页</span>
-              </label>
-            </div>
-
-            {afterType === 'message' && (
-              <div className="space-y-2">
-                <Label>成功消息</Label>
-                <Input
-                  value={afterMessage}
-                  onChange={(e) => setAfterMessage(e.target.value)}
-                  placeholder="签到成功！"
-                />
-              </div>
-            )}
-
-            {afterType === 'redirect' && (
-              <div className="space-y-2">
-                <Label>跳转 URL</Label>
-                <Input
-                  type="url"
-                  value={redirectUrl}
-                  onChange={(e) => setRedirectUrl(e.target.value)}
-                  placeholder="https://example.com/welcome"
-                />
-              </div>
-            )}
-
-            <label className="flex items-center gap-2 cursor-pointer">
+        <div className="rounded-2xl bg-cell p-5 shadow-sm">
+          <h2 className="mb-1 text-[15px] font-semibold text-foreground">收集信息</h2>
+          <p className="mb-4 text-sm text-muted-foreground">选择签到时需要收集的信息</p>
+          <div className="flex flex-wrap gap-3">
+            {/* 手机号 */}
+            <label
+              className={cn(
+                'flex min-w-[100px] flex-1 cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-colors',
+                needPhone ? 'border-primary bg-primary/5' : 'border-border active:bg-muted'
+              )}
+            >
               <input
                 type="checkbox"
-                checked={showVerifyCode}
-                onChange={(e) => setShowVerifyCode(e.target.checked)}
-                className="rounded"
+                checked={needPhone}
+                onChange={(e) => setNeedPhone(e.target.checked)}
+                className="sr-only"
               />
-              <span>显示验证码（用于后续修改信息）</span>
+              <div
+                className={cn(
+                  'flex h-5 w-5 shrink-0 items-center justify-center rounded border-2',
+                  needPhone ? 'border-primary bg-primary' : 'border-muted-foreground/50'
+                )}
+              >
+                {needPhone && (
+                  <svg className="h-3 w-3 text-white" viewBox="0 0 12 12">
+                    <path fill="currentColor" d="M10.28 2.28a.75.75 0 0 1 0 1.06l-5.5 5.5a.75.75 0 0 1-1.06 0L1.22 6.34a.75.75 0 0 1 1.06-1.06l2 2 4.97-4.97a.75.75 0 0 1 1.06 0Z" />
+                  </svg>
+                )}
+              </div>
+              <span className="text-sm font-medium">手机号</span>
             </label>
-          </CardContent>
-        </Card>
+            {/* 姓名 */}
+            <label
+              className={cn(
+                'flex min-w-[100px] flex-1 cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-colors',
+                needName ? 'border-primary bg-primary/5' : 'border-border active:bg-muted'
+              )}
+            >
+              <input
+                type="checkbox"
+                checked={needName}
+                onChange={(e) => setNeedName(e.target.checked)}
+                className="sr-only"
+              />
+              <div
+                className={cn(
+                  'flex h-5 w-5 shrink-0 items-center justify-center rounded border-2',
+                  needName ? 'border-primary bg-primary' : 'border-muted-foreground/50'
+                )}
+              >
+                {needName && (
+                  <svg className="h-3 w-3 text-white" viewBox="0 0 12 12">
+                    <path fill="currentColor" d="M10.28 2.28a.75.75 0 0 1 0 1.06l-5.5 5.5a.75.75 0 0 1-1.06 0L1.22 6.34a.75.75 0 0 1 1.06-1.06l2 2 4.97-4.97a.75.75 0 0 1 1.06 0Z" />
+                  </svg>
+                )}
+              </div>
+              <span className="text-sm font-medium">姓名</span>
+            </label>
+            {/* 部门 */}
+            <label
+              className={cn(
+                'flex min-w-[100px] flex-1 cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-colors',
+                needDepartment ? 'border-primary bg-primary/5' : 'border-border active:bg-muted'
+              )}
+            >
+              <input
+                type="checkbox"
+                checked={needDepartment}
+                onChange={(e) => setNeedDepartment(e.target.checked)}
+                className="sr-only"
+              />
+              <div
+                className={cn(
+                  'flex h-5 w-5 shrink-0 items-center justify-center rounded border-2',
+                  needDepartment ? 'border-primary bg-primary' : 'border-muted-foreground/50'
+                )}
+              >
+                {needDepartment && (
+                  <svg className="h-3 w-3 text-white" viewBox="0 0 12 12">
+                    <path fill="currentColor" d="M10.28 2.28a.75.75 0 0 1 0 1.06l-5.5 5.5a.75.75 0 0 1-1.06 0L1.22 6.34a.75.75 0 0 1 1.06-1.06l2 2 4.97-4.97a.75.75 0 0 1 1.06 0Z" />
+                  </svg>
+                )}
+              </div>
+              <span className="text-sm font-medium">部门</span>
+            </label>
+          </div>
+
+          {/* 部门列表 */}
+          {needDepartment && (
+            <div className="mt-4 space-y-3">
+              <Label>部门列表</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="输入部门名称"
+                  value={newDeptName}
+                  onChange={(e) => setNewDeptName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addDepartment())}
+                />
+                <Button type="button" variant="secondary" onClick={addDepartment}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              {departments.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {departments.map((dept) => (
+                    <span
+                      key={dept.id}
+                      className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-sm"
+                    >
+                      {dept.name}
+                      <button
+                        type="button"
+                        onClick={() => removeDepartment(dept.id)}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 签到后行为 */}
+        <div className="rounded-2xl bg-cell p-5 shadow-sm">
+          <h2 className="mb-1 text-[15px] font-semibold text-foreground">签到后行为</h2>
+          <p className="mb-4 text-sm text-muted-foreground">用户签到成功后的操作</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <label
+              className={cn(
+                'flex cursor-pointer flex-col gap-1.5 rounded-xl border p-4 transition-colors',
+                afterType === 'message' ? 'border-primary bg-primary/5' : 'border-border active:bg-muted'
+              )}
+            >
+              <input
+                type="radio"
+                name="afterType"
+                value="message"
+                checked={afterType === 'message'}
+                onChange={() => setAfterType('message')}
+                className="sr-only"
+              />
+              <span className="text-sm font-semibold text-foreground">显示成功</span>
+              <span className="text-xs text-muted-foreground">显示签到成功消息</span>
+            </label>
+            <label
+              className={cn(
+                'flex cursor-pointer flex-col gap-1.5 rounded-xl border p-4 transition-colors',
+                afterType === 'redirect' ? 'border-primary bg-primary/5' : 'border-border active:bg-muted'
+              )}
+            >
+              <input
+                type="radio"
+                name="afterType"
+                value="redirect"
+                checked={afterType === 'redirect'}
+                onChange={() => setAfterType('redirect')}
+                className="sr-only"
+              />
+              <span className="text-sm font-semibold text-foreground">跳转页面</span>
+              <span className="text-xs text-muted-foreground">跳转到指定 URL</span>
+            </label>
+            <label
+              className={cn(
+                'flex cursor-pointer flex-col gap-1.5 rounded-xl border p-4 transition-colors',
+                afterType === 'none' ? 'border-primary bg-primary/5' : 'border-border active:bg-muted'
+              )}
+            >
+              <input
+                type="radio"
+                name="afterType"
+                value="none"
+                checked={afterType === 'none'}
+                onChange={() => setAfterType('none')}
+                className="sr-only"
+              />
+              <span className="text-sm font-semibold text-foreground">无操作</span>
+              <span className="text-xs text-muted-foreground">直接停留在当前页</span>
+            </label>
+          </div>
+
+          {afterType === 'message' && (
+            <div className="mt-4 space-y-2">
+              <Label>成功消息</Label>
+              <Input
+                value={afterMessage}
+                onChange={(e) => setAfterMessage(e.target.value)}
+                placeholder="签到成功！"
+              />
+            </div>
+          )}
+
+          {afterType === 'redirect' && (
+            <div className="mt-4 space-y-2">
+              <Label>跳转 URL</Label>
+              <Input
+                type="url"
+                value={redirectUrl}
+                onChange={(e) => setRedirectUrl(e.target.value)}
+                placeholder="https://example.com/welcome"
+              />
+            </div>
+          )}
+
+          <label className="mt-4 flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              checked={showVerifyCode}
+              onChange={(e) => setShowVerifyCode(e.target.checked)}
+              className="rounded"
+            />
+            <span className="text-sm">显示验证码（用于后续修改信息）</span>
+          </label>
+        </div>
 
         {/* 高级设置 */}
-        <Card>
-          <CardHeader
-            className="cursor-pointer"
+        <div className="overflow-hidden rounded-2xl bg-cell shadow-sm">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between px-5 py-4 text-[15px] font-semibold text-foreground transition-colors active:bg-muted"
             onClick={() => setShowAdvanced(!showAdvanced)}
           >
-            <CardTitle className="flex items-center justify-between">
-              高级设置
-              {showAdvanced ? (
-                <ChevronUp className="h-5 w-5" />
-              ) : (
-                <ChevronDown className="h-5 w-5" />
-              )}
-            </CardTitle>
-          </CardHeader>
+            高级设置
+            {showAdvanced ? (
+              <ChevronUp className="h-5 w-5 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-5 w-5 text-muted-foreground" />
+            )}
+          </button>
           {showAdvanced && (
-            <CardContent className="space-y-6">
+            <div className="space-y-6 px-5 pb-5">
               {/* 大屏配置 */}
-              <div className="space-y-4">
-                <Label>大屏签到墙样式</Label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {[
-                    { value: 'danmaku', label: '弹幕' },
-                    { value: 'grid', label: '网格' },
-                    { value: 'list', label: '列表' },
-                    { value: 'bubble', label: '气泡' },
-                  ].map((style) => (
+              <div className="space-y-3">
+                <p className="text-[13px] font-semibold text-muted-foreground">大屏签到墙样式</p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {(
+                    [
+                      { value: 'danmaku', label: '弹幕' },
+                      { value: 'grid', label: '网格' },
+                      { value: 'list', label: '列表' },
+                      { value: 'bubble', label: '气泡' },
+                    ] as { value: WallStyle; label: string }[]
+                  ).map((style) => (
                     <label
                       key={style.value}
-                      className={`flex items-center justify-center p-3 rounded-lg border cursor-pointer transition-all ${wallStyle === style.value
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:bg-secondary/50'
-                        }`}
+                      className={cn(
+                        'flex cursor-pointer items-center justify-center rounded-xl border p-3 text-sm font-medium transition-colors',
+                        wallStyle === style.value
+                          ? 'border-primary bg-primary/5 text-primary'
+                          : 'border-border text-foreground active:bg-muted'
+                      )}
                     >
                       <input
                         type="radio"
@@ -392,34 +439,38 @@ export default function NewCheckinPage() {
                         onChange={() => setWallStyle(style.value as WallStyle)}
                         className="sr-only"
                       />
-                      <span>{style.label}</span>
+                      {style.label}
                     </label>
                   ))}
                 </div>
               </div>
 
               {/* 二维码位置 */}
-              <div className="space-y-4">
-                <Label>大屏二维码位置</Label>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                  {[
-                    { value: 'top-left', label: '左上' },
-                    { value: 'top-center', label: '中上' },
-                    { value: 'top-right', label: '右上' },
-                    { value: 'hidden', label: '隐藏' },
-                    { value: 'middle-left', label: '左中' },
-                    { value: 'middle-center', label: '中心' },
-                    { value: 'middle-right', label: '右中' },
-                    { value: 'bottom-left', label: '左下' },
-                    { value: 'bottom-center', label: '中下' },
-                    { value: 'bottom-right', label: '右下' },
-                  ].map((pos) => (
+              <div className="space-y-3">
+                <p className="text-[13px] font-semibold text-muted-foreground">大屏二维码位置</p>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                  {(
+                    [
+                      { value: 'top-left', label: '左上' },
+                      { value: 'top-center', label: '中上' },
+                      { value: 'top-right', label: '右上' },
+                      { value: 'hidden', label: '隐藏' },
+                      { value: 'middle-left', label: '左中' },
+                      { value: 'middle-center', label: '中心' },
+                      { value: 'middle-right', label: '右中' },
+                      { value: 'bottom-left', label: '左下' },
+                      { value: 'bottom-center', label: '中下' },
+                      { value: 'bottom-right', label: '右下' },
+                    ] as { value: QRPosition; label: string }[]
+                  ).map((pos) => (
                     <label
                       key={pos.value}
-                      className={`flex items-center justify-center p-2 rounded-lg border cursor-pointer transition-all text-sm ${qrPosition === pos.value
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:bg-secondary/50'
-                        }`}
+                      className={cn(
+                        'flex cursor-pointer items-center justify-center rounded-xl border p-2 text-sm transition-colors',
+                        qrPosition === pos.value
+                          ? 'border-primary bg-primary/5 text-primary'
+                          : 'border-border text-muted-foreground active:bg-muted'
+                      )}
                     >
                       <input
                         type="radio"
@@ -429,31 +480,31 @@ export default function NewCheckinPage() {
                         onChange={() => setQrPosition(pos.value as QRPosition)}
                         className="sr-only"
                       />
-                      <span>{pos.label}</span>
+                      {pos.label}
                     </label>
                   ))}
                 </div>
               </div>
 
               <div className="space-y-3">
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex cursor-pointer items-center gap-2">
                   <input
                     type="checkbox"
                     checked={showStats}
                     onChange={(e) => setShowStats(e.target.checked)}
                     className="rounded"
                   />
-                  <span>大屏显示统计信息</span>
+                  <span className="text-sm">大屏显示统计信息</span>
                 </label>
 
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex cursor-pointer items-center gap-2">
                   <input
                     type="checkbox"
                     checked={allowRepeat}
                     onChange={(e) => setAllowRepeat(e.target.checked)}
                     className="rounded"
                   />
-                  <span>允许重复签到（无需验证码即可修改）</span>
+                  <span className="text-sm">允许重复签到（无需验证码即可修改）</span>
                 </label>
               </div>
 
@@ -462,18 +513,18 @@ export default function NewCheckinPage() {
                 value={background}
                 onChange={setBackground}
               />
-            </CardContent>
+            </div>
           )}
-        </Card>
+        </div>
 
-        {/* 提交按钮 */}
-        <div className="flex justify-end gap-3">
-          <Link href="/checkins">
-            <Button type="button" variant="outline">
+        {/* 底部操作 */}
+        <div className="flex items-center gap-3 pt-1">
+          <Link href="/checkins" className="flex-1">
+            <Button type="button" variant="outline" className="h-12 w-full">
               取消
             </Button>
           </Link>
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading} className="h-12 flex-1 text-base font-medium">
             {loading ? '创建中...' : '创建签到'}
           </Button>
         </div>
@@ -481,4 +532,3 @@ export default function NewCheckinPage() {
     </div>
   );
 }
-

@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   UserCheck,
@@ -15,8 +14,9 @@ import {
   Calendar,
   TrendingUp,
   Monitor,
-  Share2,
+  ChevronRight,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 import { listCheckinsAction } from '@/server/actions/checkinAction';
 
@@ -33,38 +33,10 @@ interface CheckinListItem {
 }
 
 const quickCreateItems = [
-  {
-    name: '签到',
-    description: '扫码签到，实时统计',
-    href: '/checkins/new',
-    icon: UserCheck,
-    color: 'from-emerald-500 to-green-600',
-    available: true,
-  },
-  {
-    name: '投票',
-    description: '单选多选，实时结果',
-    href: '/votes/new',
-    icon: Vote,
-    color: 'from-blue-500 to-indigo-600',
-    available: true,
-  },
-  {
-    name: '抽奖',
-    description: '多种模式，精彩互动',
-    href: '/lotteries/new',
-    icon: Gift,
-    color: 'from-orange-500 to-red-600',
-    available: true,
-  },
-  {
-    name: '表单',
-    description: '信息收集，数据导出',
-    href: '/forms/new',
-    icon: FileText,
-    color: 'from-purple-500 to-pink-600',
-    available: true,
-  },
+  { name: '签到', description: '扫码签到，实时统计', href: '/checkins/new', icon: UserCheck, tint: 'bg-emerald-50', fg: 'text-emerald-600' },
+  { name: '投票', description: '单选多选，实时结果', href: '/votes/new', icon: Vote, tint: 'bg-blue-50', fg: 'text-blue-600' },
+  { name: '抽奖', description: '多种模式，精彩互动', href: '/lotteries/new', icon: Gift, tint: 'bg-amber-50', fg: 'text-amber-600' },
+  { name: '表单', description: '信息收集，数据导出', href: '/forms/new', icon: FileText, tint: 'bg-violet-50', fg: 'text-violet-600' },
 ];
 
 export default function DashboardPage() {
@@ -86,181 +58,130 @@ export default function DashboardPage() {
   const totalParticipants = recentCheckins.reduce((sum, c) => sum + (c.stats?.total ?? 0), 0);
   const activeCount = recentCheckins.filter(c => c.status === 'active').length;
 
+  const stats = [
+    { label: '总签到人数', value: totalParticipants, icon: Users, tint: 'bg-emerald-50', fg: 'text-emerald-600' },
+    { label: '进行中活动', value: activeCount, icon: TrendingUp, tint: 'bg-blue-50', fg: 'text-blue-600' },
+    { label: '总活动数', value: recentCheckins.length, icon: Calendar, tint: 'bg-violet-50', fg: 'text-violet-600' },
+  ];
+
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <div className="space-y-5">
       {/* Header */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">首页</h1>
-        <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-          欢迎使用 Sign
-        </p>
+        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">首页</h1>
+        <p className="mt-1 text-sm text-muted-foreground">欢迎使用 Sign</p>
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="bg-linear-to-br from-emerald-500/10 to-green-600/10 border-emerald-500/20">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">总签到人数</p>
-                <p className="text-3xl font-bold mt-1">{totalParticipants}</p>
-              </div>
-              <div className="h-12 w-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                <Users className="h-6 w-6 text-emerald-500" />
-              </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        {stats.map((s) => (
+          <div key={s.label} className="flex items-center justify-between rounded-2xl bg-cell p-4 shadow-sm">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">{s.label}</p>
+              <p className="mt-1 text-3xl font-bold tabular-nums">{s.value}</p>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-linear-to-br from-blue-500/10 to-indigo-600/10 border-blue-500/20">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">进行中活动</p>
-                <p className="text-3xl font-bold mt-1">{activeCount}</p>
-              </div>
-              <div className="h-12 w-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                <TrendingUp className="h-6 w-6 text-blue-500" />
-              </div>
+            <div className={cn('flex h-12 w-12 items-center justify-center rounded-xl', s.tint)}>
+              <s.icon className={cn('h-6 w-6', s.fg)} strokeWidth={1.9} />
             </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-linear-to-br from-purple-500/10 to-pink-600/10 border-purple-500/20">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">总活动数</p>
-                <p className="text-3xl font-bold mt-1">{recentCheckins.length}</p>
-              </div>
-              <div className="h-12 w-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                <Calendar className="h-6 w-6 text-purple-500" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        ))}
       </div>
 
       {/* Quick Create */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5" />
-            快速创建
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {quickCreateItems.map((item) => (
-              <Link
-                key={item.name}
-                href={item.available ? item.href : '#'}
-                className={`group relative overflow-hidden rounded-xl border border-border p-4 transition-all duration-300 ${
-                  item.available
-                    ? 'hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 cursor-pointer'
-                    : 'opacity-60 cursor-not-allowed'
-                }`}
-                onClick={(e) => !item.available && e.preventDefault()}
-              >
-                <div
-                  className={`absolute inset-0 bg-linear-to-br ${item.color} opacity-0 group-hover:opacity-5 transition-opacity`}
-                />
-                <div className="relative">
-                  <div
-                    className={`h-10 w-10 rounded-lg bg-linear-to-br ${item.color} flex items-center justify-center mb-3`}
-                  >
-                    <item.icon className="h-5 w-5 text-white" />
-                  </div>
-                  <h3 className="font-semibold">{item.name}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {item.available ? item.description : '即将推出'}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="rounded-2xl bg-cell p-4 shadow-sm sm:p-5">
+        <h2 className="mb-3 flex items-center gap-1.5 text-[15px] font-semibold text-foreground">
+          <Plus className="h-4 w-4" />
+          快速创建
+        </h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {quickCreateItems.map((item) => (
+            <Link
+              key={item.name}
+              href={item.href}
+              className="flex items-center gap-3 rounded-xl bg-muted/40 p-3.5 transition-colors active:bg-muted lg:flex-col lg:items-start"
+            >
+              <div className={cn('flex h-11 w-11 items-center justify-center rounded-xl', item.tint)}>
+                <item.icon className={cn('h-[22px] w-[22px]', item.fg)} strokeWidth={1.9} />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-foreground">{item.name}</h3>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">{item.description}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
 
       {/* Recent Activities */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>最近创建</CardTitle>
-          <Link href="/checkins">
-            <Button variant="ghost" size="sm" className="gap-1">
-              查看全部 <ArrowRight className="h-4 w-4" />
-            </Button>
+      <div className="rounded-2xl bg-cell shadow-sm">
+        <div className="flex items-center justify-between px-4 pt-4">
+          <h2 className="text-[15px] font-semibold text-foreground">最近创建</h2>
+          <Link href="/checkins" className="flex items-center gap-0.5 text-xs text-muted-foreground">
+            查看全部 <ChevronRight className="h-3.5 w-3.5" />
           </Link>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            </div>
-          ) : recentCheckins.length === 0 ? (
-            <div className="text-center py-8">
-              <UserCheck className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
-              <p className="text-muted-foreground">暂无签到活动</p>
-              <Link href="/checkins/new">
-                <Button className="mt-4">创建第一个签到</Button>
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {recentCheckins.map((checkin) => (
-                <div
-                  key={checkin.id}
-                  className="flex items-center justify-between p-3 sm:p-4 rounded-lg border border-border hover:bg-secondary/50 transition-colors gap-2"
-                >
-                  <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                    <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg bg-linear-to-br from-emerald-500 to-green-600 flex items-center justify-center shrink-0">
-                      <UserCheck className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="font-medium truncate">{checkin.title}</h4>
-                      <div className="flex items-center gap-2 sm:gap-3 mt-1 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Users className="h-3.5 w-3.5" />
-                          {checkin.stats?.total ?? 0} 人
-                        </span>
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                            checkin.status === 'active'
-                              ? 'bg-emerald-500/10 text-emerald-500'
-                              : checkin.status === 'paused'
-                              ? 'bg-yellow-500/10 text-yellow-500'
-                              : 'bg-muted text-muted-foreground'
-                          }`}
-                        >
-                          {checkin.status === 'active'
-                            ? '进行中'
+        </div>
+        {loading ? (
+          <div className="flex items-center justify-center py-10">
+            <div className="h-7 w-7 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          </div>
+        ) : recentCheckins.length === 0 ? (
+          <div className="py-10 text-center">
+            <UserCheck className="mx-auto mb-3 h-12 w-12 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground">暂无签到活动</p>
+            <Link href="/checkins/new">
+              <Button className="mt-4">创建第一个签到</Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="mt-2 [&>*:last-child]:after:hidden">
+            {recentCheckins.map((checkin) => (
+              <div
+                key={checkin.id}
+                className="weui-hairline-bottom weui-hairline-inset relative flex items-center justify-between gap-2 px-4 py-3"
+              >
+                <Link href={`/checkins/${checkin.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50">
+                    <UserCheck className="h-5 w-5 text-emerald-600" strokeWidth={1.9} />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="truncate text-sm font-medium">{checkin.title}</h4>
+                    <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Users className="h-3.5 w-3.5" />
+                        {checkin.stats?.total ?? 0} 人
+                      </span>
+                      <span
+                        className={cn(
+                          'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
+                          checkin.status === 'active'
+                            ? 'bg-emerald-500/10 text-emerald-600'
                             : checkin.status === 'paused'
-                            ? '已暂停'
-                            : checkin.status === 'ended'
-                            ? '已结束'
-                            : '草稿'}
-                        </span>
-                      </div>
+                            ? 'bg-amber-500/10 text-amber-600'
+                            : 'bg-muted text-muted-foreground'
+                        )}
+                      >
+                        {checkin.status === 'active' ? '进行中' : checkin.status === 'paused' ? '已暂停' : checkin.status === 'ended' ? '已结束' : '草稿'}
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Link href={`/c/${checkin.code}/display`} target="_blank" className="hidden sm:block">
-                      <Button variant="ghost" size="icon" title="打开大屏">
-                        <Monitor className="h-4 w-4" />
-                      </Button>
-                    </Link>
-                    <Link href={`/checkins/${checkin.id}`}>
-                      <Button variant="ghost" size="icon" title="详情">
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </Link>
-                  </div>
+                </Link>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Link href={`/c/${checkin.code}/display`} target="_blank" className="hidden sm:block">
+                    <Button variant="ghost" size="icon" title="打开大屏">
+                      <Monitor className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                  <Link href={`/checkins/${checkin.id}`}>
+                    <Button variant="ghost" size="icon" title="详情">
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </Link>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

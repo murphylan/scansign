@@ -156,10 +156,10 @@ function CheckinList() {
   return (
     <div className="space-y-2">
       {items.map((item) => (
-        <div key={item.id} className="rounded-xl border border-border bg-card p-3 active:bg-secondary/50 transition-colors">
+        <div key={item.id} className="rounded-2xl bg-cell p-3 shadow-sm active:bg-muted transition-colors">
           <Link href={`/checkins/${item.id}`} className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-linear-to-br from-emerald-500 to-green-600 flex items-center justify-center shrink-0">
-              <Users className="h-5 w-5 text-white" />
+            <div className="h-10 w-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+              <Users className="h-5 w-5 text-emerald-600" strokeWidth={1.9} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
@@ -229,10 +229,10 @@ function VoteList() {
   return (
     <div className="space-y-2">
       {items.map((item) => (
-        <div key={item.id} className="rounded-xl border border-border bg-card p-3 active:bg-secondary/50 transition-colors">
+        <div key={item.id} className="rounded-2xl bg-cell p-3 shadow-sm active:bg-muted transition-colors">
           <Link href={`/votes/${item.id}`} className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0">
-              <BarChart3 className="h-5 w-5 text-white" />
+            <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+              <BarChart3 className="h-5 w-5 text-blue-600" strokeWidth={1.9} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
@@ -305,10 +305,10 @@ function FormList() {
   return (
     <div className="space-y-2">
       {items.map((item) => (
-        <div key={item.id} className="rounded-xl border border-border bg-card p-3 active:bg-secondary/50 transition-colors">
+        <div key={item.id} className="rounded-2xl bg-cell p-3 shadow-sm active:bg-muted transition-colors">
           <Link href={`/forms/${item.id}`} className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-linear-to-br from-purple-500 to-pink-600 flex items-center justify-center shrink-0">
-              <LayoutList className="h-5 w-5 text-white" />
+            <div className="h-10 w-10 rounded-xl bg-violet-50 flex items-center justify-center shrink-0">
+              <LayoutList className="h-5 w-5 text-violet-600" strokeWidth={1.9} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
@@ -378,10 +378,10 @@ function LotteryList() {
   return (
     <div className="space-y-2">
       {items.map((item) => (
-        <div key={item.id} className="rounded-xl border border-border bg-card p-3 active:bg-secondary/50 transition-colors">
+        <div key={item.id} className="rounded-2xl bg-cell p-3 shadow-sm active:bg-muted transition-colors">
           <Link href={`/lotteries/${item.id}`} className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-linear-to-br from-orange-500 to-red-600 flex items-center justify-center shrink-0">
-              <Trophy className="h-5 w-5 text-white" />
+            <div className="h-10 w-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+              <Trophy className="h-5 w-5 text-amber-600" strokeWidth={1.9} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
@@ -442,6 +442,14 @@ const TAB_COMPONENTS: Record<AppTabKey, React.ComponentType> = {
   lotteries: LotteryList,
 };
 
+// 企业化：tab 图标统一为“浅底色块 + 品牌色图标”
+const TAB_ICON_STYLE: Record<AppTabKey, { tint: string; fg: string }> = {
+  checkins: { tint: "bg-emerald-50", fg: "text-emerald-600" },
+  votes: { tint: "bg-blue-50", fg: "text-blue-600" },
+  forms: { tint: "bg-violet-50", fg: "text-violet-600" },
+  lotteries: { tint: "bg-amber-50", fg: "text-amber-600" },
+};
+
 function AppsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -461,18 +469,17 @@ function AppsContent() {
   return (
     <div className="flex flex-1 min-h-0 -mx-4 -my-4 lg:-m-6">
       {/* Vertical Tab Strip */}
-      <div className="w-[72px] shrink-0 border-r border-border bg-secondary/30 overflow-y-auto">
+      <div className="w-[72px] shrink-0 border-r border-border bg-page overflow-y-auto">
         {appTabs.map((tab) => {
           const isActive = tab.key === activeTab;
+          const style = TAB_ICON_STYLE[tab.key];
           return (
             <button
               key={tab.key}
               onClick={() => setTab(tab.key)}
               className={cn(
                 "relative w-full flex flex-col items-center gap-1.5 py-4 transition-colors",
-                isActive
-                  ? "bg-card text-primary"
-                  : "text-muted-foreground active:bg-card/50"
+                isActive ? "bg-cell text-primary" : "text-muted-foreground active:bg-cell/50"
               )}
             >
               {isActive && (
@@ -480,11 +487,14 @@ function AppsContent() {
               )}
               <div
                 className={cn(
-                  "h-8 w-8 rounded-lg flex items-center justify-center",
-                  isActive ? tab.color : "bg-muted"
+                  "h-9 w-9 rounded-xl flex items-center justify-center",
+                  isActive ? style.tint : "bg-muted"
                 )}
               >
-                <tab.icon className={cn("h-4 w-4", isActive ? "text-white" : "text-muted-foreground")} />
+                <tab.icon
+                  className={cn("h-[18px] w-[18px]", isActive ? style.fg : "text-muted-foreground")}
+                  strokeWidth={1.9}
+                />
               </div>
               <span className={cn("text-[11px] leading-none", isActive ? "font-semibold" : "font-medium")}>
                 {tab.name}
@@ -497,7 +507,7 @@ function AppsContent() {
       {/* Content Area */}
       <div className="flex-1 min-w-0 overflow-y-auto">
         {/* Content Header */}
-        <div className="sticky top-0 z-10 bg-background border-b border-border px-3 py-2.5 flex items-center justify-between">
+        <div className="sticky top-0 z-10 bg-cell border-b border-border px-3 py-2.5 flex items-center justify-between">
           <h2 className="text-sm font-semibold">{currentTab.name}管理</h2>
           <Link href={currentTab.createHref}>
             <Button size="sm" className="gap-1 h-7 text-xs px-2.5">
