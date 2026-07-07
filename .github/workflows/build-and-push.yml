@@ -1,0 +1,57 @@
+# 在 GitHub Actions 的 amd64 runner 上原生构建并推送镜像到 Zot。
+# 目的：摆脱在 Apple Silicon(arm64) Mac 上交叉构建 amd64 的慢与坑（QEMU 模拟）。
+#
+# 需要在仓库 Settings → Secrets and variables → Actions 配置：
+#   ZOT_USERNAME  = murphy
+#   ZOT_PASSWORD  = <Zot 密码>
+#
+# 触发：Actions 页面手动运行（workflow_dispatch），或推送 v* tag 自动构建。
+# 构建完成后镜像在 zot.murphylan.cloud/murphy/scansign:<tag>；
+# 上线仍在 C 机执行：podman pull + podman-compose down/up（见 .claude/skills/deploy-sign）。
+#
+# 前提：GitHub runner 能通过 HTTPS 访问 zot.murphylan.cloud（公网、证书有效）。
+
+name: Build & Push (Zot)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "镜像 tag"
+        default: "latest"
+      base_url:
+        description: "NEXT_PUBLIC_BASE_URL（构建期内联，改域名必须重建）"
+        default: "https://sign.murphylan.cloud"
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest # amd64 原生，与生产服务器架构一致，无需 --platform / QEMU
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve inputs
+        id: vars
+        run: |
+          echo "tag=${{ github.event.inputs.tag || github.ref_name || 'latest' }}" >> "$GITHUB_OUTPUT"
+          echo "base_url=${{ github.event.inputs.base_url || 'https://sign.murphylan.cloud' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Login to Zot
+        run: echo "${{ secrets.ZOT_PASSWORD }}" | docker login zot.murphylan.cloud -u "${{ secrets.ZOT_USERNAME }}" --password-stdin
+
+      - name: Build image
+        run: |
+          docker build \
+            --build-arg NEXT_PUBLIC_BASE_URL="${{ steps.vars.outputs.base_url }}" \
+            -t "zot.murphylan.cloud/murphy/scansign:${{ steps.vars.outputs.tag }}" \
+            -f Containerfile .
+
+      - name: Push image
+        run: docker push "zot.murphylan.cloud/murphy/scansign:${{ steps.vars.outputs.tag }}"
+
+      - name: Done
+        run: |
+          echo "已推送 zot.murphylan.cloud/murphy/scansign:${{ steps.vars.outputs.tag }}"
+          echo "上线：ssh C 机 → cd /home/ubuntu/work/scansign → podman pull + podman-compose down && up"

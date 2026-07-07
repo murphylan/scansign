@@ -28,3 +28,6 @@ drizzle
 # Documentation
 README.md
 LICENSE
+
+# AI assistant config (never ship)
+.claude

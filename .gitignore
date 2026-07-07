@@ -38,3 +38,5 @@ e2e/promo/
 e2e/report/
 e2e/screenshots/
 e2e/test-results/
+# AI assistant local config (never commit/push)
+.claude/
