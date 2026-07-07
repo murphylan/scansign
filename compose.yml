@@ -29,8 +29,11 @@ services:
       NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL:-http://localhost:3000}
       SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-murphy_session}
       SESSION_EXPIRY_DAYS: ${SESSION_EXPIRY_DAYS:-7}
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      # 手机号验证码登录：首次以该手机号登录即成为管理员/运营台账号
+      ADMIN_PHONE: ${ADMIN_PHONE:-}
+      OPS_SUPER_USER_PHONE: ${OPS_SUPER_USER_PHONE:-}
+      # 短信服务商：留空=Mock(验证码打印到日志)；aliyun/tencent/unisms 需另配密钥
+      SMS_PROVIDER: ${SMS_PROVIDER:-}
 
 volumes:
   pgdata:

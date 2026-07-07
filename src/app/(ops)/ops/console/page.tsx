@@ -131,7 +131,7 @@ export default function OpsConsolePage() {
 
       <div className="flex gap-2 max-w-md">
         <Input
-          placeholder="搜索邮箱或昵称"
+          placeholder="搜索手机号或昵称"
           value={searchDraft}
           onChange={(e) => setSearchDraft(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && applySearch()}
@@ -151,7 +151,7 @@ export default function OpsConsolePage() {
             <thead className="bg-muted/50 border-b border-border">
               <tr>
                 <th className="p-3 font-medium">在线</th>
-                <th className="p-3 font-medium">邮箱</th>
+                <th className="p-3 font-medium">手机号</th>
                 <th className="p-3 font-medium">角色</th>
                 <th className="p-3 font-medium">试用天数</th>
                 <th className="p-3 font-medium">付费</th>
@@ -174,8 +174,8 @@ export default function OpsConsolePage() {
                       {r.online ? "●" : "○"}
                     </span>
                   </td>
-                  <td className="p-3 max-w-[200px] truncate" title={r.email}>
-                    {r.email}
+                  <td className="p-3 max-w-[200px] truncate" title={r.phone ?? ""}>
+                    {r.phone ?? "—"}
                   </td>
                   <td className="p-3">{r.role}</td>
                   <td className="p-3">{r.trialDays}</td>

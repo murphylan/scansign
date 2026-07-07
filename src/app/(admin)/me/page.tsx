@@ -8,7 +8,6 @@ import {
   Crown,
   Clock,
   Settings,
-  Lock,
   LogOut,
   ChevronRight,
   UserCheck,
@@ -92,7 +91,6 @@ export default function MePage() {
   const menuItems = [
     { icon: CreditCard, label: "订阅与付款说明", href: "/me/billing" },
     { icon: Settings, label: "账户设置", href: "/settings" },
-    { icon: Lock, label: "修改密码", href: "/settings" },
   ];
 
   return (
@@ -101,11 +99,11 @@ export default function MePage() {
       <div className="bg-gradient-to-br from-primary to-[oklch(0.44_0.19_25)] px-4 pb-5 pt-5 text-white">
         <div className="flex items-center gap-3">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white/15 text-xl font-bold ring-1 ring-white/25">
-            {user.nickname?.charAt(0) || user.email.charAt(0).toUpperCase()}
+            {user.nickname?.charAt(0) || user.phone.charAt(0)}
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-lg font-bold">{user.nickname || user.email.split("@")[0]}</h2>
-            <p className="truncate text-xs text-white/70">{user.email}</p>
+            <h2 className="truncate text-lg font-bold">{user.nickname || user.phone}</h2>
+            <p className="truncate text-xs text-white/70">{user.phone}</p>
           </div>
           {user.role === "ADMIN" ? (
             <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-medium ring-1 ring-white/20">

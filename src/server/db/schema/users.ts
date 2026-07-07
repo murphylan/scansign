@@ -20,8 +20,11 @@ export const subscriptionPlanEnum = toolSchema.enum("SubscriptionPlan", [
 // 用户表
 export const users = toolSchema.table("User", {
   id: text("id").primaryKey(),
-  email: text("email").notNull().unique(),
-  password: text("password").notNull(),
+  // 手机号为登录标识（手机号+验证码登录）。DB 层可空以兼容历史 email 行，应用层强制。
+  phone: text("phone").unique(),
+  // 旧邮箱+密码登录已停用；列保留为可空仅为不破坏历史数据。
+  email: text("email").unique(),
+  password: text("password"),
   nickname: text("nickname"),
   role: userRoleEnum("role").default("USER").notNull(),
   
@@ -36,6 +39,16 @@ export const users = toolSchema.table("User", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   lastLoginAt: timestamp("lastLoginAt"),
+});
+
+// 短信验证码表（自管式服务商：Mock/腾讯/合一 落库校验；托管式阿里云不落库）
+export const verificationCodes = toolSchema.table("VerificationCode", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  phone: text("phone").notNull(),
+  code: text("code").notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  consumed: boolean("consumed").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
 // 会话表

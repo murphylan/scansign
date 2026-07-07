@@ -72,12 +72,12 @@ export function Sidebar({ user }: SidebarProps) {
         <div className="flex items-center gap-3 px-3 py-2">
           <div className="h-8 w-8 rounded-full bg-linear-to-br from-primary/50 to-amber-500/50 flex items-center justify-center shrink-0">
             <span className="text-xs font-medium">
-              {user.nickname?.charAt(0) || user.email.charAt(0).toUpperCase()}
+              {user.nickname?.charAt(0) || user.phone.charAt(0)}
             </span>
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">
-              {user.nickname || user.email.split("@")[0]}
+              {user.nickname || user.phone}
             </p>
             <div className="flex items-center gap-2">
               {user.role === "ADMIN" ? (

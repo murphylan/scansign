@@ -26,7 +26,7 @@ export type SubscriptionPlan = (typeof SubscriptionPlan)[keyof typeof Subscripti
 
 export interface User {
   id: string;
-  email: string;
+  phone: string;
   nickname: string | null;
   role: UserRole;
   trialStartAt: Date;
@@ -43,7 +43,7 @@ export interface User {
 
 export interface AuthUser {
   id: string;
-  email: string;
+  phone: string;
   nickname: string | null;
   role: UserRole;
   trialStartAt: Date;
@@ -70,20 +70,18 @@ export interface Session {
 // Zod Schema 定义
 // ================================
 
-export const loginSchema = z.object({
-  email: z.string().email("请输入有效的邮箱地址"),
-  password: z.string().min(1, "请输入密码"),
+const phoneField = z.string().regex(/^1[3-9]\d{9}$/, "请输入正确的手机号");
+
+// 发送验证码
+export const sendCodeSchema = z.object({
+  phone: phoneField,
 });
 
-export const registerSchema = z.object({
-  email: z.string().email("请输入有效的邮箱地址"),
-  password: z.string().min(6, "密码至少6个字符"),
-  nickname: z.string().optional(),
-});
-
-export const changePasswordSchema = z.object({
-  oldPassword: z.string().min(1, "请输入原密码"),
-  newPassword: z.string().min(6, "新密码至少6个字符"),
+// 手机号+验证码登录（登录即注册）
+export const loginWithCodeSchema = z.object({
+  phone: phoneField,
+  code: z.string().regex(/^\d{6}$/, "请输入6位验证码"),
+  nickname: z.string().max(50, "昵称最多50个字符").optional(),
 });
 
 export const changeNicknameSchema = z.object({
@@ -94,8 +92,7 @@ export const changeNicknameSchema = z.object({
 // 表单数据类型（从 Schema 推断）
 // ================================
 
-export type LoginFormData = z.infer<typeof loginSchema>;
-export type RegisterFormData = z.infer<typeof registerSchema>;
-export type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
+export type SendCodeFormData = z.infer<typeof sendCodeSchema>;
+export type LoginWithCodeFormData = z.infer<typeof loginWithCodeSchema>;
 export type ChangeNicknameFormData = z.infer<typeof changeNicknameSchema>;
 

@@ -12,7 +12,7 @@ import { MobileHeader } from "@/components/admin/mobile-header";
 import { BottomNav } from "@/components/admin/bottom-nav";
 import { UserProvider } from "@/components/auth/auth-guard";
 import { PresenceBeacon } from "@/components/auth/presence-beacon";
-import { OPS_SUPER_USER_EMAIL } from "@/config/ops";
+import { OPS_SUPER_USER_PHONE } from "@/config/ops";
 
 export default async function AdminLayout({
   children,
@@ -29,7 +29,7 @@ export default async function AdminLayout({
 
   const userInfo = {
     id: user.id,
-    email: user.email,
+    phone: user.phone,
     nickname: user.nickname,
     role: user.role,
     trialDaysRemaining: getTrialDaysRemaining(user),
@@ -39,7 +39,7 @@ export default async function AdminLayout({
     subscriptionEndsAt: user.subscriptionEndsAt?.toISOString() ?? null,
     trialEndsAtIso: getTrialEndsAt(user).toISOString(),
     hasActivePaidSubscription: hasActivePaidSubscription(user),
-    isOpsConsoleUser: user.email === OPS_SUPER_USER_EMAIL,
+    isOpsConsoleUser: user.phone === OPS_SUPER_USER_PHONE,
   };
 
   if (!userInfo.canUseService) {

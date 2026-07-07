@@ -8,7 +8,7 @@ import type { SubscriptionPlan } from "@/types/user-types";
 
 export interface SessionUser {
   id: string;
-  email: string;
+  phone: string;
   nickname: string | null;
   role: "USER" | "ADMIN";
   trialDaysRemaining: number;

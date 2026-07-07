@@ -3,24 +3,17 @@
 import { randomUUID } from "crypto";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import bcrypt from "bcryptjs";
-import { eq, and, lt } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { db } from "@/server/db";
 import { users, sessions } from "@/server/db/schema";
-import {
-  loginSchema,
-  registerSchema,
-  changePasswordSchema,
-  changeNicknameSchema,
-} from "@/types/user-types";
+import { sendCodeSchema, loginWithCodeSchema, changeNicknameSchema } from "@/types/user-types";
 import type {
-  LoginFormData,
-  RegisterFormData,
-  ChangePasswordFormData,
+  LoginWithCodeFormData,
   ChangeNicknameFormData,
   AuthUser,
 } from "@/types/user-types";
+import { createAndSendCode, verifyCode, findOrCreateUser } from "@/lib/verification";
 
 // ================================
 // 常量配置（从环境变量读取）
@@ -28,8 +21,7 @@ import type {
 
 const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "murphy_session";
 const SESSION_EXPIRY_DAYS = parseInt(process.env.SESSION_EXPIRY_DAYS || "7", 10);
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
+const ADMIN_PHONE = process.env.ADMIN_PHONE?.trim() || "";
 
 // ================================
 // 内部辅助函数
@@ -72,7 +64,6 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       return null;
     }
 
-    // 查询 session 和用户
     const [session] = await db
       .select()
       .from(sessions)
@@ -98,7 +89,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
     return {
       id: user.id,
-      email: user.email,
+      phone: user.phone ?? "",
       nickname: user.nickname,
       role: user.role,
       trialStartAt: user.trialStartAt,
@@ -116,109 +107,62 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 }
 
 // ================================
-// Server Actions
+// Server Actions：手机号 + 短信验证码
 // ================================
 
-export async function loginAction(data: LoginFormData) {
+/** 发送验证码（默认 Mock，验证码打印到服务端控制台） */
+export async function sendSmsCodeAction(data: { phone: string }) {
   try {
-    const validated = loginSchema.parse(data);
-
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, validated.email))
-      .limit(1);
-
-    if (!user) {
-      return { success: false, error: "用户不存在" };
-    }
-
-    const isValid = await bcrypt.compare(validated.password, user.password);
-
-    if (!isValid) {
-      return { success: false, error: "密码错误" };
-    }
-
-    // 更新最后登录时间
-    await db
-      .update(users)
-      .set({ lastLoginAt: new Date(), updatedAt: new Date() })
-      .where(eq(users.id, user.id));
-
-    // 创建 session
-    await createSession(user.id);
-
-    revalidatePath("/");
-
-    return {
-      success: true,
-      data: {
-        id: user.id,
-        email: user.email,
-        nickname: user.nickname,
-        role: user.role,
-      },
-    };
+    const { phone } = sendCodeSchema.parse(data);
+    return await createAndSendCode(phone);
   } catch (error) {
-    console.error("Login failed:", error);
+    console.error("Send code failed:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "登录失败",
+      error: error instanceof Error ? error.message : "发送验证码失败",
     };
   }
 }
 
-export async function registerAction(data: RegisterFormData) {
+/** 验证码登录（登录即注册） */
+export async function loginWithCodeAction(data: LoginWithCodeFormData) {
   try {
-    const validated = registerSchema.parse(data);
+    const validated = loginWithCodeSchema.parse(data);
 
-    // 检查邮箱是否已存在
-    const [existingUser] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, validated.email))
-      .limit(1);
-
-    if (existingUser) {
-      return { success: false, error: "该邮箱已被注册" };
+    const ok = await verifyCode(validated.phone, validated.code);
+    if (!ok) {
+      return { success: false, error: "验证码错误或已过期" };
     }
 
-    // 加密密码
-    const hashedPassword = await bcrypt.hash(validated.password, 12);
+    const user = await findOrCreateUser(validated.phone);
 
-    // 创建用户
-    const [user] = await db
-      .insert(users)
-      .values({
-        id: randomUUID(),
-        email: validated.email,
-        password: hashedPassword,
-        nickname: validated.nickname || validated.email.split("@")[0],
-        role: validated.email === ADMIN_EMAIL ? "ADMIN" : "USER",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .returning();
+    // 首次注册且传了昵称 → 写入；同时更新最后登录时间
+    const patch: { lastLoginAt: Date; updatedAt: Date; nickname?: string } = {
+      lastLoginAt: new Date(),
+      updatedAt: new Date(),
+    };
+    if (validated.nickname && !user.nickname) {
+      patch.nickname = validated.nickname;
+    }
+    await db.update(users).set(patch).where(eq(users.id, user.id));
 
-    // 自动登录
     await createSession(user.id);
-
     revalidatePath("/");
 
     return {
       success: true,
       data: {
         id: user.id,
-        email: user.email,
-        nickname: user.nickname,
+        phone: user.phone,
+        nickname: patch.nickname ?? user.nickname,
         role: user.role,
       },
     };
   } catch (error) {
-    console.error("Register failed:", error);
+    console.error("Login with code failed:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "注册失败",
+      error: error instanceof Error ? error.message : "登录失败",
     };
   }
 }
@@ -233,7 +177,6 @@ export async function logoutAction() {
     }
 
     cookieStore.delete(SESSION_COOKIE_NAME);
-
     revalidatePath("/");
 
     return { success: true };
@@ -242,49 +185,6 @@ export async function logoutAction() {
     return {
       success: false,
       error: error instanceof Error ? error.message : "退出登录失败",
-    };
-  }
-}
-
-export async function changePasswordAction(data: ChangePasswordFormData) {
-  try {
-    const user = await getCurrentUser();
-
-    if (!user) {
-      return { success: false, error: "未登录" };
-    }
-
-    const validated = changePasswordSchema.parse(data);
-
-    const [dbUser] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, user.id))
-      .limit(1);
-
-    if (!dbUser) {
-      return { success: false, error: "用户不存在" };
-    }
-
-    const isValid = await bcrypt.compare(validated.oldPassword, dbUser.password);
-
-    if (!isValid) {
-      return { success: false, error: "原密码错误" };
-    }
-
-    const hashedPassword = await bcrypt.hash(validated.newPassword, 12);
-
-    await db
-      .update(users)
-      .set({ password: hashedPassword, updatedAt: new Date() })
-      .where(eq(users.id, user.id));
-
-    return { success: true };
-  } catch (error) {
-    console.error("Change password failed:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "修改密码失败",
     };
   }
 }
@@ -317,35 +217,37 @@ export async function changeNicknameAction(data: ChangeNicknameFormData) {
 }
 
 // ================================
-// 管理员初始化
+// 管理员初始化（按 ADMIN_PHONE）
 // ================================
 
 export async function initAdminUser() {
-  // 如果没有配置管理员信息，跳过初始化
-  if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
-    console.log("Admin credentials not configured, skipping admin initialization");
+  if (!ADMIN_PHONE) {
     return;
   }
 
   const [existingAdmin] = await db
     .select()
     .from(users)
-    .where(eq(users.email, ADMIN_EMAIL))
+    .where(eq(users.phone, ADMIN_PHONE))
     .limit(1);
 
   if (!existingAdmin) {
-    const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 12);
     await db.insert(users).values({
       id: randomUUID(),
-      email: ADMIN_EMAIL,
-      password: hashedPassword,
+      phone: ADMIN_PHONE,
       nickname: "Murphy",
       role: "ADMIN",
       isPaid: true,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    console.log("Admin user created:", ADMIN_EMAIL);
+    console.log("Admin user created:", ADMIN_PHONE);
+  } else if (existingAdmin.role !== "ADMIN") {
+    // 已存在但非管理员（例如先以普通用户登录过）→ 提升为管理员
+    await db
+      .update(users)
+      .set({ role: "ADMIN", isPaid: true, updatedAt: new Date() })
+      .where(eq(users.id, existingAdmin.id));
   }
 }
 

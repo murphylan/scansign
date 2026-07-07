@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { desc, eq, or, ilike, type SQL } from "drizzle-orm";
 import { z } from "zod";
 
-import { OPS_ONLINE_WITHIN_MINUTES, OPS_SUPER_USER_EMAIL } from "@/config/ops";
+import { OPS_ONLINE_WITHIN_MINUTES, OPS_SUPER_USER_PHONE } from "@/config/ops";
 import { db } from "@/server/db";
 import { users } from "@/server/db/schema";
 import { getCurrentUser } from "@/server/actions/authAction";
@@ -12,7 +12,7 @@ import type { AuthUser, SubscriptionPlan } from "@/types/user-types";
 
 export type OpsUserRow = {
   id: string;
-  email: string;
+  phone: string | null;
   nickname: string | null;
   role: "USER" | "ADMIN";
   trialStartAt: string;
@@ -28,7 +28,7 @@ export type OpsUserRow = {
 
 async function requireOps(): Promise<AuthUser> {
   const u = await getCurrentUser();
-  if (!u || u.email !== OPS_SUPER_USER_EMAIL) {
+  if (!u || u.phone !== OPS_SUPER_USER_PHONE) {
     throw new Error("无权访问运营台");
   }
   return u;
@@ -58,7 +58,7 @@ function planToExtraDays(plan: SubscriptionPlan): number {
 
 const selectOpsFields = {
   id: users.id,
-  email: users.email,
+  phone: users.phone,
   nickname: users.nickname,
   role: users.role,
   trialStartAt: users.trialStartAt,
@@ -86,7 +86,7 @@ export async function listOpsUsersAction(search?: string): Promise<{
     const q = search?.trim();
     if (q) {
       whereClause = or(
-        ilike(users.email, `%${q}%`),
+        ilike(users.phone, `%${q}%`),
         ilike(users.nickname, `%${q}%`)
       );
     }
@@ -104,7 +104,7 @@ export async function listOpsUsersAction(search?: string): Promise<{
 
     const data: OpsUserRow[] = rows.map((r) => ({
       id: r.id,
-      email: r.email,
+      phone: r.phone,
       nickname: r.nickname,
       role: r.role as OpsUserRow["role"],
       trialStartAt: r.trialStartAt.toISOString(),

@@ -1,28 +1,17 @@
 "use client";
 
-// 1. React
 import { useCallback, useState, useTransition } from "react";
-
-// 2. Next.js
 import { useRouter } from "next/navigation";
-
-// 3. Third-party
 import { toast } from "sonner";
 
-// 4. Server Actions
 import {
-  loginAction,
-  registerAction,
+  sendSmsCodeAction,
+  loginWithCodeAction,
   logoutAction,
-  changePasswordAction,
   changeNicknameAction,
 } from "@/server/actions/authAction";
-
-// 5. Types
 import type {
-  LoginFormData,
-  RegisterFormData,
-  ChangePasswordFormData,
+  LoginWithCodeFormData,
   ChangeNicknameFormData,
 } from "@/types/user-types";
 
@@ -31,13 +20,25 @@ export function useAuth() {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const login = useCallback(
-    async (data: LoginFormData) => {
+  /** 发送短信验证码。返回是否成功。 */
+  const sendCode = useCallback(async (phone: string) => {
+    setError(null);
+    const res = await sendSmsCodeAction({ phone });
+    if (res.success) {
+      toast.success("验证码已发送");
+      return true;
+    }
+    setError(res.error || "发送验证码失败");
+    toast.error(res.error || "发送验证码失败");
+    return false;
+  }, []);
+
+  /** 手机号+验证码登录（登录即注册） */
+  const loginWithCode = useCallback(
+    async (data: LoginWithCodeFormData) => {
       setError(null);
-
       startTransition(async () => {
-        const res = await loginAction(data);
-
+        const res = await loginWithCodeAction(data);
         if (res.success) {
           toast.success("登录成功");
           router.push("/dashboard");
@@ -51,30 +52,9 @@ export function useAuth() {
     [router]
   );
 
-  const register = useCallback(
-    async (data: RegisterFormData) => {
-      setError(null);
-
-      startTransition(async () => {
-        const res = await registerAction(data);
-
-        if (res.success) {
-          toast.success("注册成功");
-          router.push("/dashboard");
-          router.refresh();
-        } else {
-          setError(res.error || "注册失败");
-          toast.error(res.error || "注册失败");
-        }
-      });
-    },
-    [router]
-  );
-
   const logout = useCallback(async () => {
     startTransition(async () => {
       const res = await logoutAction();
-
       if (res.success) {
         toast.success("已退出登录");
         router.push("/login");
@@ -85,59 +65,30 @@ export function useAuth() {
     });
   }, [router]);
 
-  const changePassword = useCallback(
-    async (data: ChangePasswordFormData) => {
-      setError(null);
-
-      return new Promise<boolean>((resolve) => {
-        startTransition(async () => {
-          const res = await changePasswordAction(data);
-
-          if (res.success) {
-            toast.success("密码修改成功");
-            resolve(true);
-          } else {
-            setError(res.error || "修改密码失败");
-            toast.error(res.error || "修改密码失败");
-            resolve(false);
-          }
-        });
+  const changeNickname = useCallback(async (data: ChangeNicknameFormData) => {
+    setError(null);
+    return new Promise<boolean>((resolve) => {
+      startTransition(async () => {
+        const res = await changeNicknameAction(data);
+        if (res.success) {
+          toast.success("昵称修改成功");
+          resolve(true);
+        } else {
+          setError(res.error || "修改昵称失败");
+          toast.error(res.error || "修改昵称失败");
+          resolve(false);
+        }
       });
-    },
-    []
-  );
-
-  const changeNickname = useCallback(
-    async (data: ChangeNicknameFormData) => {
-      setError(null);
-
-      return new Promise<boolean>((resolve) => {
-        startTransition(async () => {
-          const res = await changeNicknameAction(data);
-
-          if (res.success) {
-            toast.success("昵称修改成功");
-            resolve(true);
-          } else {
-            setError(res.error || "修改昵称失败");
-            toast.error(res.error || "修改昵称失败");
-            resolve(false);
-          }
-        });
-      });
-    },
-    []
-  );
+    });
+  }, []);
 
   return {
-    login,
-    register,
+    sendCode,
+    loginWithCode,
     logout,
-    changePassword,
     changeNickname,
     isPending,
     error,
     setError,
   };
 }
-
