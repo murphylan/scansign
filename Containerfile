@@ -7,16 +7,6 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 
-# Stage 1b: 仅生产依赖（供 runner 使用；丢弃 devDeps: playwright/typescript/tailwind/drizzle-kit/@types）
-# 说明：Next standalone 的 trace 会漏掉只经 server action 引用的 drizzle-orm/postgres/bcryptjs，
-# 所以 runner 仍需一份 node_modules；用 --prod 版即可，既保证运行期依赖齐全又去掉体积大头。
-FROM zot.murphylan.cloud/library/node:22-alpine AS prod-deps
-RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
-WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --prod --frozen-lockfile
-
-
 # Stage 2: Build the application
 FROM zot.murphylan.cloud/library/node:22-alpine AS builder
 RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
@@ -51,9 +41,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# 生产依赖覆盖 standalone 自带的最小 node_modules（补齐 drizzle-orm/postgres/bcryptjs 等）
-COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
-
+# 依赖走 webpack build 的 standalone 自带 node_modules（webpack 的 outputFileTracing 会正确
+# 打进 drizzle-orm/postgres/bcryptjs）。注意 build 必须用 next build --webpack；Turbopack 的
+# tracing 会漏掉这几个只经 server action 引用的包，导致运行期 MODULE_NOT_FOUND。
 # 仅保留 schema 更新所需文件（install.sh 会 podman cp 出这两者，在宿主机跑 drizzle-kit push）
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts

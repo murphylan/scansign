@@ -3,16 +3,7 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/server/db";
 import { votes, voteOptions } from "@/server/db/schema";
-
-// 简单的内存订阅管理（生产环境应使用 Redis）
-const subscribers = new Map<string, Set<(data: unknown) => void>>();
-
-export function notifyVoteUpdate(voteId: string, data: unknown) {
-  const subs = subscribers.get(voteId);
-  if (subs) {
-    subs.forEach((callback) => callback(data));
-  }
-}
+import { subscribe, unsubscribe } from "@/server/vote-subscribers";
 
 // GET /api/votes/[id]/stream - SSE 实时推送
 export async function GET(
@@ -71,10 +62,7 @@ export async function GET(
         }
       };
 
-      if (!subscribers.has(id)) {
-        subscribers.set(id, new Set());
-      }
-      subscribers.get(id)!.add(callback);
+      subscribe(id, callback);
 
       // 心跳
       const heartbeat = setInterval(() => {
@@ -117,13 +105,7 @@ export async function GET(
 
       // 清理
       request.signal.addEventListener("abort", () => {
-        const subs = subscribers.get(id);
-        if (subs) {
-          subs.delete(callback);
-          if (subs.size === 0) {
-            subscribers.delete(id);
-          }
-        }
+        unsubscribe(id, callback);
         clearInterval(heartbeat);
         clearInterval(refresh);
         controller.close();

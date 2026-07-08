@@ -14,6 +14,10 @@ import { UserProvider } from "@/components/auth/auth-guard";
 import { PresenceBeacon } from "@/components/auth/presence-beacon";
 import { OPS_SUPER_USER_PHONE } from "@/config/ops";
 
+// 管理端全部页面都依赖登录态（layout 里 initAdminUser/getCurrentUser 会查库），
+// 必须动态渲染，禁止构建期静态预渲染（否则 next build --webpack 会在构建期连库而失败）。
+export const dynamic = "force-dynamic";
+
 export default async function AdminLayout({
   children,
 }: {
