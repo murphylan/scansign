@@ -7,13 +7,22 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/server/db";
 import { users, sessions } from "@/server/db/schema";
-import { sendCodeSchema, loginWithCodeSchema, changeNicknameSchema } from "@/types/user-types";
+import {
+  sendCodeSchema,
+  loginWithCodeSchema,
+  changeNicknameSchema,
+  loginWithPasswordSchema,
+  setPasswordSchema,
+} from "@/types/user-types";
 import type {
   LoginWithCodeFormData,
   ChangeNicknameFormData,
+  LoginWithPasswordFormData,
+  SetPasswordFormData,
   AuthUser,
 } from "@/types/user-types";
 import { createAndSendCode, verifyCode, findOrCreateUser } from "@/lib/verification";
+import { hashPassword, verifyPassword } from "@/lib/password";
 
 // ================================
 // 常量配置（从环境变量读取）
@@ -167,6 +176,56 @@ export async function loginWithCodeAction(data: LoginWithCodeFormData) {
   }
 }
 
+/** 手机号 + 密码登录（仅限已注册且已设密的用户，不自动注册） */
+export async function loginWithPasswordAction(data: LoginWithPasswordFormData) {
+  try {
+    const validated = loginWithPasswordSchema.parse(data);
+
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.phone, validated.phone))
+      .limit(1);
+
+    // 账号不存在，或存量用户从未设过密码 → 引导走验证码
+    if (!user || !user.password) {
+      return {
+        success: false,
+        error: "该手机号未注册或未设置密码，请用验证码登录",
+      };
+    }
+
+    const ok = await verifyPassword(validated.password, user.password);
+    if (!ok) {
+      return { success: false, error: "手机号或密码错误" };
+    }
+
+    await db
+      .update(users)
+      .set({ lastLoginAt: new Date(), updatedAt: new Date() })
+      .where(eq(users.id, user.id));
+
+    await createSession(user.id);
+    revalidatePath("/");
+
+    return {
+      success: true,
+      data: {
+        id: user.id,
+        phone: user.phone,
+        nickname: user.nickname,
+        role: user.role,
+      },
+    };
+  } catch (error) {
+    console.error("Login with password failed:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "登录失败",
+    };
+  }
+}
+
 export async function logoutAction() {
   try {
     const cookieStore = await cookies();
@@ -212,6 +271,35 @@ export async function changeNicknameAction(data: ChangeNicknameFormData) {
     return {
       success: false,
       error: error instanceof Error ? error.message : "修改昵称失败",
+    };
+  }
+}
+
+/** 设置/修改密码（登录态下，会话已证明身份，直接覆盖，无需旧密码） */
+export async function setPasswordAction(data: SetPasswordFormData) {
+  try {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return { success: false, error: "未登录" };
+    }
+
+    const validated = setPasswordSchema.parse(data);
+    const password = await hashPassword(validated.password);
+
+    await db
+      .update(users)
+      .set({ password, updatedAt: new Date() })
+      .where(eq(users.id, user.id));
+
+    revalidatePath("/settings");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Set password failed:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "设置密码失败",
     };
   }
 }

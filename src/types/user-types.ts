@@ -88,6 +88,22 @@ export const changeNicknameSchema = z.object({
   nickname: z.string().min(1, "昵称不能为空").max(50, "昵称最多50个字符"),
 });
 
+const passwordField = z
+  .string()
+  .min(6, "密码至少 6 位")
+  .max(64, "密码最多 64 位");
+
+// 手机号+密码登录（仅限已注册且已设密的用户，不自动注册）
+export const loginWithPasswordSchema = z.object({
+  phone: phoneField,
+  password: passwordField,
+});
+
+// 设置/修改密码（登录态下）
+export const setPasswordSchema = z.object({
+  password: passwordField,
+});
+
 // ================================
 // 表单数据类型（从 Schema 推断）
 // ================================
@@ -95,4 +111,6 @@ export const changeNicknameSchema = z.object({
 export type SendCodeFormData = z.infer<typeof sendCodeSchema>;
 export type LoginWithCodeFormData = z.infer<typeof loginWithCodeSchema>;
 export type ChangeNicknameFormData = z.infer<typeof changeNicknameSchema>;
+export type LoginWithPasswordFormData = z.infer<typeof loginWithPasswordSchema>;
+export type SetPasswordFormData = z.infer<typeof setPasswordSchema>;
 

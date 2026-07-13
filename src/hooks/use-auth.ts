@@ -7,11 +7,15 @@ import { toast } from "sonner";
 import {
   sendSmsCodeAction,
   loginWithCodeAction,
+  loginWithPasswordAction,
+  setPasswordAction,
   logoutAction,
   changeNicknameAction,
 } from "@/server/actions/authAction";
 import type {
   LoginWithCodeFormData,
+  LoginWithPasswordFormData,
+  SetPasswordFormData,
   ChangeNicknameFormData,
 } from "@/types/user-types";
 
@@ -39,6 +43,25 @@ export function useAuth() {
       setError(null);
       startTransition(async () => {
         const res = await loginWithCodeAction(data);
+        if (res.success) {
+          toast.success("登录成功");
+          router.push("/dashboard");
+          router.refresh();
+        } else {
+          setError(res.error || "登录失败");
+          toast.error(res.error || "登录失败");
+        }
+      });
+    },
+    [router]
+  );
+
+  /** 手机号+密码登录（已注册用户） */
+  const loginWithPassword = useCallback(
+    async (data: LoginWithPasswordFormData) => {
+      setError(null);
+      startTransition(async () => {
+        const res = await loginWithPasswordAction(data);
         if (res.success) {
           toast.success("登录成功");
           router.push("/dashboard");
@@ -82,11 +105,31 @@ export function useAuth() {
     });
   }, []);
 
+  /** 设置/修改密码（登录态下）。返回是否成功。 */
+  const setPassword = useCallback(async (data: SetPasswordFormData) => {
+    setError(null);
+    return new Promise<boolean>((resolve) => {
+      startTransition(async () => {
+        const res = await setPasswordAction(data);
+        if (res.success) {
+          toast.success("密码设置成功");
+          resolve(true);
+        } else {
+          setError(res.error || "设置密码失败");
+          toast.error(res.error || "设置密码失败");
+          resolve(false);
+        }
+      });
+    });
+  }, []);
+
   return {
     sendCode,
     loginWithCode,
+    loginWithPassword,
     logout,
     changeNickname,
+    setPassword,
     isPending,
     error,
     setError,

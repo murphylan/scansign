@@ -2,17 +2,22 @@
 
 import { useCallback, useState } from "react";
 
-import { User, Save, Loader2, Check, Crown, Clock } from "lucide-react";
+import { User, Save, Loader2, Check, Crown, Clock, Lock } from "lucide-react";
+import { toast } from "sonner";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useUser } from "@/components/auth/auth-guard";
 
 export default function SettingsPage() {
   const user = useUser();
-  const { changeNickname, isPending } = useAuth();
+  const { changeNickname, setPassword, isPending } = useAuth();
 
   const [nickname, setNickname] = useState(user.nickname || "");
   const [nicknameSuccess, setNicknameSuccess] = useState(false);
+
+  const [password, setPasswordInput] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   const handleNicknameSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -27,6 +32,32 @@ export default function SettingsPage() {
       }
     },
     [nickname, changeNickname]
+  );
+
+  const handlePasswordSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      setPasswordSuccess(false);
+
+      if (password.length < 6) {
+        toast.error("密码至少 6 位");
+        return;
+      }
+      if (password !== confirmPassword) {
+        toast.error("两次输入的密码不一致");
+        return;
+      }
+
+      const success = await setPassword({ password });
+
+      if (success) {
+        setPasswordSuccess(true);
+        setPasswordInput("");
+        setConfirmPassword("");
+        setTimeout(() => setPasswordSuccess(false), 3000);
+      }
+    },
+    [password, confirmPassword, setPassword]
   );
 
   return (
@@ -109,6 +140,63 @@ export default function SettingsPage() {
               <Save className="h-4 w-4" />
             )}
             保存
+          </button>
+        </form>
+      </div>
+
+      {/* 设置密码 */}
+      <div className="bg-card rounded-xl border border-border p-6">
+        <h2 className="text-lg font-semibold mb-1 flex items-center gap-2">
+          <Lock className="h-5 w-5" />
+          设置密码
+        </h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          设置后即可用「手机号 + 密码」登录，验证码登录仍然可用。
+        </p>
+
+        <form onSubmit={handlePasswordSubmit} className="space-y-4">
+          {passwordSuccess && (
+            <div className="p-3 rounded-lg bg-emerald-500/10 text-emerald-600 text-sm flex items-center gap-2">
+              <Check className="h-4 w-4" />
+              密码设置成功
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium mb-2">新密码</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              placeholder="6 - 64 位"
+              autoComplete="new-password"
+              className="w-full px-4 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">确认新密码</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="再次输入新密码"
+              autoComplete="new-password"
+              className="w-full px-4 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isPending || !password || !confirmPassword}
+            className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 disabled:opacity-50"
+          >
+            {isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            保存密码
           </button>
         </form>
       </div>
